@@ -1,0 +1,684 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL") // Neon : connexion directe sans pooling
+}
+
+enum Plan {
+  FREE
+  PRO
+  FAMILY
+}
+
+enum UIMode {
+  STANDARD
+  ACCESSIBLE
+}
+
+enum AppLanguage {
+  FR
+  FON
+  BARIBA
+  YORUBA
+  DENDI
+  GOUN
+  ADJA
+  EWE
+  TEM
+}
+
+enum Currency {
+  XOF
+  EUR
+  USD
+  GHS
+  NGN
+  KES
+  MAD
+}
+
+enum AccountType {
+  CASH
+  MOBILE_MONEY_MTN
+  MOBILE_MONEY_MOOV
+  MOBILE_MONEY_WAVE
+  BANK
+  SAVINGS
+  TONTINE
+  OTHER
+}
+
+enum TransactionType {
+  INCOME
+  EXPENSE
+  TRANSFER
+}
+
+enum GoalStatus {
+  ACTIVE
+  PAUSED
+  COMPLETED
+  ABANDONED
+}
+
+enum GoalType {
+  BINARY
+  NUMERIC
+  MILESTONE
+}
+
+enum Priority {
+  HIGH
+  MEDIUM
+  LOW
+}
+
+enum LifeDomain {
+  FINANCE
+  HEALTH
+  CAREER
+  RELATIONS
+  PERSONAL
+  SPIRITUAL
+  FAMILY
+}
+
+enum HabitFrequency {
+  DAILY
+  WEEKLY
+  CUSTOM
+}
+
+enum DebtType {
+  OWED_BY_ME
+  OWED_TO_ME
+}
+
+enum DebtStrategy {
+  SNOWBALL
+  AVALANCHE
+}
+
+enum WorkoutIntensity {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum EmploymentType {
+  EMPLOYEE
+  FREELANCE
+  ENTREPRENEUR
+  STUDENT
+  OTHER
+}
+
+enum ContactCircle {
+  FAMILY_CLOSE
+  FAMILY_EXTENDED
+  FRIEND
+  COLLEAGUE
+  MENTOR
+  NETWORK
+}
+
+model User {
+  id             String      @id @default(cuid())
+  email          String      @unique
+  phone          String?     @unique
+  name           String
+  avatar         String?
+  passwordHash   String?
+  googleId       String?     @unique
+  appleId        String?     @unique
+
+  // Plan & accès
+  plan           Plan        @default(FREE)
+  planExpiresAt  DateTime?
+  aiUsageCount   Int         @default(0) // compteur mensuel Free
+  aiUsageReset   DateTime?                // reset le 1er du mois
+
+  // Préférences
+  currency       Currency    @default(XOF)
+  language       AppLanguage @default(FR)
+  uiMode         UIMode      @default(STANDARD)
+  timezone       String      @default("Africa/Porto-Novo")
+  theme          String      @default("light")
+
+  // Onboarding
+  onboarded      Boolean     @default(false)
+  onboardingStep Int         @default(0)
+
+  // Scores (mis à jour quotidiennement par cron)
+  scoreFinance   Float?
+  scoreHealth    Float?
+  scoreGoals     Float?
+  scoreRoutines  Float?
+  scoreCareer    Float?
+  scoreRelations Float?
+  scoreLife      Float?
+
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  accounts              Account[]
+  transactions          Transaction[]
+  budgets               Budget[]
+  savingsGoals          SavingsGoal[]
+  tontineMemberships    TontineMember[]
+  ownedTontines         Tontine[]            @relation("TontineOwner")
+  debts                 Debt[]
+  bills                 Bill[]
+  lifeGoals            LifeGoal[]
+  habits                Habit[]
+  habitLogs            HabitLog[]
+  sleepLogs            SleepLog[]
+  moodLogs             MoodLog[]
+  workoutLogs          WorkoutLog[]
+  careerProfile        CareerProfile?
+  contacts             Contact[]
+  familyMembership      FamilyMember?
+  ownedFamily          Family?              @relation("FamilyOwner")
+  notifications         Notification[]
+  aiConversations      AiConversation[]
+  sessions             Session[]
+  refreshTokens       RefreshToken[]
+
+  // Mode Accessible
+  dailyShopLogs        DailyShopLog[]
+  customerCredits      CustomerCredit[]
+  supplierDebts        SupplierDebt[]
+}
+
+model Session {
+  id           String    @id @default(cuid())
+  userId       String
+  deviceName   String?
+  deviceType   String? // mobile | desktop | tablet
+  ip           String?
+  userAgent    String?
+  lastActiveAt DateTime @default(now())
+  expiresAt    DateTime
+  createdAt    DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model RefreshToken {
+  id        String   @id @default(cuid())
+  userId    String
+  token     String   @unique
+  sessionId String?
+  expiresAt DateTime
+  usedAt    DateTime?
+  revokedAt DateTime?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([token])
+  @@index([userId])
+}
+
+model Account {
+  id          String      @id @default(cuid())
+  userId      String
+  name        String
+  type        AccountType
+  balance     Decimal     @default(0) @db.Decimal(15, 2)
+  currency    Currency    @default(XOF)
+  color       String?
+  icon        String?
+  isDefault   Boolean     @default(false)
+  isArchived  Boolean     @default(false)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions Transaction[]
+
+  @@index([userId])
+}
+
+model Transaction {
+  id           String            @id @default(cuid())
+  userId       String
+  accountId    String
+  type         TransactionType
+  amount       Decimal          @db.Decimal(15, 2)
+  category     String
+  subcategory  String?
+  note         String?
+  receiptUrl   String?
+  date         DateTime
+  isRecurring  Boolean          @default(false)
+  recurringId  String?
+  syncId       String?
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  account Account @relation(fields: [accountId], references: [id])
+
+  @@index([userId, date])
+  @@index([userId, category])
+}
+
+model Budget {
+  id        String   @id @default(cuid())
+  userId    String
+  month     Int      // 1-12
+  year      Int
+  category  String
+  planned   Decimal  @db.Decimal(15, 2)
+  rollover  Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, month, year, category])
+  @@index([userId, year, month])
+}
+
+model SavingsGoal {
+  id            String    @id @default(cuid())
+  userId        String
+  name          String
+  targetAmount  Decimal   @db.Decimal(15, 2)
+  currentAmount Decimal   @default(0) @db.Decimal(15, 2)
+  deadline      DateTime?
+  imageUrl      String?
+  color         String?
+  isCompleted   Boolean   @default(false)
+  completedAt   DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model Tontine {
+  id           String    @id @default(cuid())
+  name         String
+  monthlyMise  Decimal   @db.Decimal(15, 2)
+  frequency    String    @default("monthly") // monthly | weekly
+  startDate    DateTime
+  totalMembers Int
+  ownerId      String
+  description  String?
+  createdAt    DateTime @default(now())
+
+  owner  User           @relation("TontineOwner", fields: [ownerId], references: [id])
+  members TontineMember[]
+}
+
+model TontineMember {
+  id            String   @id @default(cuid())
+  userId        String
+  tontineId     String
+  rank          Int
+  turnDate      DateTime?
+  hasPaid       Boolean  @default(false)
+  hasReceived   Boolean  @default(false)
+  joinedAt      DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tontine Tontine @relation(fields: [tontineId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, tontineId])
+}
+
+model Debt {
+  id           String       @id @default(cuid())
+  userId       String
+  name         String
+  type         DebtType
+  totalAmount  Decimal      @db.Decimal(15, 2)
+  paidAmount   Decimal      @default(0) @db.Decimal(15, 2)
+  interestRate Float?
+  dueDate      DateTime?
+  strategy     DebtStrategy @default(SNOWBALL)
+  note         String?
+  isArchived   Boolean      @default(false)
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model Bill {
+  id                 String    @id @default(cuid())
+  userId             String
+  name               String
+  amount             Decimal   @db.Decimal(15, 2)
+  dueDay             Int       // jour du mois (1-31)
+  category           String
+  reminderDaysBefore Int      @default(3)
+  isActive          Boolean   @default(true)
+  lastPaidAt         DateTime?
+  createdAt         DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model LifeGoal {
+  id           String     @id @default(cuid())
+  userId       String
+  title        String
+  description  String?
+  domain       LifeDomain
+  type         GoalType   @default(MILESTONE)
+  targetValue  Float?
+  currentValue Float?     @default(0)
+  unit         String?
+  deadline     DateTime?
+  priority     Priority   @default(MEDIUM)
+  status       GoalStatus @default(ACTIVE)
+  imageUrl     String?
+  isPublic     Boolean    @default(false)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  user    User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tasks   GoalTask[]
+  updates GoalUpdate[]
+
+  @@index([userId, status])
+}
+
+model GoalTask {
+  id            String    @id @default(cuid())
+  goalId       String
+  title        String
+  isCompleted  Boolean   @default(false)
+  dueDate      DateTime?
+  order         Int       @default(0)
+  completedAt  DateTime?
+
+  goal LifeGoal @relation(fields: [goalId], references: [id], onDelete: Cascade)
+}
+
+model GoalUpdate {
+  id        String   @id @default(cuid())
+  goalId    String
+  value     Float?
+  note      String
+  createdAt DateTime @default(now())
+
+  goal LifeGoal @relation(fields: [goalId], references: [id], onDelete: Cascade)
+}
+
+model Habit {
+  id           String         @id @default(cuid())
+  userId       String
+  name         String
+  description  String?
+  icon         String?
+  color        String?
+  frequency    HabitFrequency @default(DAILY)
+  targetDays   Int[]
+  targetValue  Float?
+  unit         String?
+  reminderTime String?
+  isActive     Boolean        @default(true)
+  isPaused     Boolean        @default(false)
+  pausedUntil  DateTime?
+  order        Int            @default(0)
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  user  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  logs  HabitLog[]
+
+  @@index([userId, isActive])
+}
+
+model HabitLog {
+  id        String   @id @default(cuid())
+  userId    String
+  habitId   String
+  date      DateTime @db.Date
+  value     Float?
+  note      String?
+  createdAt DateTime @default(now())
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  habit Habit @relation(fields: [habitId], references: [id], onDelete: Cascade)
+
+  @@unique([habitId, date])
+  @@index([userId, date])
+}
+
+model DailyReview {
+  id              String   @id @default(cuid())
+  userId          String
+  date            DateTime @db.Date
+  gratitude       String[]
+  reflection      String?
+  tomorrowTop3    String[]
+  energyLevel     Int?
+  overallScore    Float?
+  createdAt       DateTime @default(now())
+
+  @@unique([userId, date])
+  @@map("daily_reviews")
+}
+
+model SleepLog {
+  id        String   @id @default(cuid())
+  userId    String
+  date      DateTime @db.Date
+  bedtime   DateTime
+  wakeTime  DateTime
+  duration  Float?
+  quality   Int
+  note      String?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, date])
+  @@index([userId, date])
+}
+
+model MoodLog {
+  id        String   @id @default(cuid())
+  userId    String
+  date      DateTime @db.Date
+  mood      Int
+  energy    Int
+  emotions  String[]
+  note      String?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, date])
+}
+
+model WorkoutLog {
+  id        String   @id @default(cuid())
+  userId    String
+  date      DateTime @db.Date
+  type      String
+  duration  Int
+  intensity WorkoutIntensity
+  note      String?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, date])
+}
+
+model CareerProfile {
+  id              String         @id @default(cuid())
+  userId          String         @unique
+  currentRole     String?
+  sector          String?
+  employmentType  EmploymentType?
+  monthlyIncome   Decimal?       @db.Decimal(15, 2)
+  incomeGoal      Decimal?       @db.Decimal(15, 2)
+  skills          String[]
+  bio             String?
+  updatedAt       DateTime       @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Contact {
+  id            String        @id @default(cuid())
+  userId        String
+  name          String
+  circle        ContactCircle
+  birthday      DateTime?
+  city          String?
+  notes         String?
+  lastContactAt DateTime?
+  reminderDays  Int?
+  rating        Int?
+  phone         String?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model Family {
+  id        String         @id @default(cuid())
+  name      String
+  ownerId   String         @unique
+  inviteCode String?       @unique
+  createdAt DateTime       @default(now())
+
+  owner    User           @relation("FamilyOwner", fields: [ownerId], references: [id])
+  members  FamilyMember[]
+}
+
+model FamilyMember {
+  id       String   @id @default(cuid())
+  familyId String
+  userId   String   @unique
+  role     String   @default("member") // owner | member
+  joinedAt DateTime @default(now())
+
+  family   Family @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model AiConversation {
+  id        String   @id @default(cuid())
+  userId    String
+  module    String?
+  title     String?
+  messages  Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model AiInsight {
+  id        String   @id @default(cuid())
+  userId    String
+  type      String
+  content   Json
+  isRead    Boolean  @default(false)
+  weekYear  String?
+  createdAt DateTime @default(now())
+
+  @@index([userId, isRead])
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  type      String
+  title     String
+  body      String
+  data      Json?
+  isRead    Boolean  @default(false)
+  sentAt    DateTime?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, isRead])
+}
+
+model PushToken {
+  id        String   @id @default(cuid())
+  userId    String
+  token     String   @unique
+  platform  String   // web | android | ios
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+model DailyShopLog {
+  id                    String   @id @default(cuid())
+  userId                String
+  date                  DateTime @db.Date
+  capitalMatin          Decimal  @default(0) @db.Decimal(15, 2)
+  recettes              Decimal  @default(0) @db.Decimal(15, 2)
+  reapprovisionnement   Decimal  @default(0) @db.Decimal(15, 2)
+  beneficeNet           Decimal  @default(0) @db.Decimal(15, 2)
+  note                  String?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, date])
+  @@index([userId, date])
+}
+
+model CustomerCredit {
+  id          String   @id @default(cuid())
+  userId      String
+  clientName  String
+  amount      Decimal  @db.Decimal(15, 2)
+  dateCredit  DateTime @default(now())
+  rembourse   Boolean  @default(false)
+  rembourseAt DateTime?
+  note        String?
+  createdAt   DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, rembourse])
+}
+
+model SupplierDebt {
+  id               String   @id @default(cuid())
+  userId           String
+  fournisseurName  String
+  amount           Decimal  @db.Decimal(15, 2)
+  dateEcheance     DateTime?
+  rembourse        Boolean  @default(false)
+  rembourseAt      DateTime?
+  note             String?
+  createdAt        DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, rembourse])
+}
+
