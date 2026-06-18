@@ -1,0 +1,77 @@
+{
+  "@@locale": "fr",
+  "app": {
+    "name": "LifeHelm",
+    "tagline": "Prends le gouvernail de ta vie"
+  },
+  "nav": {
+    "home": "Accueil",
+    "finance": "Finance",
+    "goals": "Objectifs",
+    "routines": "Routines",
+    "health": "Santé",
+    "ai": "HELM AI",
+    "profile": "Profil"
+  },
+  "auth": {
+    "login": "Se connecter",
+    "signup": "Créer un compte",
+    "logout": "Déconnexion",
+    "email": "Email",
+    "password": "Mot de passe",
+    "firstName": "Prénom",
+    "lastName": "Nom",
+    "phone": "Téléphone",
+    "welcome": "Bienvenue dans LifeHelm",
+    "demoAccount": "Connexion démo"
+  },
+  "finance": {
+    "title": "Finance",
+    "balance": "Solde global",
+    "accounts": "Comptes",
+    "transactions": "Transactions",
+    "savings": "Épargne",
+    "tontines": "Tontines",
+    "debts": "Dettes",
+    "bills": "Factures",
+    "budget": "Budget",
+    "income": "Revenus",
+    "expenses": "Dépenses",
+    "addTransaction": "Nouvelle transaction",
+    "addIncome": "Nouveau revenu",
+    "addExpense": "Nouvelle dépense",
+    "amount": "Montant",
+    "category": "Catégorie",
+    "label": "Libellé",
+    "note": "Note",
+    "date": "Date",
+    "account": "Compte"
+  },
+  "accessible": {
+    "vente": "VENTE",
+    "depense": "DÉPENSE",
+    "bilan": "BILAN",
+    "morningCapital": "Mise du matin",
+    "todaySales": "Recettes du jour",
+    "restock": "Réapprovisionnement",
+    "netProfit": "Bénéfice net",
+    "save": "Enregistrer"
+  },
+  "ai": {
+    "insights": "Insights",
+    "chat": "Chat",
+    "askHelm": "Pose ta question à HELM AI…",
+    "newConversation": "Nouvelle conversation"
+  },
+  "common": {
+    "save": "Enregistrer",
+    "cancel": "Annuler",
+    "delete": "Supprimer",
+    "edit": "Modifier",
+    "add": "Ajouter",
+    "loading": "Chargement…",
+    "error": "Erreur",
+    "retry": "Réessayer",
+    "ok": "OK"
+  }
+}

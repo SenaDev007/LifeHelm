@@ -1,0 +1,77 @@
+{
+  "@@locale": "yoruba",
+  "app": {
+    "name": "LifeHelm",
+    "tagline": "Mu òwò ìgbè-ayé rẹ"
+  },
+  "nav": {
+    "home": "Ilé",
+    "finance": "Owó",
+    "goals": "Èrò",
+    "routines": "Àdámọ́",
+    "health": "Ilera",
+    "ai": "HELM AI",
+    "profile": "Èmi"
+  },
+  "auth": {
+    "login": "Wọlé",
+    "signup": "Forúkọ sílẹ̀",
+    "logout": "Jáde",
+    "email": "Email",
+    "password": "Ọ̀rọ̀-ìpamọ́",
+    "firstName": "Orúkọ àkọ́kọ́",
+    "lastName": "Orúkọ Ìdílé",
+    "phone": "Fọ́ọ̀nù",
+    "welcome": "Kaabọ̀ nínú LifeHelm",
+    "demoAccount": "Wọlé àpéjẹ"
+  },
+  "finance": {
+    "title": "Owó",
+    "balance": "Owó tó wà",
+    "accounts": "Àpamọ́ owó",
+    "transactions": "Ìdàṣíṣe owó",
+    "savings": "Ìfowópamọ́",
+    "tontines": "Esusu",
+    "debts": "Gbèsè",
+    "bills": "Inawo",
+    "budget": "Etò inawo",
+    "income": "Owó wọlé",
+    "expenses": "Inawo",
+    "addTransaction": "Ìdàṣíṣe tuntun",
+    "addIncome": "Owó wọlé tuntun",
+    "addExpense": "Inawo tuntun",
+    "amount": "Iye owó",
+    "category": "Ẹ̀ka",
+    "label": "Orúkọ",
+    "note": "Àkíyèsí",
+    "date": "Déètì",
+    "account": "Àpamọ́ owó"
+  },
+  "accessible": {
+    "vente": "TÀ / OWÓ-WỌLÉ",
+    "depense": "INAWO",
+    "bilan": "Ìrìrí owó",
+    "morningCapital": "Owó àkọ́kọ́ àró",
+    "todaySales": "Tà ònì",
+    "restock": "Àtúnra owó",
+    "netProfit": "Ère",
+    "save": "Pamọ́"
+  },
+  "ai": {
+    "insights": "Ìmọ̀ràn",
+    "chat": "Ọ̀rọ̀ sọ̀rọ̀",
+    "askHelm": "Béèrè HELM AI…",
+    "newConversation": "Ọ̀rọ̀ tuntun"
+  },
+  "common": {
+    "save": "Pamọ́",
+    "cancel": "Nù kúrò",
+    "delete": "Pa rẹ́",
+    "edit": "Sẹ́ àyípadà",
+    "add": "Àfikún",
+    "loading": "Ǹ kò gbé…",
+    "error": "Àṣìṣe",
+    "retry": "Tún wà",
+    "ok": "Ó dára"
+  }
+}

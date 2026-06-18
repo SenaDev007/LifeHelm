@@ -1,0 +1,862 @@
+// =====================================================================
+// LifeHelm — Schéma Prisma V1
+// "Take the helm of your life"
+// =====================================================================
+// Modules V1 :
+//   - Auth (User, Session, RefreshToken)
+//   - Finance (Account, Transaction, Budget, SavingsGoal, Tontine, Debt, Bill)
+//   - Objectifs (LifeGoal, GoalProject, GoalTask, GoalJournal)
+//   - Routines (Habit, HabitLog, MorningRitual, EveningReview)
+//   - Santé (SleepLog, MoodLog, WorkoutLog, HydrationLog)
+//   - HELM AI (AiConversation, AiMessage, AiInsight)
+//   - Mode Accessible (DailyBoutiqueLog, ClientArdoise, SupplierCredit)
+// =====================================================================
+
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "linux-arm64-openssl-3.0.x"]
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// =====================================================================
+// ENUMS
+// =====================================================================
+
+enum Plan {
+  FREE
+  PRO
+  FAMILY
+}
+
+enum AccountType {
+  CASH
+  MOBILE_MONEY_MTN
+  MOBILE_MONEY_MOOV
+  MOBILE_MONEY_WAVE
+  BANK
+  SAVINGS
+  TONTINE
+  OTHER
+}
+
+enum TransactionType {
+  INCOME
+  EXPENSE
+  TRANSFER
+}
+
+enum BudgetMethod {
+  FIFTY_THIRTY_TWENTY
+  ENVELOPES
+  CUSTOM
+}
+
+enum DebtStrategy {
+  SNOWBALL
+  AVALANCHE
+}
+
+enum DebtDirection {
+  OWED
+  OWING
+}
+
+enum BillStatus {
+  PENDING
+  PAID
+  LATE
+}
+
+enum LifeDomain {
+  FINANCE
+  HEALTH
+  CAREER
+  RELATIONS
+  PERSONAL
+  SPIRITUAL
+  FAMILY
+}
+
+enum GoalType {
+  BINARY
+  NUMERIC
+  MILESTONE
+}
+
+enum GoalStatus {
+  ACTIVE
+  PAUSED
+  COMPLETED
+  ABANDONED
+}
+
+enum GoalPriority {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum TaskStatus {
+  TODO
+  IN_PROGRESS
+  DONE
+  BLOCKED
+}
+
+enum HabitFrequency {
+  DAILY
+  WEEKLY
+  CUSTOM
+}
+
+enum HabitType {
+  BINARY
+  NUMERIC
+}
+
+enum Mood {
+  VERY_BAD
+  BAD
+  NEUTRAL
+  GOOD
+  VERY_GOOD
+}
+
+enum ContactCircle {
+  FAMILY_CLOSE
+  FAMILY_EXTENDED
+  FRIEND
+  COLLEAGUE
+  MENTOR
+  NETWORK
+}
+
+enum AiRole {
+  USER
+  ASSISTANT
+  SYSTEM
+}
+
+enum InsightType {
+  WEEKLY
+  MONTHLY
+  ALERT
+  CORRELATION
+}
+
+enum InsightSeverity {
+  INFO
+  WARNING
+  POSITIVE
+  CRITICAL
+}
+
+enum AppLanguage {
+  FR
+  FON
+  BARIBA
+  YORUBA
+}
+
+enum AppMode {
+  STANDARD
+  ACCESSIBLE
+}
+
+// =====================================================================
+// AUTH & USER
+// =====================================================================
+
+model User {
+  id                  String      @id @default(cuid())
+  email               String      @unique
+  passwordHash        String      @map("password_hash")
+  firstName           String      @map("first_name")
+  lastName            String?     @map("last_name")
+  phone               String?
+  avatarUrl           String?     @map("avatar_url")
+  plan                Plan        @default(FREE)
+  language            AppLanguage @default(FR)
+  appMode             AppMode     @default(STANDARD)
+  currency            String      @default("XOF")
+  onboarded           Boolean     @default(false)
+  accessibleOnboarded Boolean     @default(false) @map("accessible_onboarded")
+  createdAt           DateTime    @default(now()) @map("created_at")
+  updatedAt           DateTime    @updatedAt @map("updated_at")
+  lastLoginAt         DateTime?   @map("last_login_at")
+
+  sessions            Session[]
+  refreshTokens       RefreshToken[]
+  accounts            Account[]
+  transactions        Transaction[]
+  budgets             Budget[]
+  savingsGoals        SavingsGoal[]
+  tontines            Tontine[]
+  tontineMemberships  TontineMember[]
+  debts               Debt[]
+  bills               Bill[]
+  lifeGoals           LifeGoal[]
+  habits              Habit[]
+  habitLogs           HabitLog[]
+  morningRituals      MorningRitual[]
+  eveningReviews      EveningReview[]
+  sleepLogs           SleepLog[]
+  moodLogs            MoodLog[]
+  workoutLogs         WorkoutLog[]
+  hydrationLogs       HydrationLog[]
+  aiConversations     AiConversation[]
+  aiInsights          AiInsight[]
+  dailyBoutiqueLogs   DailyBoutiqueLog[]
+  clientArdoises      ClientArdoise[]
+  supplierCredits     SupplierCredit[]
+  settings            UserSetting?
+  careerProfile       CareerProfile?
+  contacts            Contact[]
+
+  @@map("users")
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  userId       String   @map("user_id")
+  userAgent    String?  @map("user_agent")
+  ip           String?
+  deviceName   String?  @map("device_name")
+  createdAt    DateTime @default(now()) @map("created_at")
+  expiresAt    DateTime @map("expires_at")
+  revoked      Boolean  @default(false)
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("sessions")
+}
+
+model RefreshToken {
+  id           String   @id @default(cuid())
+  userId       String   @map("user_id")
+  token        String   @unique
+  createdAt    DateTime @default(now()) @map("created_at")
+  expiresAt    DateTime @map("expires_at")
+  revoked      Boolean  @default(false)
+  replacedBy   String?  @map("replaced_by")
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("refresh_tokens")
+}
+
+model UserSetting {
+  userId              String   @id @map("user_id")
+  user                User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  notificationsEnabled Boolean @default(true) @map("notifications_enabled")
+  dailyReminderHour   Int      @default(8) @map("daily_reminder_hour")
+  weeklyReportDay     Int      @default(0) @map("weekly_report_day")
+  weeklyReportHour    Int      @default(9) @map("weekly_report_hour")
+  sleepGoalHours      Int      @default(7) @map("sleep_goal_hours")
+  hydrationGoalMl     Int      @default(2000) @map("hydration_goal_ml")
+  weeklyWorkoutGoal   Int      @default(3) @map("weekly_workout_goal")
+  monthlySavingsPct   Int      @default(20) @map("monthly_savings_pct")
+  createdAt           DateTime @default(now()) @map("created_at")
+  updatedAt           DateTime @updatedAt @map("updated_at")
+
+  @@map("user_settings")
+}
+
+// =====================================================================
+// MODULE 1 : FINANCE
+// =====================================================================
+
+model Account {
+  id                 String       @id @default(cuid())
+  userId             String       @map("user_id")
+  name               String
+  type               AccountType
+  balance            Decimal      @default(0) @db.Decimal(14, 2)
+  currency           String       @default("XOF")
+  color              String?
+  icon               String?
+  archived           Boolean      @default(false)
+  createdAt          DateTime     @default(now()) @map("created_at")
+  updatedAt          DateTime     @updatedAt @map("updated_at")
+  user               User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions       Transaction[]
+  fromTransfers      Transaction[] @relation("TransferFrom")
+  toTransfers        Transaction[] @relation("TransferTo")
+
+  @@index([userId])
+  @@map("accounts")
+}
+
+model Transaction {
+  id                  String          @id @default(cuid())
+  userId              String          @map("user_id")
+  accountId           String          @map("account_id")
+  type                TransactionType
+  amount              Decimal         @db.Decimal(14, 2)
+  category            String?
+  subcategory         String?         @map("subcategory")
+  label               String
+  note                String?
+  tags                String[]
+  receiptUrl          String?         @map("receipt_url")
+  date                DateTime        @default(now())
+  recurring           Boolean         @default(false)
+  recurringRule       String?         @map("recurring_rule")
+  transferToAccountId String?         @map("transfer_to_account_id")
+  transferFromAccountId String?       @map("transfer_from_account_id")
+  savingsGoalId       String?         @map("savings_goal_id")
+  boutiqueLogId       String?         @map("boutique_log_id")
+  createdAt           DateTime        @default(now()) @map("created_at")
+  updatedAt           DateTime        @updatedAt @map("updated_at")
+  user                User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  account             Account         @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  transferToAccount   Account?        @relation("TransferTo", fields: [transferToAccountId], references: [id])
+  transferFromAccount Account?        @relation("TransferFrom", fields: [transferFromAccountId], references: [id])
+  savingsGoal         SavingsGoal?    @relation(fields: [savingsGoalId], references: [id])
+
+  @@index([userId])
+  @@index([accountId])
+  @@index([date])
+  @@index([category])
+  @@map("transactions")
+}
+
+model Budget {
+  id           String       @id @default(cuid())
+  userId       String       @map("user_id")
+  month        DateTime
+  method       BudgetMethod @default(FIFTY_THIRTY_TWENTY)
+  totalIncome  Decimal      @default(0) @db.Decimal(14, 2) @map("total_income")
+  needsPct     Int          @default(50) @map("needs_pct")
+  wantsPct     Int          @default(30) @map("wants_pct")
+  savingsPct   Int          @default(20) @map("savings_pct")
+  rollover     Boolean      @default(false)
+  createdAt    DateTime     @default(now()) @map("created_at")
+  updatedAt    DateTime     @updatedAt @map("updated_at")
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  categories   BudgetCategory[]
+
+  @@unique([userId, month])
+  @@map("budgets")
+}
+
+model BudgetCategory {
+  id           String   @id @default(cuid())
+  budgetId     String   @map("budget_id")
+  name         String
+  allocated    Decimal  @db.Decimal(14, 2)
+  spent        Decimal  @default(0) @db.Decimal(14, 2)
+  rolloverFrom Decimal? @db.Decimal(14, 2) @map("rollover_from")
+  budget       Budget   @relation(fields: [budgetId], references: [id], onDelete: Cascade)
+
+  @@index([budgetId])
+  @@map("budget_categories")
+}
+
+model SavingsGoal {
+  id            String   @id @default(cuid())
+  userId        String   @map("user_id")
+  name          String
+  description   String?
+  targetAmount  Decimal  @db.Decimal(14, 2) @map("target_amount")
+  currentAmount Decimal  @default(0) @db.Decimal(14, 2) @map("current_amount")
+  deadline      DateTime?
+  imageUrl      String?  @map("image_url")
+  archived      Boolean  @default(false)
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions  Transaction[]
+
+  @@index([userId])
+  @@map("savings_goals")
+}
+
+model Tontine {
+  id                String         @id @default(cuid())
+  userId            String         @map("user_id")
+  name              String
+  description       String?
+  contributionAmount Decimal       @db.Decimal(14, 2) @map("contribution_amount")
+  frequency         String         @default("MONTHLY")
+  startDate         DateTime       @map("start_date")
+  endDate           DateTime?      @map("end_date")
+  myRank            Int            @map("my_rank")
+  totalMembers      Int            @default(0) @map("total_members")
+  active            Boolean        @default(true)
+  createdAt         DateTime       @default(now()) @map("created_at")
+  updatedAt         DateTime       @updatedAt @map("updated_at")
+  user              User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  members           TontineMember[]
+
+  @@index([userId])
+  @@map("tontines")
+}
+
+model TontineMember {
+  id         String    @id @default(cuid())
+  tontineId  String    @map("tontine_id")
+  userId     String?   @map("user_id")
+  name       String
+  phone      String?
+  rank       Int
+  paid       Boolean   @default(false)
+  paidAt     DateTime? @map("paid_at")
+  received   Boolean   @default(false)
+  receivedAt DateTime? @map("received_at")
+  tontine    Tontine   @relation(fields: [tontineId], references: [id], onDelete: Cascade)
+  user       User?     @relation(fields: [userId], references: [id])
+
+  @@index([tontineId])
+  @@map("tontine_members")
+}
+
+model Debt {
+  id           String        @id @default(cuid())
+  userId       String        @map("user_id")
+  direction    DebtDirection
+  personName   String        @map("person_name")
+  personPhone  String?       @map("person_phone")
+  amount       Decimal       @db.Decimal(14, 2)
+  interestRate Decimal?      @db.Decimal(5, 2) @map("interest_rate")
+  dueDate      DateTime?     @map("due_date")
+  note         String?
+  settled      Boolean       @default(false)
+  settledAt    DateTime?     @map("settled_at")
+  strategy     DebtStrategy? @default(SNOWBALL)
+  createdAt    DateTime      @default(now()) @map("created_at")
+  updatedAt    DateTime      @updatedAt @map("updated_at")
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  payments     DebtPayment[]
+
+  @@index([userId])
+  @@map("debts")
+}
+
+model DebtPayment {
+  id     String   @id @default(cuid())
+  debtId String   @map("debt_id")
+  amount Decimal  @db.Decimal(14, 2)
+  date   DateTime @default(now())
+  note   String?
+  debt   Debt     @relation(fields: [debtId], references: [id], onDelete: Cascade)
+
+  @@index([debtId])
+  @@map("debt_payments")
+}
+
+model Bill {
+  id           String      @id @default(cuid())
+  userId       String      @map("user_id")
+  name         String
+  amount       Decimal     @db.Decimal(14, 2)
+  category     String?
+  recurrence   String      @default("MONTHLY")
+  dueDay       Int         @map("due_day")
+  nextDueDate  DateTime    @map("next_due_date")
+  reminderDays Int         @default(3) @map("reminder_days")
+  status       BillStatus  @default(PENDING)
+  paidAt       DateTime?   @map("paid_at")
+  createdAt    DateTime    @default(now()) @map("created_at")
+  updatedAt    DateTime    @updatedAt @map("updated_at")
+  user         User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  history      BillHistory[]
+
+  @@index([userId])
+  @@map("bills")
+}
+
+model BillHistory {
+  id     String   @id @default(cuid())
+  billId String   @map("bill_id")
+  amount Decimal  @db.Decimal(14, 2)
+  paidAt DateTime @map("paid_at")
+  bill   Bill     @relation(fields: [billId], references: [id], onDelete: Cascade)
+
+  @@index([billId])
+  @@map("bill_history")
+}
+
+// =====================================================================
+// MODULE 2 : OBJECTIFS & PROJETS DE VIE
+// =====================================================================
+
+model LifeGoal {
+  id             String       @id @default(cuid())
+  userId         String       @map("user_id")
+  domain         LifeDomain
+  title          String
+  description    String?
+  type           GoalType     @default(BINARY)
+  priority       GoalPriority @default(MEDIUM)
+  status         GoalStatus   @default(ACTIVE)
+  targetValue    Decimal?     @db.Decimal(14, 2) @map("target_value")
+  currentValue   Decimal?     @db.Decimal(14, 2) @map("current_value")
+  unit           String?
+  startDate      DateTime     @default(now()) @map("start_date")
+  deadline       DateTime?
+  isPublic       Boolean      @default(false) @map("is_public")
+  imageUrl       String?      @map("image_url")
+  vision         String?
+  visionHorizon  String?      @map("vision_horizon")
+  createdAt      DateTime     @default(now()) @map("created_at")
+  updatedAt      DateTime     @updatedAt @map("updated_at")
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  projects       GoalProject[]
+  journal        GoalJournal[]
+
+  @@index([userId])
+  @@map("life_goals")
+}
+
+model GoalProject {
+  id          String    @id @default(cuid())
+  goalId      String    @map("goal_id")
+  name        String
+  description String?
+  startDate   DateTime  @default(now()) @map("start_date")
+  endDate     DateTime? @map("end_date")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  goal        LifeGoal  @relation(fields: [goalId], references: [id], onDelete: Cascade)
+  tasks       GoalTask[]
+
+  @@index([goalId])
+  @@map("goal_projects")
+}
+
+model GoalTask {
+  id          String     @id @default(cuid())
+  projectId   String     @map("project_id")
+  title       String
+  description String?
+  status      TaskStatus @default(TODO)
+  order       Int        @default(0)
+  dueDate     DateTime?  @map("due_date")
+  completedAt DateTime?  @map("completed_at")
+  blockedBy   String?    @map("blocked_by")
+  createdAt   DateTime   @default(now()) @map("created_at")
+  updatedAt   DateTime   @updatedAt @map("updated_at")
+  project     GoalProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId])
+  @@map("goal_tasks")
+}
+
+model GoalJournal {
+  id        String   @id @default(cuid())
+  goalId    String   @map("goal_id")
+  note      String
+  progress  Int?
+  createdAt DateTime @default(now()) @map("created_at")
+  goal      LifeGoal @relation(fields: [goalId], references: [id], onDelete: Cascade)
+
+  @@index([goalId])
+  @@map("goal_journal")
+}
+
+// =====================================================================
+// MODULE 3 : JOURNÉE & ROUTINES
+// =====================================================================
+
+model Habit {
+  id           String         @id @default(cuid())
+  userId       String         @map("user_id")
+  name         String
+  description  String?
+  type         HabitType      @default(BINARY)
+  frequency    HabitFrequency @default(DAILY)
+  targetValue  Decimal?       @db.Decimal(10, 2) @map("target_value")
+  unit         String?
+  color        String?
+  icon         String?
+  reminderHour Int?           @map("reminder_hour")
+  reminderMin  Int?           @map("reminder_min")
+  active       Boolean        @default(true)
+  createdAt    DateTime       @default(now()) @map("created_at")
+  updatedAt    DateTime       @updatedAt @map("updated_at")
+  user         User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  logs         HabitLog[]
+
+  @@index([userId])
+  @@map("habits")
+}
+
+model HabitLog {
+  id        String   @id @default(cuid())
+  habitId   String   @map("habit_id")
+  userId    String   @map("user_id")
+  date      DateTime @db.Date
+  value     Decimal? @db.Decimal(10, 2)
+  completed Boolean  @default(true)
+  note      String?
+  createdAt DateTime @default(now()) @map("created_at")
+  habit     Habit    @relation(fields: [habitId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([habitId, date])
+  @@index([userId])
+  @@map("habit_logs")
+}
+
+model MorningRitual {
+  id            String    @id @default(cuid())
+  userId        String    @map("user_id")
+  date          DateTime  @db.Date
+  steps         Json
+  totalDuration Int       @default(0) @map("total_duration")
+  completed     Boolean   @default(false)
+  completedAt   DateTime? @map("completed_at")
+  note          String?
+  createdAt     DateTime  @default(now()) @map("created_at")
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, date])
+  @@map("morning_rituals")
+}
+
+model EveningReview {
+  id            String   @id @default(cuid())
+  userId        String   @map("user_id")
+  date          DateTime @db.Date
+  gratitude     String[]
+  reflection    String?
+  topPriorities String[] @map("top_priorities")
+  energyLevel   Int?     @map("energy_level")
+  createdAt     DateTime @default(now()) @map("created_at")
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, date])
+  @@map("evening_reviews")
+}
+
+// =====================================================================
+// MODULE 4 : SANTÉ & BIEN-ÊTRE
+// =====================================================================
+
+model SleepLog {
+  id          String   @id @default(cuid())
+  userId      String   @map("user_id")
+  date        DateTime @db.Date
+  bedtime     DateTime @map("bedtime")
+  wakeTime    DateTime @map("wake_time")
+  durationMin Int      @map("duration_min")
+  quality     Int
+  note        String?
+  createdAt   DateTime @default(now()) @map("created_at")
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, date])
+  @@index([userId])
+  @@map("sleep_logs")
+}
+
+model MoodLog {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  date      DateTime @db.Date
+  mood      Mood
+  energy    Int
+  emotions  String[]
+  note      String?
+  createdAt DateTime @default(now()) @map("created_at")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, date])
+  @@index([userId])
+  @@map("mood_logs")
+}
+
+model WorkoutLog {
+  id          String   @id @default(cuid())
+  userId      String   @map("user_id")
+  date        DateTime @db.Date
+  type        String
+  durationMin Int      @map("duration_min")
+  intensity   Int
+  calories    Int?
+  note        String?
+  createdAt   DateTime @default(now()) @map("created_at")
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([date])
+  @@map("workout_logs")
+}
+
+model HydrationLog {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  date      DateTime @db.Date
+  amountMl  Int      @map("amount_ml")
+  goalMl    Int      @map("goal_ml")
+  createdAt DateTime @default(now()) @map("created_at")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, date])
+  @@index([userId])
+  @@map("hydration_logs")
+}
+
+// =====================================================================
+// MODULE 5 (squelette) : CARRIÈRE & RELATIONS
+// =====================================================================
+
+model CareerProfile {
+  id                String   @id @default(cuid())
+  userId            String   @unique @map("user_id")
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  jobTitle          String?  @map("job_title")
+  company           String?
+  sector            String?
+  employmentType    String?  @map("employment_type")
+  skills            Json?
+  annualRevenueGoal Decimal? @db.Decimal(14, 2) @map("annual_revenue_goal")
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  @@map("career_profiles")
+}
+
+model Contact {
+  id             String         @id @default(cuid())
+  userId         String         @map("user_id")
+  user           User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  firstName      String         @map("first_name")
+  lastName       String?        @map("last_name")
+  phone          String?
+  email          String?
+  city           String?
+  circle         ContactCircle  @default(NETWORK)
+  birthday       DateTime?
+  lastContactAt  DateTime?      @map("last_contact_at")
+  note           String?
+  createdAt      DateTime       @default(now()) @map("created_at")
+  updatedAt      DateTime       @updatedAt @map("updated_at")
+
+  @@index([userId])
+  @@map("contacts")
+}
+
+// =====================================================================
+// HELM AI
+// =====================================================================
+
+model AiConversation {
+  id        String     @id @default(cuid())
+  userId    String     @map("user_id")
+  title     String?
+  createdAt DateTime   @default(now()) @map("created_at")
+  updatedAt DateTime   @updatedAt @map("updated_at")
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messages  AiMessage[]
+
+  @@index([userId])
+  @@map("ai_conversations")
+}
+
+model AiMessage {
+  id             String         @id @default(cuid())
+  conversationId String         @map("conversation_id")
+  role           AiRole
+  content        String
+  tokensUsed     Int?           @map("tokens_used")
+  createdAt      DateTime       @default(now()) @map("created_at")
+  conversation   AiConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId])
+  @@map("ai_messages")
+}
+
+model AiInsight {
+  id        String           @id @default(cuid())
+  userId    String           @map("user_id")
+  type      InsightType
+  severity  InsightSeverity  @default(INFO)
+  title     String
+  content   String
+  metadata  Json?
+  read      Boolean          @default(false)
+  readAt    DateTime?        @map("read_at")
+  createdAt DateTime         @default(now()) @map("created_at")
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("ai_insights")
+}
+
+// =====================================================================
+// MODE ACCESSIBLE — Logique Boutiquier
+// =====================================================================
+
+model DailyBoutiqueLog {
+  id             String   @id @default(cuid())
+  userId         String   @map("user_id")
+  date           DateTime @db.Date
+  openingCapital Decimal  @default(0) @db.Decimal(14, 2) @map("opening_capital")
+  restockCost    Decimal  @default(0) @db.Decimal(14, 2) @map("restock_cost")
+  totalSales     Decimal  @default(0) @db.Decimal(14, 2) @map("total_sales")
+  netProfit      Decimal  @default(0) @db.Decimal(14, 2) @map("net_profit")
+  note           String?
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, date])
+  @@index([userId])
+  @@map("daily_boutique_logs")
+}
+
+model ClientArdoise {
+  id          String          @id @default(cuid())
+  userId      String          @map("user_id")
+  user        User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  clientName  String          @map("client_name")
+  clientPhone String?         @map("client_phone")
+  totalDebt   Decimal         @default(0) @db.Decimal(14, 2) @map("total_debt")
+  settled     Boolean         @default(false)
+  settledAt   DateTime?       @map("settled_at")
+  note        String?
+  createdAt   DateTime        @default(now()) @map("created_at")
+  updatedAt   DateTime        @updatedAt @map("updated_at")
+  entries     ArdoiseEntry[]
+
+  @@index([userId])
+  @@map("client_ardoises")
+}
+
+model ArdoiseEntry {
+  id        String         @id @default(cuid())
+  ardoiseId String         @map("ardoise_id")
+  amount    Decimal        @db.Decimal(14, 2)
+  direction String
+  note      String?
+  date      DateTime       @default(now())
+  ardoise   ClientArdoise  @relation(fields: [ardoiseId], references: [id], onDelete: Cascade)
+
+  @@index([ardoiseId])
+  @@map("ardoise_entries")
+}
+
+model SupplierCredit {
+  id            String    @id @default(cuid())
+  userId        String    @map("user_id")
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  supplierName  String    @map("supplier_name")
+  supplierPhone String?   @map("supplier_phone")
+  amount        Decimal   @db.Decimal(14, 2)
+  dueDate       DateTime? @map("due_date")
+  settled       Boolean   @default(false)
+  settledAt     DateTime? @map("settled_at")
+  note          String?
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  @@index([userId])
+  @@map("supplier_credits")
+}

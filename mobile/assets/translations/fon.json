@@ -1,0 +1,77 @@
+{
+  "@@locale": "fon",
+  "app": {
+    "name": "LifeHelm",
+    "tagline": "Dó nǔ è bló gbɔn tò tò jí"
+  },
+  "nav": {
+    "home": "Xwé",
+    "finance": "Akwé",
+    "goals": "Tító wu",
+    "routines": "Nǔ è nɔ wà ǎzǎn ǎzǎn",
+    "health": "Alɔdó nù kún",
+    "ai": "HELM AI",
+    "profile": "Mì"
+  },
+  "auth": {
+    "login": "Wá ɖò tò mɛ",
+    "signup": "Dó acɛ yí",
+    "logout": "Fín tò",
+    "email": "Email",
+    "password": "Nyɔnuwéma",
+    "firstName": "Nɔnɔ",
+    "lastName": "Kàn nɔnɔ",
+    "phone": "Téléphone",
+    "welcome": "Kúgbé ɖò LifeHelm mɛ",
+    "demoAccount": "Mǐ ɖó acɛ yí"
+  },
+  "finance": {
+    "title": "Akwé",
+    "balance": "Akwé ɖó",
+    "accounts": "Nǔ è nɔ xá akwé ɖó",
+    "transactions": "Nǔ è xá",
+    "savings": "Akwé ɖó nú ɖò gá",
+    "tontines": "Adokou",
+    "debts": "Fá",
+    "bills": "Nǔ è nɔ xá ǎzǎn ǎzǎn",
+    "budget": "Nǔ è nɔ xá ɖò akwé mɛ",
+    "income": "Akwé wá",
+    "expenses": "Akwé yí",
+    "addTransaction": "Mǐ ɖó nǔ xá",
+    "addIncome": "Mǐ ɖó akwé wá",
+    "addExpense": "Mǐ ɖó akwé yí",
+    "amount": "Akwé ɖé",
+    "category": "Nǔ ɖé ɖé",
+    "label": "Nɔnɔ",
+    "note": "Nǔ è ɖò xó mɛ",
+    "date": "Azǎn",
+    "account": "Nǔ è nɔ xá akwé ɖó"
+  },
+  "accessible": {
+    "vente": "ASÍN",
+    "depense": "ZÃN AKWÉ",
+    "bilan": "NǓ È ƉÒ AKWÉ MƐ",
+    "morningCapital": "Akwé ɖó ɖò kɔkúté mɛ",
+    "todaySales": "Asín ɖò ǎzǎn ɛnɛ mɛ",
+    "restock": "Akwé ɖó nú sɔ́ akpá",
+    "netProfit": "Yíyà",
+    "save": "Xá"
+  },
+  "ai": {
+    "insights": "Nǔ è ɖò xó mɛ",
+    "chat": "Xó ɖó",
+    "askHelm": "Xó nú HELM AI…",
+    "newConversation": "Xó yíyí ɖé"
+  },
+  "common": {
+    "save": "Xá",
+    "cancel": "Yí nù ɖé",
+    "delete": "Fá",
+    "edit": "Wá xó nù ɖé",
+    "add": "Mǐ ɖó ɖé",
+    "loading": "Ɖò wà wà…",
+    "error": "Nǔ ɖé wà",
+    "retry": "Wà ɖó",
+    "ok": "Éyɛ́"
+  }
+}

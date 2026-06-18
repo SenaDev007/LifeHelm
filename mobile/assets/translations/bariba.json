@@ -1,0 +1,77 @@
+{
+  "@@locale": "bariba",
+  "app": {
+    "name": "LifeHelm",
+    "tagline": "Tì kpee kà gãara kà túú"
+  },
+  "nav": {
+    "home": "Yɛɛ",
+    "finance": "Gãa",
+    "goals": "Kà kà túú",
+    "routines": "Kà kà nà kà wà yɔkũ",
+    "health": "Kà kà bɔ̀ nà",
+    "ai": "HELM AI",
+    "profile": "Ǹ"
+  },
+  "auth": {
+    "login": "Kà bà",
+    "signup": "Kà yã kà",
+    "logout": "Kà tù",
+    "email": "Email",
+    "password": "Wẽn kà kà",
+    "firstName": "Yĩ",
+    "lastName": "Yĩ kà",
+    "phone": "Téléphone",
+    "welcome": "Kà bà LifeHelm kà",
+    "demoAccount": "Kà yã kà"
+  },
+  "finance": {
+    "title": "Gãa",
+    "balance": "Gãa kà túú",
+    "accounts": "Nà kà túú gãa",
+    "transactions": "Ǹ kà túú",
+    "savings": "Gãa kà kà yãrigũ",
+    "tontines": "Kpẽrẽ",
+    "debts": "Yãarigũ",
+    "bills": "Ǹ kà nà túú yɔkũ yɔkũ",
+    "budget": "Gãa kà túú",
+    "income": "Gãa wãrigũ",
+    "expenses": "Gãa sĩrigũ",
+    "addTransaction": "Kà túú ǹ kà",
+    "addIncome": "Kà túú gãa wãrigũ",
+    "addExpense": "Kà túú gãa sĩrigũ",
+    "amount": "Gãa",
+    "category": "Ǹ kà",
+    "label": "Yĩ",
+    "note": "Ǹ kà kà yĩ",
+    "date": "Yɔkũ",
+    "account": "Nà kà túú gãa"
+  },
+  "accessible": {
+    "vente": "WÃRIGŨ",
+    "depense": "SĨRIGŨ GÃA",
+    "bilan": "Ǹ ƉÒ GÃA MƐ",
+    "morningCapital": "Gãa kà túú kà bà yɔkũ nà",
+    "todaySales": "Wãrigũ yɔkũ nà",
+    "restock": "Gãa sĩrigũ nà sɔ́ kà",
+    "netProfit": "Naa gãa",
+    "save": "Túú"
+  },
+  "ai": {
+    "insights": "Ǹ kà ɖò xó mɛ",
+    "chat": "Xó ɖó",
+    "askHelm": "Xó nú HELM AI…",
+    "newConversation": "Xó yíyí ɖé"
+  },
+  "common": {
+    "save": "Túú",
+    "cancel": "Yí nù ɖé",
+    "delete": "Fá",
+    "edit": "Wá xó nù ɖé",
+    "add": "Kà ɖó ɖé",
+    "loading": "Ɖò wà wà…",
+    "error": "Ǹ ɖé wà",
+    "retry": "Wà ɖó",
+    "ok": "Ɛ́yɛ́"
+  }
+}
