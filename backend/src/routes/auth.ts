@@ -2,11 +2,24 @@ import { Router, type Request, type Response, type NextFunction } from 'express'
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 import { z } from 'zod';
+import rateLimit from 'express-rate-limit';
 import { prisma } from '../db.js';
 import { config } from '../config.js';
 import { generateTokens, setAuthCookies, hashToken } from '../utils/auth.js';
 
 const router = Router();
+
+// Rate limiting strict pour /auth (5 tentatives / 15 min par IP)
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'TOO_MANY_ATTEMPTS', message: 'Trop de tentatives. Réessaye dans 15 minutes.' },
+});
+
+router.use('/login', authLimiter);
+router.use('/signup', authLimiter);
 
 const signupSchema = z.object({
   email: z.string().email(),

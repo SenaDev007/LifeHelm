@@ -5,11 +5,9 @@
 
 import 'dart:async';
 import 'package:connectivity_plus/connectivity_plus.dart';
-import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../config/app_config.dart';
 import 'api_service.dart';
 import 'app_database.dart';
 

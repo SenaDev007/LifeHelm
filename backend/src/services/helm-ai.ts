@@ -139,15 +139,16 @@ export async function generateAiResponse(
     const ctx = await buildUserContext(userId);
     const contextStr = contextToString(ctx);
 
-    const messages = [
-      { role: 'assistant' as const, content: SYSTEM_PROMPT },
-      { role: 'user' as const, content: contextStr },
-      { role: 'assistant' as const, content: 'Contexte reçu. Je suis prêt à t\'aider.' },
-      ...conversationHistory.slice(-6).map(m => ({
-        role: (m.role === 'ASSISTANT' ? 'assistant' : 'user') as const,
+    type Msg = { role: 'assistant' | 'user'; content: string };
+    const messages: Msg[] = [
+      { role: 'assistant', content: SYSTEM_PROMPT },
+      { role: 'user', content: contextStr },
+      { role: 'assistant', content: 'Contexte reçu. Je suis prêt à t\'aider.' },
+      ...conversationHistory.slice(-6).map<Msg>(m => ({
+        role: m.role === 'ASSISTANT' ? 'assistant' : 'user',
         content: m.content,
       })),
-      { role: 'user' as const, content: userMessage },
+      { role: 'user', content: userMessage },
     ];
 
     const zai = await ZAI.create();
@@ -215,16 +216,16 @@ Réponds UNIQUEMENT avec les insights, un par ligne, au format exact demandé.`;
     const text = completion.choices?.[0]?.message?.content || '';
     return text
       .split('\n')
-      .filter(l => l.includes('|'))
-      .map(line => {
-        const [title, content, severity] = line.split('|').map(s => s.trim());
+      .filter((l: string) => l.includes('|'))
+      .map((line: string) => {
+        const [title, content, severity] = line.split('|').map((s: string) => s.trim());
         return {
           title: title || 'Insight',
           content: content || '',
           severity: (severity || 'INFO').toUpperCase(),
         };
       })
-      .filter(i => i.content.length > 0)
+      .filter((i: { title: string; content: string; severity: string }) => i.content.length > 0)
       .slice(0, 5);
   } catch (e: any) {
     console.error('[HELM AI] Insights error:', e.message);

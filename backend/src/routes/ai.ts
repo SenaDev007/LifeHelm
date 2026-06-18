@@ -32,7 +32,7 @@ router.get('/insights', async (req: AuthedRequest, res: Response) => {
         data: {
           userId: req.userId!,
           type: 'WEEKLY',
-          severity: g.severity,
+          severity: (g.severity as 'INFO' | 'WARNING' | 'POSITIVE' | 'CRITICAL') || 'INFO',
           title: g.title,
           content: g.content,
         },

@@ -118,7 +118,7 @@ router.post('/generate-daily', async (req: AuthedRequest, res: Response) => {
           userId,
           type: 'DEBT_DUE',
           title: days === 0 ? `Dette à rembourser aujourd'hui` : `Dette dans ${days} jour(s)`,
-          body: `${debt.isOwing ? 'Tu dois à' : 'On te doit'} ${debt.personName} — ${debt.amount.toNumber().toLocaleString('fr-FR')} FCFA`,
+          body: `${debt.direction === 'OWING' ? 'Tu dois à' : 'On te doit'} ${debt.personName} — ${debt.amount.toNumber().toLocaleString('fr-FR')} FCFA`,
           data: { debtId: debt.id },
           scheduledFor: today,
         },

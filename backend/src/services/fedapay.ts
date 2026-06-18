@@ -63,7 +63,7 @@ export async function initiateFedaPayPayment(params: InitiateParams): Promise<In
     throw new Error(`FedaPay initiate failed: ${res.status} ${text}`);
   }
 
-  const data = await res.json();
+  const data = await res.json() as any;
   const tx = data.data || data;
 
   return {
@@ -94,7 +94,7 @@ export async function verifyFedaPayPayment(transactionId: string): Promise<Verif
     throw new Error(`FedaPay verify failed: ${res.status}`);
   }
 
-  const data = await res.json();
+  const data = await res.json() as any;
   const tx = data.data || data;
 
   return {

@@ -75,7 +75,7 @@ async function main() {
     transactions.push({
       userId: user.id,
       accountId: [cashAccount.id, momoAccount.id, bankAccount.id][Math.floor(Math.random() * 3)],
-      type: isIncome ? 'INCOME' : 'EXPENSE',
+      type: isIncome ? 'INCOME' as const : 'EXPENSE' as const,
       amount,
       category,
       label,

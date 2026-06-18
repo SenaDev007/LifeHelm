@@ -67,7 +67,8 @@ router.post('/initiate', async (req: AuthedRequest, res: Response) => {
   if (!parsed.success) return res.status(400).json({ error: 'INVALID_INPUT', details: parsed.error.issues });
 
   const { plan, period, method, phone, callbackUrl } = parsed.data;
-  const amount = PRICING[plan][period];
+  const planPricing = PRICING[plan] as { monthly: number; annual: number };
+  const amount = period === 'MONTHLY' ? planPricing.monthly : planPricing.annual;
 
   // Récupérer ou créer la subscription
   let sub = await prisma.subscription.findUnique({ where: { userId: req.userId } });
@@ -118,7 +119,7 @@ router.post('/initiate', async (req: AuthedRequest, res: Response) => {
   } catch (e: any) {
     await prisma.payment.update({
       where: { id: payment.id },
-      data: { status: 'FAILED', metadata: { ...payment.metadata, error: e.message } },
+      data: { status: 'FAILED', metadata: { ...(payment.metadata as any), error: e.message } },
     });
     res.status(500).json({ error: 'PAYMENT_INIT_FAILED', message: e.message });
   }
@@ -178,7 +179,7 @@ router.post('/verify/:paymentId', async (req: AuthedRequest, res: Response) => {
     } else {
       await prisma.payment.update({
         where: { id: payment.id },
-        data: { status: 'FAILED', metadata: { ...payment.metadata, fedaStatus } },
+        data: { status: 'FAILED', metadata: { ...(payment.metadata as any), fedaStatus } },
       });
       return res.json({ payment, activated: false, fedaStatus });
     }

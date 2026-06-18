@@ -1,15 +1,17 @@
-import jwt from 'jsonwebtoken';
+import jwt, { type Secret, type SignOptions } from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 import type { Response } from 'express';
 import { config } from '../config.js';
 
 export function generateTokens(userId: string) {
-  const accessToken = jwt.sign({ sub: userId }, config.jwt.accessSecret, {
+  const accessSecret: Secret = config.jwt.accessSecret;
+  const refreshSecret: Secret = config.jwt.refreshSecret;
+  const accessToken = jwt.sign({ sub: userId }, accessSecret, {
     expiresIn: config.jwt.accessExpires,
-  });
-  const refreshToken = jwt.sign({ sub: userId }, config.jwt.refreshSecret, {
+  } as SignOptions);
+  const refreshToken = jwt.sign({ sub: userId }, refreshSecret, {
     expiresIn: config.jwt.refreshExpires,
-  });
+  } as SignOptions);
   return { accessToken, refreshToken };
 }
 
