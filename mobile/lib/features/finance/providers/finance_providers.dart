@@ -2,8 +2,8 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../models/models.dart';
-import '../../services/api_service.dart';
+import '../../../models/models.dart';
+import '../../../services/api_service.dart';
 
 // ---------- ACCOUNTS ----------
 final accountsProvider = FutureProvider<List<Account>>((ref) async {

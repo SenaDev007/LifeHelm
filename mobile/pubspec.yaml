@@ -46,11 +46,11 @@ dependencies:
   phosphor_flutter: ^2.1.0
 
   # Forms
-  flutter_form_builder: ^9.5.0
+  flutter_form_builder: ^10.0.0
   form_builder_validators: ^11.0.0
 
   # Date / time
-  intl: ^0.19.0
+  intl: ^0.20.0
   table_calendar: ^3.1.2
 
   # Notifications
@@ -80,7 +80,7 @@ dev_dependencies:
   retrofit_generator: ^9.1.4
   drift_dev: ^2.20.3
   riverpod_generator: ^2.4.3
-  custom_lint: ^0.6.7
+  custom_lint: ^0.7.3
   riverpod_lint: ^2.3.13
 
 flutter:
@@ -88,18 +88,21 @@ flutter:
   generate: true
 
   assets:
-    - assets/images/
-    - assets/icons/
-    - assets/flags/
     - assets/translations/
+    # Créer les dossiers vides ci-dessous si nécessaire :
+    # - assets/images/
+    # - assets/icons/
+    # - assets/flags/
 
-  fonts:
-    - family: LifeHelmSans
-      fonts:
-        - asset: assets/fonts/Inter-Regular.ttf
-        - asset: assets/fonts/Inter-Medium.ttf
-          weight: 500
-        - asset: assets/fonts/Inter-SemiBold.ttf
-          weight: 600
-        - asset: assets/fonts/Inter-Bold.ttf
-          weight: 700
+  # Pour ajouter la police Inter, téléchargez les fichiers TTF dans assets/fonts/
+  # puis décommentez cette section.
+  # fonts:
+  #   - family: LifeHelmSans
+  #     fonts:
+  #       - asset: assets/fonts/Inter-Regular.ttf
+  #       - asset: assets/fonts/Inter-Medium.ttf
+  #         weight: 500
+  #       - asset: assets/fonts/Inter-SemiBold.ttf
+  #         weight: 600
+  #       - asset: assets/fonts/Inter-Bold.ttf
+  #         weight: 700

@@ -1,4 +1,5 @@
 // Utilitaires formatage
+import 'dart:ui' show Color;
 import 'package:intl/intl.dart';
 
 class FormatUtils {
@@ -69,6 +70,3 @@ class FormatUtils {
     return const Color(0xFFEF4444);
   }
 }
-
-// Re-export Color pour usage dans les models
-import 'dart:ui' show Color;

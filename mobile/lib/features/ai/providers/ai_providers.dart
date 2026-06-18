@@ -2,7 +2,7 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../services/api_service.dart';
+import '../../../services/api_service.dart';
 
 final aiInsightsProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {
   final dio = ref.watch(dioProvider);

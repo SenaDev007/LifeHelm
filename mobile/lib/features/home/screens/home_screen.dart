@@ -1,14 +1,13 @@
-import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../models/models.dart';
 import '../../../theme/theme.dart';
 import '../../../utils/format_utils.dart';
 import '../../../widgets/score_gauge.dart';
 import '../../finance/providers/finance_providers.dart';
-import '../../ai/providers/ai_providers.dart';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});

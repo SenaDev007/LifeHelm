@@ -511,12 +511,12 @@ class PillarScores {
       );
 
   List<MapEntry<String, int>> toList() => [
-        const MapEntry('Finance', finance),
-        const MapEntry('Santé', health),
-        const MapEntry('Routines', routines),
-        const MapEntry('Objectifs', goals),
-        const MapEntry('Carrière', career),
-        const MapEntry('Relations', relations),
+        MapEntry('Finance', finance),
+        MapEntry('Santé', health),
+        MapEntry('Routines', routines),
+        MapEntry('Objectifs', goals),
+        MapEntry('Carrière', career),
+        MapEntry('Relations', relations),
       ];
 }
 

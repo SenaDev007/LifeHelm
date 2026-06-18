@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 
@@ -87,8 +88,8 @@ class _GaugePainter extends CustomPainter {
 
     // Progress arc (270° gauge from 135° to 405°)
     final rect = Rect.fromCircle(center: center, radius: radius);
-    final startAngle = 3 * pi / 4; // 135°
-    final sweepAngle = 3 * pi / 2 * progress; // 270° * progress
+    final startAngle = 3 * math.pi / 4; // 135°
+    final sweepAngle = 3 * math.pi / 2 * progress; // 270° * progress
 
     final fgPaint = Paint()
       ..color = color

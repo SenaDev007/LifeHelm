@@ -23,7 +23,6 @@ class MainShell extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final idx = _currentIndex(context);
-    final theme = Theme.of(context);
 
     return Scaffold(
       body: child,
@@ -40,11 +39,8 @@ class MainShell extends ConsumerWidget {
             case 6: context.go('/profile'); break;
           }
         },
-        type: NavigationBarType.fixed,
         backgroundColor: LifeHelmColors.bgCard,
         indicatorColor: LifeHelmColors.primary.withValues(alpha: 0.1),
-        selectedItemColor: LifeHelmColors.primary,
-        unselectedItemColor: LifeHelmColors.textTertiary,
         destinations: const [
           NavigationDestination(icon: Icon(Icons.home_outlined), selectedIcon: Icon(Icons.home), label: 'Accueil'),
           NavigationDestination(icon: Icon(Icons.account_balance_wallet_outlined), selectedIcon: Icon(Icons.account_balance_wallet), label: 'Finance'),

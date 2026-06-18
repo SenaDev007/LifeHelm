@@ -69,13 +69,13 @@ class LifeHelmButton extends StatelessWidget {
       child: ElevatedButton.icon(
         onPressed: onPressed,
         style: style.copyWith(
-          shape: MaterialStatePropertyAll(
+          shape: WidgetStatePropertyAll(
             RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           ),
-          padding: const MaterialStatePropertyAll(
+          padding: const WidgetStatePropertyAll(
             EdgeInsets.symmetric(horizontal: 24, vertical: 14),
           ),
-          textStyle: const MaterialStatePropertyAll(
+          textStyle: const WidgetStatePropertyAll(
             TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
           ),
         ),

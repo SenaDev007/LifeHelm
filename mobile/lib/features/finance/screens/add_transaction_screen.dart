@@ -8,7 +8,6 @@ import '../../../utils/format_utils.dart';
 import '../../../widgets/lifehelm_button.dart';
 import '../../../widgets/lifehelm_text_field.dart';
 import '../providers/finance_providers.dart';
-import '../../../models/models.dart';
 
 class AddTransactionScreen extends ConsumerStatefulWidget {
   const AddTransactionScreen({super.key, required this.type});

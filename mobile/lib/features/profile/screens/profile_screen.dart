@@ -92,6 +92,7 @@ class ProfileScreen extends ConsumerWidget {
               ),
               error: (_, __) => const SizedBox.shrink(),
               data: (dash) {
+                final d = dash;
                 return Card(
                   child: Padding(
                     padding: const EdgeInsets.all(20),
@@ -109,27 +110,27 @@ class ProfileScreen extends ConsumerWidget {
                         _StatRow(
                           icon: Icons.account_balance,
                           label: 'Comptes',
-                          value: '${dash.financial.accountsCount}',
+                          value: '${d.financial.accountsCount}',
                         ),
                         _StatRow(
                           icon: Icons.trending_up,
                           label: 'Score global',
-                          value: '${dash.globalScore}/100',
+                          value: '${d.globalScore}/100',
                         ),
                         _StatRow(
                           icon: Icons.today,
                           label: 'Habitudes (semaine)',
-                          value: '${dash.habits.doneThisWeek}',
+                          value: '${d.habits.doneThisWeek}',
                         ),
                         _StatRow(
                           icon: Icons.fitness_center,
                           label: 'Activités (semaine)',
-                          value: '${dash.health.weekWorkouts}',
+                          value: '${d.health.weekWorkouts}',
                         ),
                         _StatRow(
                           icon: Icons.savings,
                           label: 'Taux d\'épargne',
-                          value: '${dash.financial.savingsRate}%',
+                          value: '${d.financial.savingsRate}%',
                         ),
                       ],
                     ),

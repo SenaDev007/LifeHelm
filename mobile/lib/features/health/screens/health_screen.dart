@@ -575,7 +575,7 @@ class _HydrationCard extends ConsumerWidget {
                                 '${h.todayMl}ml',
                                 style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16),
                               ),
-                              const Text('sur ${h.goalMl}ml', style: TextStyle(fontSize: 10, color: LifeHelmColors.textTertiary)),
+                              Text('sur ${h.goalMl}ml', style: const TextStyle(fontSize: 10, color: LifeHelmColors.textTertiary)),
                             ],
                           ),
                         ),
