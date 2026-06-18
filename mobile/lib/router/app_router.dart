@@ -26,6 +26,15 @@ import '../features/accessible/screens/accessible_depense_screen.dart';
 import '../features/accessible/screens/accessible_bilan_screen.dart';
 import '../features/profile/screens/profile_screen.dart';
 import '../features/settings/screens/settings_screen.dart';
+import '../features/family/screens/family_list_screen.dart';
+import '../features/family/screens/family_detail_screen.dart';
+import '../features/family/screens/create_family_screen.dart';
+import '../features/family/screens/join_family_screen.dart';
+import '../features/subscriptions/screens/subscription_screen.dart';
+import '../features/notifications/screens/notifications_screen.dart';
+import '../features/exports/screens/export_screen.dart';
+import '../features/sms_import/screens/sms_import_screen.dart';
+import '../features/ai/screens/ai_chat_screen.dart';
 import '../services/api_service.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
@@ -92,6 +101,43 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(path: '/ai', builder: (context, state) => const AIScreen()),
           GoRoute(path: '/profile', builder: (context, state) => const ProfileScreen()),
           GoRoute(path: '/settings', builder: (context, state) => const SettingsScreen()),
+          GoRoute(path: '/family', builder: (context, state) => const FamilyListScreen()),
+          GoRoute(
+            path: '/family/create',
+            builder: (context, state) => const CreateFamilyScreen(),
+          ),
+          GoRoute(
+            path: '/family/join',
+            builder: (context, state) => const JoinFamilyScreen(),
+          ),
+          GoRoute(
+            path: '/family/:id',
+            builder: (context, state) => FamilyDetailScreen(
+              familyId: state.pathParameters['id']!,
+            ),
+          ),
+          GoRoute(
+            path: '/subscriptions',
+            builder: (context, state) => const SubscriptionScreen(),
+          ),
+          GoRoute(
+            path: '/notifications',
+            builder: (context, state) => const NotificationsScreen(),
+          ),
+          GoRoute(
+            path: '/exports',
+            builder: (context, state) => const ExportScreen(),
+          ),
+          GoRoute(
+            path: '/sms-imports',
+            builder: (context, state) => const SmsImportScreen(),
+          ),
+          GoRoute(
+            path: '/ai/chat/:id',
+            builder: (context, state) => AiChatScreen(
+              conversationId: state.pathParameters['id'] ?? '',
+            ),
+          ),
         ],
       ),
       // Mode Accessible (sans bottom nav)

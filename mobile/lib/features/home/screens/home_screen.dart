@@ -7,6 +7,7 @@ import '../../../models/models.dart';
 import '../../../theme/theme.dart';
 import '../../../utils/format_utils.dart';
 import '../../../widgets/score_gauge.dart';
+import '../../../widgets/sync_status_indicator.dart';
 import '../../finance/providers/finance_providers.dart';
 
 class HomeScreen extends ConsumerWidget {
@@ -32,9 +33,10 @@ class HomeScreen extends ConsumerWidget {
           ],
         ),
         actions: [
+          const SyncStatusIndicator(),
           IconButton(
             icon: const Icon(Icons.notifications_outlined),
-            onPressed: () => context.push('/ai'),
+            onPressed: () => context.push('/notifications'),
           ),
           const SizedBox(width: 8),
         ],

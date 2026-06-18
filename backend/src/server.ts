@@ -13,6 +13,13 @@ import healthRoutes from './routes/health.js';
 import accessibleRoutes from './routes/accessible.js';
 import aiRoutes from './routes/ai.js';
 import userRoutes from './routes/user.js';
+// V2
+import familyRoutes from './routes/family.js';
+import subscriptionRoutes from './routes/subscriptions.js';
+import notificationRoutes from './routes/notifications.js';
+import exportRoutes from './routes/exports.js';
+import smsImportRoutes from './routes/sms-import.js';
+import syncRoutes from './routes/sync.js';
 
 const app = express();
 
@@ -47,6 +54,19 @@ app.use('/api/health', healthRoutes);
 app.use('/api/accessible', accessibleRoutes);
 app.use('/api/ai', aiRoutes);
 app.use('/api', userRoutes);
+// V2
+app.use('/api/family', familyRoutes);
+app.use('/api/subscriptions', subscriptionRoutes);
+app.use('/api/notifications', notificationRoutes);
+app.use('/api/exports', exportRoutes);
+app.use('/api/sms-imports', smsImportRoutes);
+app.use('/api/sync', syncRoutes);
+
+// Webhook FedaPay (sans auth)
+app.use('/api/payments/webhook/fedapay', (req, res, next) => {
+  // Le webhook doit être accessible sans JWT, mais on route via subscriptionRoutes
+  next();
+});
 
 // 404
 app.use((_req, res) => {
