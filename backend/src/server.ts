@@ -78,10 +78,37 @@ app.use(errorHandler);
 
 const port = config.port;
 const host = '0.0.0.0';
-app.listen(port, host, () => {
-  console.log(`🚀 LifeHelm backend running on http://${host}:${port}`);
+
+console.log(`▶️  Binding server on ${host}:${port}...`);
+
+const server = app.listen(port, host, () => {
+  console.log('═══════════════════════════════════════════════');
+  console.log(`🚀 LifeHelm backend LISTENING on ${host}:${port}`);
   console.log(`📋 Environment: ${config.nodeEnv}`);
   console.log(`🌍 CORS: ${config.corsOrigin}`);
+  console.log('═══════════════════════════════════════════════');
+});
+
+server.on('error', (err: any) => {
+  console.error('❌ SERVER ERROR:', err.message);
+  if (err.code === 'EADDRINUSE') {
+    console.error(`   Port ${port} already in use`);
+  }
+  process.exit(1);
+});
+
+server.on('listening', () => {
+  console.log(`✅ Server confirmed listening on port ${port}`);
+});
+
+// Catch uncaught errors
+process.on('uncaughtException', (err) => {
+  console.error('❌ UNCAUGHT EXCEPTION:', err);
+  process.exit(1);
+});
+
+process.on('unhandledRejection', (reason) => {
+  console.error('❌ UNHANDLED REJECTION:', reason);
 });
 
 export default app;
