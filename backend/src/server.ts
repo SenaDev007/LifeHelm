@@ -45,9 +45,17 @@ app.use(rateLimit({
   legacyHeaders: false,
 }));
 
-// Health check
+// Health check — affiche le hash du commit pour vérifier la version déployée
+const BUILD_HASH = process.env.RAILWAY_GIT_COMMIT_SHA?.slice(0, 7) || 'local';
 app.get('/health', (_req, res) => {
-  res.json({ status: 'ok', service: 'lifehelm-backend', version: '1.0.0', time: new Date().toISOString() });
+  res.json({
+    status: 'ok',
+    service: 'lifehelm-backend',
+    version: '2.1.0',
+    build: BUILD_HASH,
+    trustProxy: app.get('trust proxy'),
+    time: new Date().toISOString(),
+  });
 });
 
 // Routes API
