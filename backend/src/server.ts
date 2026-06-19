@@ -77,8 +77,9 @@ app.use((_req, res) => {
 app.use(errorHandler);
 
 const port = config.port;
-app.listen(port, () => {
-  console.log(`🚀 LifeHelm backend running on http://localhost:${port}`);
+const host = '0.0.0.0';
+app.listen(port, host, () => {
+  console.log(`🚀 LifeHelm backend running on http://${host}:${port}`);
   console.log(`📋 Environment: ${config.nodeEnv}`);
   console.log(`🌍 CORS: ${config.corsOrigin}`);
 });
