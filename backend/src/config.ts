@@ -9,33 +9,45 @@ if (fs.existsSync(envPath)) {
   dotenv.config({ path: envPath, override: true });
 }
 
-// Nettoie les URLs PostgreSQL : Prisma ne supporte pas channel_binding=require
-// Neon l'exige pour la connexion directe, mais Prisma échoue avec ce paramètre
-function cleanDbUrl(url: string | undefined): string | undefined {
+// Nettoie et optimise les URLs PostgreSQL pour Neon + Prisma
+// - Retire channel_binding=require (Prisma ne le supporte pas)
+// - Ajoute pgbouncer=true si pas présent (nécessaire pour Neon pooler)
+// - Ajoute connection_limit=1 (évite d'épuiser le pool Neon en low-traffic)
+function cleanDbUrl(url: string | undefined, opts: { addPgbouncer?: boolean } = {}): string | undefined {
   if (!url) return url;
+  let cleaned = url;
   // Retire &channel_binding=require ou ?channel_binding=require
-  const cleaned = url
+  cleaned = cleaned
     .replace(/[?&]channel_binding=require/g, '')
     .replace(/\?&/, '?')
     .replace(/&&/g, '&')
     .replace(/[?&]$/, '');
+
+  // Pour DATABASE_URL (pooler Neon) : ajoute pgbouncer + connection_limit
+  if (opts.addPgbouncer && !cleaned.includes('pgbouncer=')) {
+    const sep = cleaned.includes('?') ? '&' : '?';
+    cleaned = `${cleaned}${sep}pgbouncer=true&connection_limit=1`;
+  }
+
   if (cleaned !== url) {
-    console.log(`  → Cleaned DB URL (removed channel_binding=require)`);
+    console.log(`  → Optimized DB URL (channel_binding removed${opts.addPgbouncer ? ', pgbouncer+connection_limit=1 added' : ''})`);
   }
   return cleaned;
 }
 
 const rawDbUrl = process.env.DATABASE_URL;
 const rawDirectUrl = process.env.DIRECT_URL;
-const cleanDbUrl = cleanDbUrl(rawDbUrl);
-const cleanDirectUrl = cleanDbUrl(rawDirectUrl);
+// DATABASE_URL (utilisé au runtime) → avec pgbouncer pour Neon pooler
+const optimizedDbUrl = cleanDbUrl(rawDbUrl, { addPgbouncer: true });
+// DIRECT_URL (utilisé pour migrations) → sans pgbouncer
+const optimizedDirectUrl = cleanDbUrl(rawDirectUrl, { addPgbouncer: false });
 
-// Override process.env pour que Prisma utilise les URLs nettoyées
-if (cleanDbUrl && cleanDbUrl !== rawDbUrl) {
-  process.env.DATABASE_URL = cleanDbUrl;
+// Override process.env pour que Prisma utilise les URLs optimisées
+if (optimizedDbUrl && optimizedDbUrl !== rawDbUrl) {
+  process.env.DATABASE_URL = optimizedDbUrl;
 }
-if (cleanDirectUrl && cleanDirectUrl !== rawDirectUrl) {
-  process.env.DIRECT_URL = cleanDirectUrl;
+if (optimizedDirectUrl && optimizedDirectUrl !== rawDirectUrl) {
+  process.env.DIRECT_URL = optimizedDirectUrl;
 }
 
 // Diagnostics de démarrage (utile pour debug Railway)

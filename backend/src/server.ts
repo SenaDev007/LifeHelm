@@ -4,6 +4,7 @@ import helmet from 'helmet';
 import morgan from 'morgan';
 import rateLimit from 'express-rate-limit';
 import { config } from './config.js';
+import { startKeepalive } from './db.js';
 import { errorHandler } from './middleware/error.js';
 import authRoutes from './routes/auth.js';
 import financeRoutes from './routes/finance.js';
@@ -22,6 +23,10 @@ import smsImportRoutes from './routes/sms-import.js';
 import syncRoutes from './routes/sync.js';
 
 const app = express();
+
+// Railway (et autres PaaS) routent via un proxy qui ajoute X-Forwarded-For
+// Sans trust proxy, express-rate-limit crash avec ERR_ERL_UNEXPECTED_X_FORWARDED_FOR
+app.set('trust proxy', 1);
 
 app.use(helmet());
 app.use(cors({
@@ -99,6 +104,8 @@ server.on('error', (err: any) => {
 
 server.on('listening', () => {
   console.log(`✅ Server confirmed listening on port ${port}`);
+  // Démarre le keepalive Neon (évite le scale-to-zero)
+  startKeepalive();
 });
 
 // Catch uncaught errors
