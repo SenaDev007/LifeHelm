@@ -1,6 +1,7 @@
 # Nixpacks config — Railway build sans Docker
 [phases.setup]
 nixPkgs = ['nodejs_20']
+aptPkgs = ['openssl']
 
 [phases.install]
 cmds = ['cd backend && npm ci']
