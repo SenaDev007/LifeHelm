@@ -27,7 +27,7 @@ const goalSchema = z.object({
   visionHorizon: z.enum(['1Y', '3Y', '5Y', '10Y']).optional(),
 });
 
-router.get('/goals', async (req: AuthedRequest, res: Response) => {
+router.get('/', async (req: AuthedRequest, res: Response) => {
   const goals = await prisma.lifeGoal.findMany({
     where: { userId: req.userId, status: { in: ['ACTIVE', 'PAUSED'] } },
     include: {
@@ -39,7 +39,7 @@ router.get('/goals', async (req: AuthedRequest, res: Response) => {
   res.json({ goals });
 });
 
-router.post('/goals', async (req: AuthedRequest, res: Response) => {
+router.post('/', async (req: AuthedRequest, res: Response) => {
   const parsed = goalSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: 'INVALID_INPUT', details: parsed.error.issues });
   const { deadline, ...rest } = parsed.data;
@@ -49,7 +49,7 @@ router.post('/goals', async (req: AuthedRequest, res: Response) => {
   res.status(201).json({ goal });
 });
 
-router.patch('/goals/:id', async (req: AuthedRequest, res: Response) => {
+router.patch('/:id', async (req: AuthedRequest, res: Response) => {
   const parsed = goalSchema.partial().safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: 'INVALID_INPUT' });
   const { deadline, ...rest } = parsed.data;
@@ -61,7 +61,7 @@ router.patch('/goals/:id', async (req: AuthedRequest, res: Response) => {
   res.json({ ok: true });
 });
 
-router.delete('/goals/:id', async (req: AuthedRequest, res: Response) => {
+router.delete('/:id', async (req: AuthedRequest, res: Response) => {
   await prisma.lifeGoal.updateMany({
     where: { id: req.params.id, userId: req.userId },
     data: { status: 'ABANDONED' },
@@ -73,7 +73,7 @@ router.delete('/goals/:id', async (req: AuthedRequest, res: Response) => {
 // PROJECTS & TASKS
 // =====================================================================
 
-router.post('/goals/:id/projects', async (req: AuthedRequest, res: Response) => {
+router.post('/:id/projects', async (req: AuthedRequest, res: Response) => {
   const goal = await prisma.lifeGoal.findFirst({ where: { id: req.params.id, userId: req.userId } });
   if (!goal) return res.status(404).json({ error: 'NOT_FOUND' });
   const schema = z.object({
@@ -151,7 +151,7 @@ router.delete('/tasks/:id', async (req: AuthedRequest, res: Response) => {
 // JOURNAL
 // =====================================================================
 
-router.post('/goals/:id/journal', async (req: AuthedRequest, res: Response) => {
+router.post('/:id/journal', async (req: AuthedRequest, res: Response) => {
   const schema = z.object({ note: z.string().min(1).max(5000), progress: z.number().int().min(0).max(100).optional() });
   const parsed = schema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: 'INVALID_INPUT' });
