@@ -9,13 +9,42 @@ if (fs.existsSync(envPath)) {
   dotenv.config({ path: envPath, override: true });
 }
 
+// Nettoie les URLs PostgreSQL : Prisma ne supporte pas channel_binding=require
+// Neon l'exige pour la connexion directe, mais Prisma échoue avec ce paramètre
+function cleanDbUrl(url: string | undefined): string | undefined {
+  if (!url) return url;
+  // Retire &channel_binding=require ou ?channel_binding=require
+  const cleaned = url
+    .replace(/[?&]channel_binding=require/g, '')
+    .replace(/\?&/, '?')
+    .replace(/&&/g, '&')
+    .replace(/[?&]$/, '');
+  if (cleaned !== url) {
+    console.log(`  → Cleaned DB URL (removed channel_binding=require)`);
+  }
+  return cleaned;
+}
+
+const rawDbUrl = process.env.DATABASE_URL;
+const rawDirectUrl = process.env.DIRECT_URL;
+const cleanDbUrl = cleanDbUrl(rawDbUrl);
+const cleanDirectUrl = cleanDbUrl(rawDirectUrl);
+
+// Override process.env pour que Prisma utilise les URLs nettoyées
+if (cleanDbUrl && cleanDbUrl !== rawDbUrl) {
+  process.env.DATABASE_URL = cleanDbUrl;
+}
+if (cleanDirectUrl && cleanDirectUrl !== rawDirectUrl) {
+  process.env.DIRECT_URL = cleanDirectUrl;
+}
+
 // Diagnostics de démarrage (utile pour debug Railway)
 console.log('═══════════════════════════════════════════════');
 console.log('  LifeHelm Backend — Configuration');
 console.log('═══════════════════════════════════════════════');
 console.log(`  NODE_ENV:        ${process.env.NODE_ENV || '(unset, default: development)'}`);
 console.log(`  PORT:            ${process.env.PORT || '(unset, default: 3001)'}`);
-console.log(`  DATABASE_URL:    ${process.env.DATABASE_URL ? '✓ set (' + process.env.DATABASE_URL.substring(0, 50) + '...)' : '✗ MISSING'}`);
+console.log(`  DATABASE_URL:    ${process.env.DATABASE_URL ? '✓ set (' + process.env.DATABASE_URL.substring(0, 60) + '...)' : '✗ MISSING'}`);
 console.log(`  DIRECT_URL:      ${process.env.DIRECT_URL ? '✓ set' : '⚠ unset (will use DATABASE_URL)'}`);
 console.log(`  JWT_ACCESS:      ${process.env.JWT_ACCESS_SECRET ? '✓ set' : '⚠ using default (not secure!)'}`);
 console.log(`  JWT_REFRESH:     ${process.env.JWT_REFRESH_SECRET ? '✓ set' : '⚠ using default (not secure!)'}`);
