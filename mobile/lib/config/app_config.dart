@@ -2,13 +2,12 @@
 class AppConfig {
   AppConfig._();
 
-  // Backend API
-  // Pour émulateur Android : 10.0.2.2 = localhost de la machine hôte
-  // Pour simulateur iOS : 127.0.0.1
-  // Pour device physique : IP LAN de la machine (ex: 192.168.1.10)
+  // Backend API — PRODUCTION sur Railway
+  // Pour dev local (émulateur Android) : passe --dart-define=API_BASE_URL=http://10.0.2.2:3001/api
+  // Pour simulateur iOS en dev : --dart-define=API_BASE_URL=http://127.0.0.1:3001/api
   static const String apiBaseUrl = String.fromEnvironment(
     'API_BASE_URL',
-    defaultValue: 'http://10.0.2.2:3001/api',
+    defaultValue: 'https://lifehelm-production.up.railway.app/api',
   );
 
   static const String appName = 'LifeHelm';
