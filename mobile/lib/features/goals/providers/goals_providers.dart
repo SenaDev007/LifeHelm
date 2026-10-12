@@ -57,7 +57,7 @@ class LifeGoal {
         title: json['title'] as String,
         domain: json['domain'] as String? ?? 'OTHER',
         type: json['type'] as String? ?? 'BINARY',
-        priority: (json['priority'] as num?)?.toInt() ?? 3,
+        priority: _priorityNumber(json['priority']),
         targetValue: json['targetValue'] is String
             ? num.tryParse(json['targetValue'])
             : json['targetValue'] as num?,
@@ -67,7 +67,7 @@ class LifeGoal {
         unit: json['unit'] as String?,
         deadline: json['deadline'] != null ? DateTime.parse(json['deadline'] as String) : null,
         description: json['description'] as String?,
-        completed: json['completed'] as bool? ?? false,
+        completed: json['completed'] as bool? ?? json['status'] == 'COMPLETED',
         milestones: ((json['milestones'] as List<dynamic>?) ?? [])
             .map((m) => GoalMilestone.fromJson(m as Map<String, dynamic>))
             .toList(),
@@ -88,6 +88,17 @@ class GoalMilestone {
         title: json['title'] as String,
         completed: json['completed'] as bool? ?? false,
       );
+}
+
+
+int _priorityNumber(dynamic value) {
+  if (value is num) return value.toInt();
+  switch (value) {
+    case 'HIGH': return 1;
+    case 'LOW': return 5;
+    case 'MEDIUM': return 3;
+    default: return 3;
+  }
 }
 
 // ---------- GOALS LIST ----------
@@ -142,6 +153,7 @@ class GoalDomains {
     'FINANCE': 'Finance',
     'EDUCATION': 'Éducation',
     'SPIRITUAL': 'Spirituel',
+    'PERSONAL': 'Personnel',
     'OTHER': 'Autre',
   };
 
@@ -152,6 +164,7 @@ class GoalDomains {
     'FINANCE': '💰',
     'EDUCATION': '📚',
     'SPIRITUAL': '🧘',
+    'PERSONAL': '🎯',
     'OTHER': '🎯',
   };
 

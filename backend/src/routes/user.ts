@@ -19,7 +19,7 @@ router.get('/home', async (req: AuthedRequest, res: Response) => {
   const [
     accounts, monthTxs, prevTxs, savingsGoals, debts, bills,
     sleepLogs, moodLogs, workouts, weekHabits, todayHabits, goals,
-    boutiqueLogs, conversations, unreadInsights,
+    careerProfile, contacts, boutiqueLogs, conversations, unreadInsights,
   ] = await Promise.all([
     prisma.account.findMany({ where: { userId, archived: false } }),
     prisma.transaction.findMany({ where: { userId, date: { gte: startOfMonth } } }),
@@ -33,6 +33,8 @@ router.get('/home', async (req: AuthedRequest, res: Response) => {
     prisma.habitLog.findMany({ where: { userId, date: { gte: weekAgo }, completed: true } }),
     prisma.habitLog.findMany({ where: { userId, date: new Date(now.toISOString().slice(0, 10)), completed: true } }),
     prisma.lifeGoal.findMany({ where: { userId, status: 'ACTIVE' } }),
+    prisma.careerProfile.findUnique({ where: { userId } }),
+    prisma.contact.findMany({ where: { userId } }),
     prisma.dailyBoutiqueLog.findMany({ where: { userId, date: { gte: weekAgo } } }),
     prisma.aiConversation.findMany({ where: { userId }, orderBy: { updatedAt: 'desc' }, take: 1, include: { messages: { orderBy: { createdAt: 'desc' }, take: 1 } } }),
     prisma.aiInsight.count({ where: { userId, read: false } }),
@@ -44,7 +46,7 @@ router.get('/home', async (req: AuthedRequest, res: Response) => {
   const expenses = monthTxs.filter(t => t.type === 'EXPENSE').reduce((s, t) => s + t.amount.toNumber(), 0);
   const savings = income - expenses;
   const savingsRate = income > 0 ? Math.round((savings / income) * 100) : 0;
-  let financeScore = 50;
+  let financeScore = accounts.length || monthTxs.length ? 50 : 0;
   if (savingsRate >= 20) financeScore += 20;
   if (savingsRate >= 30) financeScore += 10;
   if (totalBalance > 0) financeScore += 10;
@@ -56,7 +58,7 @@ router.get('/home', async (req: AuthedRequest, res: Response) => {
   // ---------- Score Santé ----------
   const avgSleep = sleepLogs.length ? sleepLogs.reduce((s, l) => s + l.durationMin, 0) / sleepLogs.length / 60 : 0;
   const avgEnergy = moodLogs.length ? moodLogs.reduce((s, l) => s + l.energy, 0) / moodLogs.length : 0;
-  let healthScore = 50;
+  let healthScore = sleepLogs.length || moodLogs.length || workouts.length ? 50 : 0;
   if (avgSleep >= 7) healthScore += 15;
   if (avgSleep >= 6) healthScore += 5;
   if (avgEnergy >= 6) healthScore += 10;
@@ -72,7 +74,16 @@ router.get('/home', async (req: AuthedRequest, res: Response) => {
   // ---------- Score Objectifs ----------
   const activeGoals = goals.length;
   const goalsWithProgress = goals.filter(g => g.currentValue && g.targetValue && g.currentValue.toNumber() / g.targetValue.toNumber() > 0.1).length;
-  let goalScore = activeGoals === 0 ? 30 : Math.min(100, 40 + (goalsWithProgress / activeGoals) * 60);
+  let goalScore = activeGoals === 0 ? 0 : Math.min(100, 40 + (goalsWithProgress / activeGoals) * 60);
+
+  // ---------- Scores Carrière & Relations (données renseignées, jamais de valeurs fictives) ----------
+  const skills = Array.isArray(careerProfile?.skills) ? careerProfile.skills : [];
+  const careerProfileFields = [careerProfile?.jobTitle, careerProfile?.sector, careerProfile?.employmentType].filter(Boolean).length;
+  const careerScore = careerProfile
+    ? Math.min(100, careerProfileFields * 20 + Math.min(40, skills.length * 10) + (careerProfile.annualRevenueGoal ? 20 : 0))
+    : 0;
+  const recentlyContacted = contacts.filter((contact) => contact.lastContactAt && contact.lastContactAt >= new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)).length;
+  const relationsScore = contacts.length === 0 ? 0 : Math.min(100, 25 + Math.min(30, contacts.length * 5) + Math.round((recentlyContacted / contacts.length) * 45));
 
   // ---------- Score global vie (pondéré) ----------
   const globalScore = Math.round(
@@ -80,8 +91,8 @@ router.get('/home', async (req: AuthedRequest, res: Response) => {
     healthScore * 0.20 +
     habitScore * 0.20 +
     goalScore * 0.15 +
-    70 * 0.075 + // Carrière (placeholder)
-    65 * 0.075   // Relations (placeholder)
+    careerScore * 0.075 +
+    relationsScore * 0.075
   );
 
   // ---------- Today's habits ----------
@@ -125,8 +136,8 @@ router.get('/home', async (req: AuthedRequest, res: Response) => {
       health: healthScore,
       routines: habitScore,
       goals: goalScore,
-      career: 70, // placeholder
-      relations: 65, // placeholder
+      career: careerScore,
+      relations: relationsScore
     },
     financial: {
       totalBalance,

@@ -12,10 +12,13 @@ router.use(authRequired);
 
 const sleepSchema = z.object({
   date: z.string(),
-  bedtime: z.string(),
-  wakeTime: z.string(),
+  bedtime: z.string().optional(),
+  wakeTime: z.string().optional(),
+  hours: z.number().min(0.5).max(24).optional(),
   quality: z.number().int().min(1).max(5),
   note: z.string().optional(),
+}).refine((value) => value.hours != null || (value.bedtime != null && value.wakeTime != null), {
+  message: 'HOURS_OR_SLEEP_TIMES_REQUIRED',
 });
 
 router.get('/sleep', async (req: AuthedRequest, res: Response) => {
@@ -25,27 +28,27 @@ router.get('/sleep', async (req: AuthedRequest, res: Response) => {
     orderBy: { date: 'desc' },
     take: limit,
   });
-  res.json({ logs });
+  res.json({ logs: logs.map((log) => ({ ...log, hours: Math.round(log.durationMin / 6) / 10 })) });
 });
 
 router.post('/sleep', async (req: AuthedRequest, res: Response) => {
   const parsed = sleepSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: 'INVALID_INPUT' });
-  const bedtime = new Date(parsed.data.bedtime);
-  const wakeTime = new Date(parsed.data.wakeTime);
-  const durationMin = Math.round((wakeTime.getTime() - bedtime.getTime()) / 60000);
+  const date = new Date(parsed.data.date);
+  const bedtime = parsed.data.bedtime ? new Date(parsed.data.bedtime) : new Date(date);
+  const wakeTime = parsed.data.wakeTime
+    ? new Date(parsed.data.wakeTime)
+    : new Date(bedtime.getTime() + (parsed.data.hours ?? 0) * 60 * 60 * 1000);
+  const durationMin = parsed.data.hours != null
+    ? Math.round(parsed.data.hours * 60)
+    : Math.round((wakeTime.getTime() - bedtime.getTime()) / 60000);
+  if (durationMin <= 0 || !Number.isFinite(durationMin)) return res.status(400).json({ error: 'INVALID_SLEEP_DURATION' });
   const log = await prisma.sleepLog.upsert({
-    where: { userId_date: { userId: req.userId!, date: new Date(parsed.data.date) } },
+    where: { userId_date: { userId: req.userId!, date } },
     update: { bedtime, wakeTime, durationMin, quality: parsed.data.quality, note: parsed.data.note },
-    create: {
-      userId: req.userId!,
-      date: new Date(parsed.data.date),
-      bedtime, wakeTime, durationMin,
-      quality: parsed.data.quality,
-      note: parsed.data.note,
-    },
+    create: { userId: req.userId!, date, bedtime, wakeTime, durationMin, quality: parsed.data.quality, note: parsed.data.note },
   });
-  res.status(201).json({ log });
+  res.status(201).json({ log: { ...log, hours: Math.round(log.durationMin / 6) / 10 } });
 });
 
 // =====================================================================
@@ -53,44 +56,32 @@ router.post('/sleep', async (req: AuthedRequest, res: Response) => {
 // =====================================================================
 
 const moodSchema = z.object({
-  date: z.string(),
-  mood: z.enum(['VERY_BAD', 'BAD', 'NEUTRAL', 'GOOD', 'VERY_GOOD']),
-  energy: z.number().int().min(1).max(10),
+  date: z.string().optional(),
+  mood: z.union([z.enum(['VERY_BAD', 'BAD', 'NEUTRAL', 'GOOD', 'VERY_GOOD']), z.number().int().min(1).max(5)]),
+  energy: z.number().int().min(1).max(10).optional().default(5),
   emotions: z.array(z.string()).optional(),
   note: z.string().optional(),
 });
 
 router.get('/mood', async (req: AuthedRequest, res: Response) => {
   const limit = Math.min(parseInt(String(req.query.limit || '30'), 10), 365);
-  const logs = await prisma.moodLog.findMany({
-    where: { userId: req.userId },
-    orderBy: { date: 'desc' },
-    take: limit,
-  });
-  res.json({ logs });
+  const logs = await prisma.moodLog.findMany({ where: { userId: req.userId }, orderBy: { date: 'desc' }, take: limit });
+  res.json({ logs: logs.map((log) => ({ ...log, mood: ['VERY_BAD', 'BAD', 'NEUTRAL', 'GOOD', 'VERY_GOOD'].indexOf(log.mood) + 1 })) });
 });
 
 router.post('/mood', async (req: AuthedRequest, res: Response) => {
   const parsed = moodSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: 'INVALID_INPUT' });
+  const mood = typeof parsed.data.mood === 'number'
+    ? (['VERY_BAD', 'BAD', 'NEUTRAL', 'GOOD', 'VERY_GOOD'] as const)[parsed.data.mood - 1]
+    : parsed.data.mood;
+  const date = new Date(parsed.data.date ?? new Date().toISOString());
   const log = await prisma.moodLog.upsert({
-    where: { userId_date: { userId: req.userId!, date: new Date(parsed.data.date) } },
-    update: {
-      mood: parsed.data.mood,
-      energy: parsed.data.energy,
-      emotions: parsed.data.emotions || [],
-      note: parsed.data.note,
-    },
-    create: {
-      userId: req.userId!,
-      date: new Date(parsed.data.date),
-      mood: parsed.data.mood,
-      energy: parsed.data.energy,
-      emotions: parsed.data.emotions || [],
-      note: parsed.data.note,
-    },
+    where: { userId_date: { userId: req.userId!, date } },
+    update: { mood, energy: parsed.data.energy, emotions: parsed.data.emotions || [], note: parsed.data.note },
+    create: { userId: req.userId!, date, mood, energy: parsed.data.energy, emotions: parsed.data.emotions || [], note: parsed.data.note },
   });
-  res.status(201).json({ log });
+  res.status(201).json({ log: { ...log, mood: ['VERY_BAD', 'BAD', 'NEUTRAL', 'GOOD', 'VERY_GOOD'].indexOf(log.mood) + 1 } });
 });
 
 // =====================================================================
@@ -98,10 +89,10 @@ router.post('/mood', async (req: AuthedRequest, res: Response) => {
 // =====================================================================
 
 const workoutSchema = z.object({
-  date: z.string(),
+  date: z.string().optional(),
   type: z.string().min(1).max(80),
   durationMin: z.number().int().positive(),
-  intensity: z.number().int().min(1).max(5),
+  intensity: z.number().int().min(1).max(5).optional().default(3),
   calories: z.number().int().optional(),
   note: z.string().optional(),
 });
@@ -122,7 +113,7 @@ router.post('/workouts', async (req: AuthedRequest, res: Response) => {
   const log = await prisma.workoutLog.create({
     data: {
       userId: req.userId!,
-      date: new Date(parsed.data.date),
+      date: new Date(parsed.data.date ?? new Date().toISOString()),
       type: parsed.data.type,
       durationMin: parsed.data.durationMin,
       intensity: parsed.data.intensity,
@@ -147,50 +138,34 @@ router.get('/hydration', async (req: AuthedRequest, res: Response) => {
   const log = await prisma.hydrationLog.findUnique({
     where: { userId_date: { userId: req.userId!, date: new Date(dateStr) } },
   });
-  res.json({ log });
+  res.json({ todayMl: log?.amountMl ?? 0, goalMl: log?.goalMl ?? 2000, date: dateStr, log, logs: [] });
 });
 
-router.post('/hydration', async (req: AuthedRequest, res: Response) => {
-  const schema = z.object({
-    date: z.string(),
-    amountMl: z.number().int().min(0),
-    goalMl: z.number().int().min(1).optional().default(2000),
-  });
-  const parsed = schema.safeParse(req.body);
-  if (!parsed.success) return res.status(400).json({ error: 'INVALID_INPUT' });
-  const log = await prisma.hydrationLog.upsert({
-    where: { userId_date: { userId: req.userId!, date: new Date(parsed.data.date) } },
-    update: { amountMl: parsed.data.amountMl, goalMl: parsed.data.goalMl },
-    create: {
-      userId: req.userId!,
-      date: new Date(parsed.data.date),
-      amountMl: parsed.data.amountMl,
-      goalMl: parsed.data.goalMl,
-    },
-  });
-  res.status(201).json({ log });
-});
+const hydrationSchema = z.object({
+  date: z.string().optional(),
+  amountMl: z.number().int().min(0).optional(),
+  addMl: z.number().int().min(1).optional(),
+  goalMl: z.number().int().min(1).optional().default(2000),
+}).refine((value) => value.amountMl != null || value.addMl != null);
 
-router.post('/hydration/add', async (req: AuthedRequest, res: Response) => {
-  const schema = z.object({
-    date: z.string(),
-    addMl: z.number().int().min(1),
-    goalMl: z.number().int().min(1).optional().default(2000),
-  });
-  const parsed = schema.safeParse(req.body);
-  if (!parsed.success) return res.status(400).json({ error: 'INVALID_INPUT' });
-  const date = new Date(parsed.data.date);
-  const existing = await prisma.hydrationLog.findUnique({
-    where: { userId_date: { userId: req.userId!, date } },
-  });
-  const newAmount = (existing?.amountMl || 0) + parsed.data.addMl;
+async function saveHydration(req: AuthedRequest, res: Response, incrementOnly: boolean) {
+  const parsed = hydrationSchema.safeParse(req.body);
+  if (!parsed.success || (incrementOnly && parsed.data?.addMl == null)) return res.status(400).json({ error: 'INVALID_INPUT' });
+  const date = new Date(parsed.data.date ?? new Date().toISOString());
+  const existing = await prisma.hydrationLog.findUnique({ where: { userId_date: { userId: req.userId!, date } } });
+  const amountMl = parsed.data.addMl != null
+    ? (existing?.amountMl ?? 0) + parsed.data.addMl
+    : parsed.data.amountMl!;
   const log = await prisma.hydrationLog.upsert({
     where: { userId_date: { userId: req.userId!, date } },
-    update: { amountMl: newAmount },
-    create: { userId: req.userId!, date, amountMl: newAmount, goalMl: parsed.data.goalMl },
+    update: { amountMl, goalMl: parsed.data.goalMl },
+    create: { userId: req.userId!, date, amountMl, goalMl: parsed.data.goalMl },
   });
-  res.json({ log });
-});
+  res.status(201).json({ todayMl: log.amountMl, goalMl: log.goalMl, date: log.date, log, logs: [] });
+}
+
+router.post('/hydration', (req: AuthedRequest, res: Response) => saveHydration(req, res, false));
+router.post('/hydration/add', (req: AuthedRequest, res: Response) => saveHydration(req, res, true));
 
 // =====================================================================
 // DASHBOARD SANTÉ
