@@ -29,10 +29,11 @@ interface VerifyResult {
   amount: number;
 }
 
-// Si pas de clé FedaPay configurée, on simule (mode démo)
-const isMockMode = !FEDAPAY_KEY;
+// Le mock doit être explicitement activé et n'est jamais autorisé en production.
+const isMockMode = !FEDAPAY_KEY && process.env.FEDAPAY_MOCK === 'true' && config.nodeEnv !== 'production';
 
 export async function initiateFedaPayPayment(params: InitiateParams): Promise<InitiateResult> {
+  if (!FEDAPAY_KEY && !isMockMode) throw new Error('FEDAPAY_NOT_CONFIGURED');
   if (isMockMode) {
     console.log('[FedaPay MOCK] Initiate', params);
     // En mode mock, on simule un paiement déjà approuvé
@@ -74,6 +75,7 @@ export async function initiateFedaPayPayment(params: InitiateParams): Promise<In
 }
 
 export async function verifyFedaPayPayment(transactionId: string): Promise<VerifyResult> {
+  if (!FEDAPAY_KEY && !isMockMode) throw new Error('FEDAPAY_NOT_CONFIGURED');
   if (isMockMode) {
     console.log('[FedaPay MOCK] Verify', transactionId);
     // En mode mock, on approuve automatiquement après 5s

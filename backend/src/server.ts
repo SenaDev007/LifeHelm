@@ -21,6 +21,8 @@ import notificationRoutes from './routes/notifications.js';
 import exportRoutes from './routes/exports.js';
 import smsImportRoutes from './routes/sms-import.js';
 import syncRoutes from './routes/sync.js';
+import careerRoutes from './routes/career.js';
+import relationshipRoutes from './routes/relationships.js';
 
 const app = express();
 
@@ -74,6 +76,8 @@ app.use('/api/notifications', notificationRoutes);
 app.use('/api/exports', exportRoutes);
 app.use('/api/sms-imports', smsImportRoutes);
 app.use('/api/sync', syncRoutes);
+app.use('/api/career', careerRoutes);
+app.use('/api/relationships', relationshipRoutes);
 
 // Webhook FedaPay (sans auth)
 app.use('/api/payments/webhook/fedapay', (req, res, next) => {

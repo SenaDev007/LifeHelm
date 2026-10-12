@@ -9,6 +9,13 @@ import { generateTokens, setAuthCookies, hashToken } from '../utils/auth.js';
 
 const router = Router();
 
+function getRefreshToken(req: Request): string | undefined {
+  const bodyToken = req.body?.refreshToken;
+  if (typeof bodyToken === 'string' && bodyToken.length > 0) return bodyToken;
+  const cookie = req.headers.cookie?.split(';').map((part) => part.trim()).find((part) => part.startsWith('refresh_token='));
+  return cookie ? decodeURIComponent(cookie.slice('refresh_token='.length)) : undefined;
+}
+
 // Rate limiting strict pour /auth (5 tentatives / 15 min par IP)
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
@@ -73,7 +80,7 @@ router.post('/signup', async (req: Request, res: Response, next: NextFunction) =
     await prisma.user.update({ where: { id: user.id }, data: { lastLoginAt: new Date() } });
 
     setAuthCookies(res, accessToken, refreshToken);
-    return res.status(201).json({ user, accessToken });
+    return res.status(201).json({ user, accessToken, refreshToken });
   } catch (e) {
     next(e);
   }
@@ -120,6 +127,7 @@ router.post('/login', async (req: Request, res: Response, next: NextFunction) =>
         accessibleOnboarded: user.accessibleOnboarded,
       },
       accessToken,
+      refreshToken,
     });
   } catch (e) {
     next(e);
@@ -129,7 +137,7 @@ router.post('/login', async (req: Request, res: Response, next: NextFunction) =>
 // ---------- REFRESH ----------
 router.post('/refresh', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const refreshToken = req.cookies?.refresh_token;
+    const refreshToken = getRefreshToken(req);
     if (!refreshToken) return res.status(401).json({ error: 'NO_REFRESH_TOKEN' });
 
     let payload: { sub: string };
@@ -144,20 +152,18 @@ router.post('/refresh', async (req: Request, res: Response, next: NextFunction) 
     });
     if (!stored) return res.status(401).json({ error: 'INVALID_REFRESH_TOKEN' });
 
-    // Rotation
-    await prisma.refreshToken.update({ where: { id: stored.id }, data: { revoked: true } });
-
+    // Rotation atomique : un refresh token ne peut être consommé qu'une seule fois.
     const tokens = generateTokens(payload.sub);
-    await prisma.refreshToken.create({
-      data: {
-        userId: payload.sub,
-        token: hashToken(tokens.refreshToken),
-        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
-      },
+    const rotated = await prisma.$transaction(async (tx) => {
+      const result = await tx.refreshToken.updateMany({ where: { id: stored.id, revoked: false, expiresAt: { gt: new Date() } }, data: { revoked: true } });
+      if (!result.count) return false;
+      await tx.refreshToken.create({ data: { userId: payload.sub, token: hashToken(tokens.refreshToken), expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) } });
+      return true;
     });
+    if (!rotated) return res.status(401).json({ error: 'INVALID_REFRESH_TOKEN' });
 
     setAuthCookies(res, tokens.accessToken, tokens.refreshToken);
-    return res.json({ accessToken: tokens.accessToken });
+    return res.json({ accessToken: tokens.accessToken, refreshToken: tokens.refreshToken });
   } catch (e) {
     next(e);
   }
@@ -166,7 +172,7 @@ router.post('/refresh', async (req: Request, res: Response, next: NextFunction) 
 // ---------- LOGOUT ----------
 router.post('/logout', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const refreshToken = req.cookies?.refresh_token;
+    const refreshToken = getRefreshToken(req);
     if (refreshToken) {
       await prisma.refreshToken.updateMany({
         where: { token: hashToken(refreshToken) },

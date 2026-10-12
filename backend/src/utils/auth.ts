@@ -1,5 +1,5 @@
 import jwt, { type Secret, type SignOptions } from 'jsonwebtoken';
-import bcrypt from 'bcryptjs';
+import { createHash } from 'node:crypto';
 import type { Response } from 'express';
 import { config } from '../config.js';
 
@@ -16,7 +16,7 @@ export function generateTokens(userId: string) {
 }
 
 export function hashToken(token: string): string {
-  return bcrypt.hashSync(token, 10);
+  return createHash('sha256').update(token).digest('hex');
 }
 
 export function setAuthCookies(res: Response, accessToken: string, refreshToken: string) {

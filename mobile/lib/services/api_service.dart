@@ -17,8 +17,10 @@ final dioProvider = Provider<Dio>((ref) {
 
   if (kDebugMode) {
     dio.interceptors.add(LogInterceptor(
-      requestBody: true,
-      responseBody: true,
+      requestHeader: false,
+      requestBody: false,
+      responseHeader: false,
+      responseBody: false,
       error: true,
       logPrint: (o) => debugPrint('[API] $o'),
     ));
@@ -42,11 +44,11 @@ final dioProvider = Provider<Dio>((ref) {
         if (refreshToken != null && refreshToken.isNotEmpty) {
           try {
             final refreshDio = Dio(BaseOptions(baseUrl: AppConfig.apiBaseUrl));
-            final r = await refreshDio.post('/auth/refresh', options: Options(
-              headers: {'Cookie': 'refresh_token=$refreshToken'},
-            ));
+            final r = await refreshDio.post('/auth/refresh', data: {'refreshToken': refreshToken});
             final newToken = r.data['accessToken'] as String;
             await storage.write(key: 'access_token', value: newToken);
+            final newRefreshToken = r.data['refreshToken'] as String?;
+            if (newRefreshToken != null) await storage.write(key: 'refresh_token', value: newRefreshToken);
             // Retry
             error.requestOptions.headers['Authorization'] = 'Bearer $newToken';
             final clone = await dio.fetch(error.requestOptions);
@@ -145,10 +147,11 @@ class AuthNotifier extends StateNotifier<AuthState> {
   }
 
   Future<void> logout() async {
-    try {
-      await _dio.post('/auth/logout');
-    } catch (_) {}
     const storage = FlutterSecureStorage();
+    final refreshToken = await storage.read(key: 'refresh_token');
+    try {
+      await _dio.post('/auth/logout', data: {'refreshToken': refreshToken});
+    } catch (_) {}
     await storage.deleteAll();
     state = const AuthState(status: AuthStatus.unauthenticated);
   }
@@ -166,9 +169,10 @@ class AuthNotifier extends StateNotifier<AuthState> {
     if (accessToken != null) {
       await storage.write(key: 'access_token', value: accessToken);
     }
-    // Refresh token est en cookie httpOnly côté backend — on ne peut pas le lire côté Flutter.
-    // Pour le mobile, on stocke aussi le refresh token si l'API le renvoie dans le body.
-    // (À adapter si le backend mobile renvoie les deux tokens dans le body.)
+    final refreshToken = data['refreshToken'] as String?;
+    if (refreshToken != null) {
+      await storage.write(key: 'refresh_token', value: refreshToken);
+    }
   }
 
   String _extractError(DioException e) {

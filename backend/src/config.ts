@@ -61,7 +61,7 @@ console.log(`  DIRECT_URL:      ${process.env.DIRECT_URL ? '✓ set' : '⚠ unse
 console.log(`  JWT_ACCESS:      ${process.env.JWT_ACCESS_SECRET ? '✓ set' : '⚠ using default (not secure!)'}`);
 console.log(`  JWT_REFRESH:     ${process.env.JWT_REFRESH_SECRET ? '✓ set' : '⚠ using default (not secure!)'}`);
 console.log(`  CORS_ORIGIN:     ${process.env.CORS_ORIGIN || '*'}`);
-console.log(`  FEDAPAY_KEY:     ${process.env.FEDAPAY_SECRET_KEY ? '✓ set' : '✗ unset (mock mode)'}`);
+console.log(`  FEDAPAY_KEY:     ${process.env.FEDAPAY_SECRET_KEY ? '✓ set' : '✗ unset (payments disabled; set FEDAPAY_MOCK=true only for local demos)'}`);
 console.log('═══════════════════════════════════════════════');
 
 export const config = {

@@ -5,6 +5,7 @@ import '../../../theme/theme.dart';
 import '../../../widgets/lifehelm_button.dart';
 import '../../../widgets/lifehelm_text_field.dart';
 import '../providers/routines_providers.dart';
+import 'ritual_cards.dart';
 
 class RoutinesScreen extends ConsumerWidget {
   const RoutinesScreen({super.key});
@@ -49,30 +50,33 @@ class RoutinesScreen extends ConsumerWidget {
           ),
           data: (habits) {
             if (habits.isEmpty) {
-              return Center(
-                child: Padding(
-                  padding: const EdgeInsets.all(32),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(Icons.today, size: 64, color: LifeHelmColors.textTertiary),
-                      const SizedBox(height: 16),
-                      const Text('Aucune habitude', style: TextStyle(color: LifeHelmColors.textSecondary)),
-                      const SizedBox(height: 24),
-                      ElevatedButton.icon(
-                        onPressed: () => _showAddDialog(context, ref),
-                        icon: const Icon(Icons.add),
-                        label: const Text('Créer une habitude'),
-                      ),
-                    ],
-                  ),
-                ),
+              return ListView(
+                padding: const EdgeInsets.all(16),
+                children: [
+                  const MorningRitualCard(),
+                  const SizedBox(height: 8),
+                  const EveningReviewCard(),
+                  const SizedBox(height: 24),
+                  const Center(child: Icon(Icons.today, size: 56, color: LifeHelmColors.textTertiary)),
+                  const SizedBox(height: 12),
+                  const Center(child: Text('Aucune habitude configurée', style: TextStyle(color: LifeHelmColors.textSecondary))),
+                  const SizedBox(height: 16),
+                  Center(child: ElevatedButton.icon(
+                    onPressed: () => _showAddDialog(context, ref),
+                    icon: const Icon(Icons.add),
+                    label: const Text('Créer ma première habitude'),
+                  )),
+                ],
               );
             }
             final doneToday = habits.where((h) => h.completedToday).length;
             return ListView(
               padding: const EdgeInsets.all(16),
               children: [
+                const MorningRitualCard(),
+                const SizedBox(height: 8),
+                const EveningReviewCard(),
+                const SizedBox(height: 12),
                 Card(
                   color: LifeHelmColors.routines,
                   child: Padding(
@@ -241,13 +245,11 @@ class _Heatmap extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Génère 30 cases en se basant sur lastSevenDays (si dispo) sinon faux data
     final List<bool> days = List.generate(30, (i) {
-      if (habit.lastSevenDays.isEmpty) return false;
-      // On réplique la dernière semaine sur 4 semaines (approximation UI)
-      return habit.lastSevenDays[i % habit.lastSevenDays.length];
+      if (habit.last30Days.length == 30) return habit.last30Days[i];
+      if (habit.lastSevenDays.length == 7) return i >= 23 ? habit.lastSevenDays[i - 23] : false;
+      return false;
     });
-    // Marque aujourd'hui comme complété si completedToday
     if (habit.completedToday) days[29] = true;
 
     return Column(

@@ -29,7 +29,40 @@ router.get('/habits', async (req: AuthedRequest, res: Response) => {
     include: { logs: { orderBy: { date: 'desc' }, take: 90 } },
     orderBy: { createdAt: 'asc' },
   });
-  res.json({ habits });
+  const today = new Date();
+  today.setUTCHours(0, 0, 0, 0);
+  const start = new Date(today);
+  start.setUTCDate(start.getUTCDate() - 29);
+  res.json({ habits: habits.map((habit) => {
+    const completedDates = new Set(habit.logs.filter((log) => log.completed).map((log) => log.date.toISOString().slice(0, 10)));
+    const last30Days = Array.from({ length: 30 }, (_, index) => {
+      const date = new Date(start);
+      date.setUTCDate(date.getUTCDate() + index);
+      return completedDates.has(date.toISOString().slice(0, 10));
+    });
+    let streak = 0;
+    const cursor = new Date(today);
+    while (completedDates.has(cursor.toISOString().slice(0, 10))) {
+      streak += 1;
+      cursor.setUTCDate(cursor.getUTCDate() - 1);
+    }
+    const completedToday = completedDates.has(today.toISOString().slice(0, 10));
+    return {
+      id: habit.id,
+      name: habit.name,
+      description: habit.description,
+      icon: habit.icon,
+      color: habit.color,
+      frequency: habit.frequency,
+      targetCount: 1,
+      streak,
+      bestStreak: streak,
+      completedToday,
+      lastSevenDays: last30Days.slice(-7),
+      last30Days,
+      active: habit.active,
+    };
+  }) });
 });
 
 router.post('/habits', async (req: AuthedRequest, res: Response) => {
@@ -68,6 +101,7 @@ const logSchema = z.object({
   date: z.string(),
   value: z.number().optional(),
   completed: z.boolean().optional().default(true),
+  done: z.boolean().optional(),
   note: z.string().optional(),
 });
 
@@ -77,10 +111,11 @@ router.post('/habits/:id/log', async (req: AuthedRequest, res: Response) => {
   const parsed = logSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: 'INVALID_INPUT' });
   const date = new Date(parsed.data.date);
+  const completed = parsed.data.done ?? parsed.data.completed;
   const log = await prisma.habitLog.upsert({
     where: { habitId_date: { habitId: habit.id, date } },
-    update: { value: parsed.data.value, completed: parsed.data.completed, note: parsed.data.note },
-    create: { habitId: habit.id, userId: req.userId!, date, value: parsed.data.value, completed: parsed.data.completed, note: parsed.data.note },
+    update: { value: parsed.data.value, completed, note: parsed.data.note },
+    create: { habitId: habit.id, userId: req.userId!, date, value: parsed.data.value, completed, note: parsed.data.note },
   });
   res.status(201).json({ log });
 });

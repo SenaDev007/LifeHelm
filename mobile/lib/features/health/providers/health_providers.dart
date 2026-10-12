@@ -28,7 +28,7 @@ class SleepLog {
   factory SleepLog.fromJson(Map<String, dynamic> json) => SleepLog(
         id: json['id'] as String,
         date: DateTime.parse(json['date'] as String),
-        hours: (json['hours'] as num?)?.toDouble() ?? 0,
+        hours: (json['hours'] as num?)?.toDouble() ?? ((json['durationMin'] as num?)?.toDouble() ?? 0) / 60,
         quality: (json['quality'] as num?)?.toInt() ?? 3,
         bedtime: json['bedtime'] != null ? DateTime.parse(json['bedtime'] as String) : null,
         wakeTime: json['wakeTime'] != null ? DateTime.parse(json['wakeTime'] as String) : null,
@@ -55,7 +55,9 @@ class MoodLog {
   factory MoodLog.fromJson(Map<String, dynamic> json) => MoodLog(
         id: json['id'] as String,
         date: DateTime.parse(json['date'] as String),
-        mood: (json['mood'] as num?)?.toInt() ?? 3,
+        mood: json['mood'] is num
+            ? (json['mood'] as num).toInt()
+            : const {'VERY_BAD': 1, 'BAD': 2, 'NEUTRAL': 3, 'GOOD': 4, 'VERY_GOOD': 5}[json['mood']] ?? 3,
         energy: (json['energy'] as num?)?.toInt() ?? 5,
         note: json['note'] as String?,
       );
@@ -114,7 +116,7 @@ class HydrationLog {
   double get progress => goalMl > 0 ? (todayMl / goalMl).clamp(0.0, 1.0) : 0;
 
   factory HydrationLog.fromJson(Map<String, dynamic> json) => HydrationLog(
-        todayMl: (json['todayMl'] as num?)?.toInt() ?? 0,
+        todayMl: (json['todayMl'] as num?)?.toInt() ?? (json['amountMl'] as num?)?.toInt() ?? 0,
         goalMl: (json['goalMl'] as num?)?.toInt() ?? 2000,
         logs: ((json['logs'] as List<dynamic>?) ?? [])
             .map((l) => HydrationEntry.fromJson(l as Map<String, dynamic>))
@@ -163,10 +165,10 @@ class HealthDashboard {
         avgSleep: (json['avgSleep'] as num?)?.toDouble() ?? 0,
         avgEnergy: (json['avgEnergy'] as num?)?.toDouble() ?? 0,
         weekWorkouts: (json['weekWorkouts'] as num?)?.toInt() ?? 0,
-        todayHydrationMl: (json['todayHydrationMl'] as num?)?.toInt() ?? 0,
-        hydrationGoalMl: (json['hydrationGoalMl'] as num?)?.toInt() ?? 2000,
+        todayHydrationMl: (json['todayHydrationMl'] as num?)?.toInt() ?? ((json['hydration'] as Map<String, dynamic>?)?['amountMl'] as num?)?.toInt() ?? 0,
+        hydrationGoalMl: (json['hydrationGoalMl'] as num?)?.toInt() ?? ((json['hydration'] as Map<String, dynamic>?)?['goalMl'] as num?)?.toInt() ?? 2000,
         todayMood: (json['todayMood'] as num?)?.toInt() ?? 0,
-        recentWorkouts: ((json['recentWorkouts'] as List<dynamic>?) ?? [])
+        recentWorkouts: ((json['recentWorkouts'] as List<dynamic>?) ?? (json['workouts'] as List<dynamic>?) ?? [])
             .map((w) => WorkoutLog.fromJson(w as Map<String, dynamic>))
             .toList(),
       );
@@ -224,6 +226,7 @@ class HealthRepository {
   Future<MoodLog> addMood(int mood, {int? energy, String? note}) async {
     final r = await _dio.post('/health/mood', data: {
       'mood': mood,
+      'date': DateTime.now().toIso8601String(),
       if (energy != null) 'energy': energy,
       if (note != null) 'note': note,
     });
@@ -231,12 +234,15 @@ class HealthRepository {
   }
 
   Future<WorkoutLog> addWorkout(Map<String, dynamic> data) async {
-    final r = await _dio.post('/health/workouts', data: data);
+    final r = await _dio.post('/health/workouts', data: {'intensity': 3, ...data});
     return WorkoutLog.fromJson(r.data['log'] as Map<String, dynamic>);
   }
 
   Future<HydrationLog> addHydration(int amountMl) async {
-    final r = await _dio.post('/health/hydration', data: {'amountMl': amountMl});
+    final r = await _dio.post('/health/hydration/add', data: {
+      'addMl': amountMl,
+      'date': DateTime.now().toIso8601String(),
+    });
     return HydrationLog.fromJson(r.data as Map<String, dynamic>);
   }
 }

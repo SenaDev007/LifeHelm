@@ -19,6 +19,8 @@ import '../features/finance/screens/accounts_screen.dart';
 import '../features/goals/screens/goals_screen.dart';
 import '../features/routines/screens/routines_screen.dart';
 import '../features/health/screens/health_screen.dart';
+import '../features/career/screens/career_screen.dart';
+import '../features/relationships/screens/relationships_screen.dart';
 import '../features/ai/screens/ai_screen.dart';
 import '../features/accessible/screens/accessible_home_screen.dart';
 import '../features/accessible/screens/accessible_vente_screen.dart';
@@ -96,6 +98,8 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(path: '/goals', builder: (context, state) => const GoalsScreen()),
           GoRoute(path: '/routines', builder: (context, state) => const RoutinesScreen()),
           GoRoute(path: '/health', builder: (context, state) => const HealthScreen()),
+          GoRoute(path: '/career', builder: (context, state) => const CareerScreen()),
+          GoRoute(path: '/relationships', builder: (context, state) => const RelationshipsScreen()),
           GoRoute(path: '/ai', builder: (context, state) => const AIScreen()),
           GoRoute(path: '/profile', builder: (context, state) => const ProfileScreen()),
           GoRoute(path: '/settings', builder: (context, state) => const SettingsScreen()),
