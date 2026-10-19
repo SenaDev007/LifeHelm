@@ -145,38 +145,35 @@ class _BellButton extends ConsumerWidget {
   }
 }
 
-/// Monogramme de marque (or sur noir).
+/// Logo officiel LifeHelm — glyphe sombre & or sur médaillon blanc
+/// (source : assets/brand/logo-lifehelm.png, kit de marque app/LifeHelm).
 class HelmMark extends StatelessWidget {
   const HelmMark({super.key, this.size = 44});
   final double size;
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       width: size,
       height: size,
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [LHColors.or, Color(0xFFE4CE8F)]),
+        color: Colors.white,
         borderRadius: BorderRadius.circular(size * 0.28),
+        border: Border.all(
+            color: LHColors.orDeep.withValues(alpha: 0.35), width: 1),
         boxShadow: [
           BoxShadow(
-              color: LHColors.or.withValues(alpha: 0.35),
-              blurRadius: size * 0.35,
-              offset: Offset(0, size * 0.08)),
+              color: Colors.black.withValues(alpha: isDark ? 0.45 : 0.15),
+              blurRadius: size * 0.30,
+              offset: Offset(0, size * 0.06)),
         ],
       ),
-      child: Center(
-        child: Text('LH',
-            style: TextStyle(
-              fontFamily: LHFonts.titres,
-              fontWeight: FontWeight.w800,
-              fontSize: size * 0.42,
-              color: LHColors.noir,
-              letterSpacing: -0.5,
-            )),
+      padding: EdgeInsets.all(size * 0.14),
+      child: Image.asset(
+        'assets/brand/logo-lifehelm.png',
+        fit: BoxFit.contain,
+        filterQuality: FilterQuality.high,
       ),
     );
   }

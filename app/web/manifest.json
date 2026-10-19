@@ -1,11 +1,11 @@
 {
-    "name": "lifehelm",
-    "short_name": "lifehelm",
+    "name": "LifeHelm — Votre vie, un seul gouvernail",
+    "short_name": "LifeHelm",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "background_color": "#070400",
+    "theme_color": "#070400",
+    "description": "Life Management System : tâches, agenda, finances XOF, notes, projets, habitudes, bien-être — hors ligne d'abord.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [
