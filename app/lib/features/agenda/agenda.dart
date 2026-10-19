@@ -599,7 +599,7 @@ class _CalendarManagerSheet extends ConsumerWidget {
   final String spaceId;
 
   static const _presetColors = [
-    '#C6A85B', // or
+    '#FFD700', // or
     '#5B8DD9', // bleu
     '#10A878', // émeraude
     '#E8720C', // orange

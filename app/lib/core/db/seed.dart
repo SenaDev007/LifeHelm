@@ -20,7 +20,7 @@ Future<void> seedSpaceFoundations(AppDatabase db, String spaceId,
   for (final name in listNames) {
     final listId = _uuid.v4();
     await db.into(db.taskLists).insert(TaskList(
-        id: listId, spaceId: spaceId, name: name, colorHex: '#C6A85B'));
+        id: listId, spaceId: spaceId, name: name, colorHex: '#FFD700'));
     db.logOp('TaskList', listId, 'CREATE', {'name': name});
   }
 
@@ -29,7 +29,7 @@ Future<void> seedSpaceFoundations(AppDatabase db, String spaceId,
     ('Principal', '#5B8DD9'),
     ('Perso', '#10A878'),
     if (space?.type == 'PROFESSIONAL') ('Rendez-vous clients', '#E8720C'),
-    if (space?.type == 'FAMILY') ('Famille', '#C6A85B'),
+    if (space?.type == 'FAMILY') ('Famille', '#FFD700'),
   ];
   for (final (name, color) in calNames) {
     final calId = _uuid.v4();
@@ -42,7 +42,7 @@ Future<void> seedSpaceFoundations(AppDatabase db, String spaceId,
   const categories = [
     ('Alimentation', 'EXPENSE', '#10A878'),
     ('Transport', 'EXPENSE', '#5B8DD9'),
-    ('Logement', 'EXPENSE', '#C6A85B'),
+    ('Logement', 'EXPENSE', '#FFD700'),
     ('Énergie', 'EXPENSE', '#E8A13D'),
     ('Santé', 'EXPENSE', '#E05B5B'),
     ('Éducation', 'EXPENSE', '#8A6DD9'),
@@ -50,7 +50,7 @@ Future<void> seedSpaceFoundations(AppDatabase db, String spaceId,
     ('Loisirs', 'EXPENSE', '#5BB8D9'),
     ('Autres dépenses', 'EXPENSE', '#8A8A8A'),
     ('Salaire', 'INCOME', '#10A878'),
-    ('Ventes', 'INCOME', '#C6A85B'),
+    ('Ventes', 'INCOME', '#FFD700'),
     ('Services', 'INCOME', '#5B8DD9'),
     ('Autres revenus', 'INCOME', '#8A8A8A'),
   ];
@@ -459,7 +459,7 @@ Future<void> seedAllDemoData(AppDatabase db) async {
         colorHex: '#5BB8D9', createdAt: DateTime.now()),
     Habit(id: hLecture, spaceId: personal.id, name: 'Lire 20 minutes',
         trackingType: 'QUANTITY', unit: 'min', targetValue: 20,
-        colorHex: '#C6A85B', createdAt: DateTime.now()),
+        colorHex: '#FFD700', createdAt: DateTime.now()),
     Habit(id: hSport, spaceId: personal.id, name: 'Exercice matinal',
         trackingType: 'BINARY', colorHex: '#10A878', createdAt: DateTime.now()),
   ]));
@@ -674,11 +674,11 @@ Future<void> seedAllDemoData(AppDatabase db) async {
   ]));
   await db.batch((b) => b.insertAll(db.conversationMembers, [
     ConversationMember(id: you1, conversationId: conv1, displayName: 'Vous',
-        role: 'OWNER', colorHex: '#C6A85B'),
+        role: 'OWNER', colorHex: '#FFD700'),
     ConversationMember(id: aicha, conversationId: conv1, displayName: 'Aïcha',
         role: 'MEMBER', colorHex: '#10A878'),
     ConversationMember(id: _uuid.v4(), conversationId: conv2, displayName: 'Vous',
-        role: 'OWNER', colorHex: '#C6A85B'),
+        role: 'OWNER', colorHex: '#FFD700'),
     ConversationMember(id: _uuid.v4(), conversationId: conv2, displayName: 'Aïcha',
         role: 'MEMBER', colorHex: '#10A878'),
     ConversationMember(id: _uuid.v4(), conversationId: conv2, displayName: 'Maman',

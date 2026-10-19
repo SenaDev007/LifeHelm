@@ -17,7 +17,7 @@ void main() {
           ]),
         ),
         LHCard(
-          accent: const Color(0xFFC6A85B),
+          accent: const Color(0xFFFFD700),
           child: const Column(children: [Text('Avec accent')]),
         ),
       ]),

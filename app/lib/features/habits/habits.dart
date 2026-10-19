@@ -17,7 +17,7 @@ import '../../shell/widgets.dart' show LhAppBar;
 
 /// Palette proposée pour les habitudes (8 couleurs).
 const habitPalette = [
-  '#10A878', '#C6A85B', '#5B8DD9', '#E8720C',
+  '#10A878', '#FFD700', '#5B8DD9', '#E8720C',
   '#E05B5B', '#8A6DD9', '#E8A13D', '#5BB8D9',
 ];
 

@@ -192,7 +192,7 @@ class AppDatabase extends _$AppDatabase {
   Future<Space> createSpace({
     required String type,
     required String name,
-    String colorHex = '#C6A85B',
+    String colorHex = '#FFD700',
     bool isDefault = false,
   }) async {
     final space = Space(
@@ -381,7 +381,7 @@ class AppDatabase extends _$AppDatabase {
     if (await isOnboarded()) return;
 
     final personal = await createSpace(
-        type: 'PERSONAL', name: 'Personnel', colorHex: '#C6A85B', isDefault: true);
+        type: 'PERSONAL', name: 'Personnel', colorHex: '#FFD700', isDefault: true);
     final family = await createSpace(
         type: 'FAMILY', name: 'Famille', colorHex: '#10A878');
     final pro = await createSpace(

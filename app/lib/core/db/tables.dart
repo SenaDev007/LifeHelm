@@ -13,7 +13,7 @@ class Spaces extends Table {
   TextColumn get id => text()();
   TextColumn get type => text()(); // PERSONAL | FAMILY | PROFESSIONAL
   TextColumn get name => text()();
-  TextColumn get colorHex => text().withDefault(const Constant('#C6A85B'))();
+  TextColumn get colorHex => text().withDefault(const Constant('#FFD700'))();
   BoolColumn get isDefault => boolean().withDefault(const Constant(false))();
   DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
   @override
@@ -49,7 +49,7 @@ class TaskLists extends Table {
   TextColumn get id => text()();
   TextColumn get spaceId => text()();
   TextColumn get name => text()();
-  TextColumn get colorHex => text().withDefault(const Constant('#C6A85B'))();
+  TextColumn get colorHex => text().withDefault(const Constant('#FFD700'))();
   @override
   Set<Column> get primaryKey => {id};
 }

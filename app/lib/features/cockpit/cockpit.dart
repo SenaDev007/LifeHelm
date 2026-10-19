@@ -98,11 +98,15 @@ class _Greeting extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final hour = DateTime.now().hour;
-    final salut = hour < 12
+    // Salutation selon le moment de la journée (CDC §4.2) :
+    // 5h-12h Bonjour · 12h-18h Bon après-midi · 18h-23h Bonsoir · 23h-5h Bonne nuit
+    final salut = hour >= 5 && hour < 12
         ? 'Bonjour'
-        : hour < 18
+        : hour >= 12 && hour < 18
             ? 'Bon après-midi'
-            : 'Bonsoir';
+            : hour >= 18 && hour < 23
+                ? 'Bonsoir'
+                : 'Bonne nuit';
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [

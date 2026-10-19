@@ -182,7 +182,7 @@ Schéma Prisma (`backend/prisma/schema.prisma`) :
 
 ## Design
 
-Noir profond `#101010` · or champagne `#C6A85B` · émeraude `#087F5B` · ivoire `#F7F5EF` — thème sombre et clair avec bascule, typographies **Manrope** (titres) et **Inter** (texte), montants en **FCFA (XOF)** avec gestion multi-devises, tout en français.
+Noir profond `#101010` · or pur `#FFD700` · émeraude `#087F5B` · ivoire `#F7F5EF` — thème sombre et clair avec bascule, typographies **Manrope** (titres) et **Inter** (texte), montants en **FCFA (XOF)** avec gestion multi-devises, tout en français.
 
 ## Architecture applicative
 

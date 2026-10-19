@@ -196,8 +196,8 @@ class SessionNotifier extends StateNotifier<LhSessionState> {
 
 /// Client REST LifeHelm — contrats {baseUrl}/api/v1 (CDC §3).
 ///
-/// - `baseUrl` lu depuis le réglage `apiBaseUrl` (défaut `/api/v1`,
-///   chemin relatif same-origin pour le web ; URL complète sur mobile) ;
+/// - `baseUrl` lu depuis le réglage `apiBaseUrl` ; défauts :
+///   web → `/api/v1` (same-origin, preview), mobile → serveur de prod Railway ;
 /// - Bearer automatique + rafraîchissement sur 401 puis **une** retry ;
 /// - exceptions typées [LhApiException] / [LhNetworkException].
 class ApiClient {
@@ -210,6 +210,11 @@ class ApiClient {
         _inner = httpClient;
 
   static const String defaultBaseUrl = '/api/v1';
+
+  /// Serveur par défaut sur mobile (production Railway) — tant que
+  /// l'utilisateur ne définit pas d'URL complète dans Paramètres → Avancé.
+  static const String defaultServerUrl =
+      'https://lifehelm-production.up.railway.app/api/v1';
 
   final AppDatabase _db;
   final TokenStore _store;
@@ -227,8 +232,8 @@ class ApiClient {
 
   Future<String> _baseUrl() async {
     if (_cachedBaseUrl != null) return _cachedBaseUrl!;
-    _cachedBaseUrl =
-        (await _db.getSetting('apiBaseUrl')) ?? defaultBaseUrl;
+    _cachedBaseUrl = (await _db.getSetting('apiBaseUrl')) ??
+        (kIsWeb ? defaultBaseUrl : defaultServerUrl);
     return _cachedBaseUrl!;
   }
 

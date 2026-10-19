@@ -7,9 +7,9 @@ abstract final class LHColors {
   static const Color noir = Color(0xFF101010);
   static const Color noirSurface = Color(0xFF1A1A1A);
   static const Color noirElevated = Color(0xFF232323);
-  static const Color or = Color(0xFFC6A85B);
-  static const Color orDeep = Color(0xFF9C7D33);
-  static const Color orSurface = Color(0xFF2A2415);
+  static const Color or = Color(0xFFFFD700); // or pur
+  static const Color orDeep = Color(0xFFC9A227); // or profond — thème clair (contraste sur ivoire)
+  static const Color orSurface = Color(0xFF2A2508);
   static const Color emeraude = Color(0xFF087F5B);
   static const Color emeraudeClair = Color(0xFF10A878);
   static const Color emeraudeSurface = Color(0xFF12291F);
@@ -56,7 +56,7 @@ abstract final class LHColors {
   static const Color financeAttente = Color(0xFFE8A13D);
 
   // —— Espaces ——
-  static const Color espacePerso = Color(0xFFC6A85B);
+  static const Color espacePerso = Color(0xFFFFD700);
   static const Color espaceFamille = Color(0xFF10A878);
   static const Color espacePro = Color(0xFF5B8DD9);
 }

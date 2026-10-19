@@ -97,7 +97,7 @@ Ces choix sont marqués « proposé » conformément aux règles de gouvernance 
 
 ## 🎨 Design system
 
-Palette (CDC §4.1) : noir profond `#101010` · or champagne `#C6A85B` · émeraude `#087F5B` · ivoire `#F7F5EF` —
+Palette (CDC §4.1) : noir profond `#101010` · or pur `#FFD700` · émeraude `#087F5B` · ivoire `#F7F5EF` —
 thème sombre premium par défaut, bascule clair/sombre/système dans **Paramètres**.
 Polices bundlées : **Manrope** (titres) + **Inter** (texte) — aucune dépendance réseau.
 

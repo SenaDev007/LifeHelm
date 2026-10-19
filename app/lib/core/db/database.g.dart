@@ -45,7 +45,7 @@ class $SpacesTable extends Spaces with TableInfo<$SpacesTable, Space> {
     false,
     type: DriftSqlType.string,
     requiredDuringInsert: false,
-    defaultValue: const Constant('#C6A85B'),
+    defaultValue: const Constant('#FFD700'),
   );
   static const VerificationMeta _isDefaultMeta = const VerificationMeta(
     'isDefault',
@@ -2082,7 +2082,7 @@ class $TaskListsTable extends TaskLists
     false,
     type: DriftSqlType.string,
     requiredDuringInsert: false,
-    defaultValue: const Constant('#C6A85B'),
+    defaultValue: const Constant('#FFD700'),
   );
   @override
   List<GeneratedColumn> get $columns => [id, spaceId, name, colorHex];

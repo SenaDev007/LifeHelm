@@ -167,7 +167,7 @@ Color accountTypeColor(String type, BuildContext context) {
     case 'MOBILE_MONEY':
       return const Color(0xFFE8720C);
     case 'SAVING':
-      return const Color(0xFFC6A85B);
+      return const Color(0xFFFFD700);
     default:
       return const Color(0xFF8A8A8A);
   }

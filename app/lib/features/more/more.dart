@@ -568,8 +568,9 @@ class SettingsScreen extends ConsumerWidget {
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 20),
           child: Text(
-            'Par défaut « /api/v1 » (même origine que l\'application web). '
-            'Sur mobile, indiquez l\'URL complète du serveur, ex. : https://api.lifehelm.app/api/v1.',
+            'Web : « /api/v1 » (même origine que l\'application web). '
+            'Mobile : par défaut le serveur de production '
+            'https://lifehelm-production.up.railway.app/api/v1 — modifiable ci-dessus.',
             style: theme.textTheme.bodySmall?.copyWith(
                 height: 1.5, color: theme.colorScheme.onSurfaceVariant),
           ),

@@ -4,8 +4,8 @@ import 'tokens.dart';
 
 /// Thèmes LifeHelm — clair (ivoire), sombre (noir premium) et système (CDC §4.3).
 /// La palette de marque est commune ; sa distribution varie pour la lisibilité :
-/// — sombre : or champagne en accents principaux ;
-/// — clair : or assombri + émeraude profonde pour garantir le contraste.
+/// — sombre : or pur (#FFD700) en accents principaux ;
+/// — clair : or profond (#C9A227) + émeraude profonde pour garantir le contraste.
 class LHTheme {
   static TextTheme _textTheme(Brightness b) {
     final base = (b == Brightness.dark ? Typography.whiteCupertino : Typography.blackCupertino)
@@ -52,11 +52,11 @@ class LHTheme {
   static ThemeData light() {
     final scheme = ColorScheme.light(
       primary: LHColors.orDeep,
-      onPrimary: Colors.white,
+      onPrimary: LHColors.texteSombre,
       secondary: LHColors.emeraude,
       onSecondary: Colors.white,
       tertiary: LHColors.orDeep,
-      onTertiary: Colors.white,
+      onTertiary: LHColors.texteSombre,
       surface: LHColors.ivoireCard,
       onSurface: LHColors.texteSombre,
       surfaceContainerHighest: LHColors.ivoireElevated,
@@ -97,7 +97,7 @@ class LHTheme {
       dividerTheme: DividerThemeData(color: scheme.outlineVariant, thickness: 1, space: 1),
       navigationBarTheme: NavigationBarThemeData(
         backgroundColor: isDark ? LHColors.noir : LHColors.ivoire,
-        indicatorColor: isDark ? LHColors.orSurface : const Color(0xFFF3EBD8),
+        indicatorColor: isDark ? LHColors.orSurface : const Color(0xFFFBF2CE),
         height: 68,
         labelTextStyle: WidgetStatePropertyAll(
           TextStyle(fontFamily: LHFonts.texte, fontSize: 11.5, fontWeight: FontWeight.w600,
@@ -153,7 +153,7 @@ class LHTheme {
       ),
       chipTheme: ChipThemeData(
         backgroundColor: isDark ? LHColors.noirElevated : LHColors.ivoireElevated,
-        selectedColor: isDark ? LHColors.orSurface : const Color(0xFFF3EBD8),
+        selectedColor: isDark ? LHColors.orSurface : const Color(0xFFFBF2CE),
         labelStyle: TextStyle(fontFamily: LHFonts.texte, fontSize: 13, color: scheme.onSurface),
         side: BorderSide(color: scheme.outline),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(LHRadius.full)),

@@ -18,7 +18,7 @@ import '../../shell/widgets.dart' show LhAppBar;
 const youMemberName = 'Vous';
 
 /// Palette des couleurs de membres (D12 — simulation locale).
-const memberColorHexes = ['#C6A85B', '#10A878', '#5B8DD9', '#E8720C', '#8A6DD9'];
+const memberColorHexes = ['#FFD700', '#10A878', '#5B8DD9', '#E8720C', '#8A6DD9'];
 
 /// Réponses simulées des personas — messagerie interne uniquement (D12 §17.1-1).
 const simulatedReplies = [
