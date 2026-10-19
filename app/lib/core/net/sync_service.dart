@@ -478,14 +478,17 @@ class SyncController {
       final operations = <Map<String, dynamic>>[];
       for (final o in batch) {
         final snapshot = await readSnapshot(o.resourceType, o.resourceId);
-        operations.add({
+        // Entrée « data » incluse seulement si snapshot non nul
+        // (équivalent Dart <3.8 de l'élément null-aware `'data': ?snapshot`).
+        final entry = <String, dynamic>{
           'opId': o.id,
           'resourceType': o.resourceType,
           'resourceId': o.resourceId,
           'op': await _finalOpFor(o, snapshot),
           'occurredAt': o.createdAt.toIso8601String(),
-          'data': ?snapshot,
-        });
+          if (snapshot != null) 'data': snapshot,
+        };
+        operations.add(entry);
       }
       final res = await api.post('/sync/operations',
           body: {'deviceId': device, 'operations': operations});

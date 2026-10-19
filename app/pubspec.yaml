@@ -5,7 +5,8 @@ publish_to: 'none'
 version: 0.1.0+1
 
 environment:
-  sdk: ^3.13.5
+  # Même contrainte que yeshua-connect-mobile : compatible Dart 3.5 → 3.12/3.13+
+  sdk: '>=3.5.0 <4.0.0'
 
 dependencies:
   flutter:

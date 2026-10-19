@@ -874,7 +874,7 @@ class _DailyReviewScreenState extends ConsumerState<DailyReviewScreen> {
           SectionHeader('Bilans récents', overline: 'Historique'),
           reviewsAsync.when(
             loading: () => const SizedBox(),
-            error: (_, _) => const SizedBox(),
+            error: (e, st) => const SizedBox(),
             data: (reviews) {
               final recent = reviews
                   .where((r) => r.dateKey.compareTo(todayKey) < 0)
