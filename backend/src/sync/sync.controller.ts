@@ -13,9 +13,11 @@ export class SyncController {
   /**
    * PUSH — applique un lot d'opérations de la queue locale.
    * Idempotent par opId ; conflits explicites sur les types sensibles.
+   * Throttle élevé : requêtes authentifiées et idempotentes, plusieurs
+   * appareils peuvent partager une même connexion (hotspot).
    */
   @Post('operations')
-  @Throttle(60, 60_000)
+  @Throttle(240, 60_000)
   @HttpCode(200)
   push(@CurrentUser() user: AccessTokenPayload, @Body() dto: PushSyncDto) {
     return this.sync.applyOperations(user.sub, dto.deviceId, dto.operations);
