@@ -1,0 +1,18 @@
+# ─── Flutter ───
+app/build/
+app/.dart_tool/
+app/.idea/
+app/*.iml
+app/.flutter-plugins*
+app/.metadata
+app/android/.gradle/
+
+# ─── Backend ───
+backend/node_modules/
+backend/dist/
+backend/.env
+*.log
+
+# ─── Divers ───
+.DS_Store
+Thumbs.db

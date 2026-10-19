@@ -1,0 +1,116 @@
+// Schéma LifeHelm — PostgreSQL (Neon)
+// Auth (D01.3) : users + sessions avec rotation de refresh tokens et familles révocables
+// Sync (D01.4) : resources (source de vérité générique JSONB) + sync_changes (pull par curseur)
+//               + applied_ops (idempotence par opId)
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model User {
+  id        String    @id @default(uuid())
+  email     String?   @unique
+  phone     String?   @unique
+  passwordHash String
+
+  firstName String
+  lastName  String?
+  avatarUrl String?
+
+  emailVerifiedAt DateTime?
+  phoneVerifiedAt DateTime?
+
+  // 2FA TOTP (D01.3 §6.3 — configurable dès la V1)
+  twoFactorEnabled Boolean @default(false)
+  twoFactorSecret  String? // base32 — jamais exposé par l'API après le setup
+
+  // Vérification courriel / téléphone (codes 6 chiffres, hashés sha256)
+  emailVerifyCodeHash      String?
+  emailVerifyCodeExpiresAt DateTime?
+  phoneVerifyCodeHash      String?
+  phoneVerifyCodeExpiresAt DateTime?
+
+  // Réinitialisation mot de passe (token 32 octets, hashé sha256, 30 min)
+  resetTokenHash    String?
+  resetTokenExpiresAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  sessions   Session[]
+  resources  Resource[]
+  appliedOps AppliedOp[]
+}
+
+model Session {
+  id        String   @id @default(uuid())
+  familyId  String   // famille de rotation (un login = une famille)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  refreshTokenHash String @unique // sha256 du refresh token courant (jamais en clair)
+  deviceName String?
+  userAgent  String?
+  ip         String?
+
+  lastUsedAt DateTime @default(now())
+  createdAt  DateTime @default(now())
+  expiresAt  DateTime
+  revokedAt  DateTime?
+  replacedById String? // session suivante après rotation
+
+  @@index([userId])
+  @@index([familyId])
+  
+}
+
+model Resource {
+  id        String  @id // resourceId client (UUID stable, CDC §6.4 « identifiants stables »)
+  ownerId   String
+  owner     User    @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  type      String  // ex: Task, Note, FinancialTransaction…
+  data      Json?   // snapshot JSON complet de la ligne locale (format Drift)
+  version   Int     @default(1)
+
+  deletedAt DateTime? // tombstone — les suppressions restent récupérables
+  deviceId  String?   // dernier appareil écrivain (détection de conflit multi-appareils)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now())
+
+  changes SyncChange[]
+
+  @@index([ownerId, updatedAt])
+  @@index([ownerId, type])
+}
+
+model SyncChange {
+  seq        BigInt  @id @default(autoincrement())
+  resourceId String
+  resource   Resource @relation(fields: [resourceId], references: [id], onDelete: Cascade)
+  ownerId    String
+  type       String
+  op         String // CREATE | UPDATE | DELETE
+  deviceId   String?
+  createdAt  DateTime @default(now())
+
+  @@index([ownerId, seq])
+}
+
+model AppliedOp {
+  opId        String @id // idempotence (CDC §6.4) : UUID de l'opération cliente
+  userId      String
+  user        User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  deviceId    String?
+  status      String // APPLIED | DUPLICATE
+  serverVersion Int?
+  createdAt   DateTime @default(now())
+
+  @@index([userId, createdAt])
+}

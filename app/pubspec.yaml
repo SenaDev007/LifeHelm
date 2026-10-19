@@ -1,0 +1,77 @@
+name: lifehelm
+description: "LifeHelm — Life Management System unifié (Flutter, offline-first)."
+publish_to: 'none'
+
+version: 0.1.0+1
+
+environment:
+  sdk: ^3.13.5
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+
+  cupertino_icons: ^1.0.8
+
+  # État applicatif — proposé par le CDC (§3.3), adopté pour ce projet.
+  flutter_riverpod: ^2.6.1
+
+  # Navigation par routes typées.
+  go_router: ^15.1.2
+
+  # SQLite local offline-first (CDC D01.4).
+  drift: ^2.28.0
+  sqlite3_flutter_libs: ^0.5.28
+  path_provider: ^2.1.5
+  path: ^1.9.1
+
+  # Utilitaires.
+  intl: ^0.20.2
+  uuid: ^4.5.1
+  collection: ^1.19.1
+
+  # Réseau & synchronisation (CDC §3 — backend REST, JWT).
+  http: ^1.2.0
+  flutter_secure_storage: ^9.2.2
+  shared_preferences: ^2.3.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+  # Génération du schéma Drift.
+  drift_dev: ^2.28.0
+  build_runner: ^2.4.13
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - assets/fonts/
+
+  fonts:
+    - family: Manrope
+      fonts:
+        - asset: assets/fonts/Manrope-400.ttf
+          weight: 400
+        - asset: assets/fonts/Manrope-500.ttf
+          weight: 500
+        - asset: assets/fonts/Manrope-600.ttf
+          weight: 600
+        - asset: assets/fonts/Manrope-700.ttf
+          weight: 700
+        - asset: assets/fonts/Manrope-800.ttf
+          weight: 800
+    - family: Inter
+      fonts:
+        - asset: assets/fonts/Inter-400.ttf
+          weight: 400
+        - asset: assets/fonts/Inter-500.ttf
+          weight: 500
+        - asset: assets/fonts/Inter-600.ttf
+          weight: 600
+        - asset: assets/fonts/Inter-700.ttf
+          weight: 700
