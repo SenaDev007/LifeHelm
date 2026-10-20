@@ -17,6 +17,8 @@ Future<void> main() async {
   final db = AppDatabase();
   bootState.onboarded = await db.isOnboarded();
   if (bootState.onboarded) {
+    // Purge unique des données de démonstration (installations antérieures).
+    await db.purgeDemoDataOnce();
     await db.maintenanceScan();
     await db.purgeExpired();
   }

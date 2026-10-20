@@ -380,6 +380,7 @@ class _ContactsScreenState extends ConsumerState<ContactsScreen> {
               Expanded(
                 child: visible.isEmpty
                     ? EmptyState(
+                        illustration: 'assets/illustrations/contacts.png',
                         icon: Icons.contacts_outlined,
                         message: 'Aucun contact ici',
                         hint:

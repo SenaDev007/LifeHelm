@@ -604,6 +604,7 @@ class _SkillsTab extends ConsumerWidget {
               return const Padding(
                 padding: EdgeInsets.all(24),
                 child: EmptyState(
+                    illustration: 'assets/illustrations/career.png',
                     icon: Icons.psychology_outlined,
                     message:
                         'Aucune compétence enregistrée.\nAutoévaluée, prouvée ou certifiée : ajoutez la première.'),

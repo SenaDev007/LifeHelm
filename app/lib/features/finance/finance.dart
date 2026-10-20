@@ -1027,6 +1027,7 @@ class _AccountDetailScreenState extends ConsumerState<AccountDetailScreen> {
             data: (txs) {
               if (txs.isEmpty) {
                 return const EmptyState(
+                    illustration: 'assets/illustrations/finance.png',
                     icon: Icons.receipt_long_outlined,
                     message: 'Aucune opération',
                     hint: 'Enregistrez un revenu ou une dépense.');

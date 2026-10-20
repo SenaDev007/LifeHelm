@@ -246,6 +246,7 @@ class _WellbeingBody extends StatelessWidget {
           const Padding(
             padding: EdgeInsets.all(24),
             child: EmptyState(
+                illustration: 'assets/illustrations/wellbeing.png',
                 icon: Icons.book_outlined,
                 message:
                     'Aucune entrée dans le journal.\nNotez votre humeur du jour pour démarrer.'),

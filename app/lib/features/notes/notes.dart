@@ -560,6 +560,7 @@ class _NotesScreenState extends ConsumerState<NotesScreen> {
         Expanded(
           child: (subfolders.isEmpty && visible.isEmpty)
               ? EmptyState(
+                  illustration: 'assets/illustrations/notes.png',
                   icon: Icons.sticky_note_2_outlined,
                   message: searching
                       ? 'Aucun résultat'

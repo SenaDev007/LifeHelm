@@ -145,8 +145,10 @@ class _BellButton extends ConsumerWidget {
   }
 }
 
-/// Logo officiel LifeHelm — glyphe sombre & or sur médaillon blanc
-/// (source : assets/brand/logo-lifehelm.png, kit de marque app/LifeHelm).
+/// Logo officiel LifeHelm, plein cadre (aucun médaillon carré).
+/// — thème sombre  : variante OR (#FFD700) pour un contraste maximal ;
+/// — thème clair   : glyphe original sombre & or.
+/// Sources : assets/brand/logo-lifehelm(-or).png (kit de marque app/LifeHelm).
 class HelmMark extends StatelessWidget {
   const HelmMark({super.key, this.size = 44});
   final double size;
@@ -154,27 +156,16 @@ class HelmMark extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    return Container(
+    return Image.asset(
+      isDark
+          ? 'assets/brand/logo-lifehelm-or.png'
+          : 'assets/brand/logo-lifehelm.png',
       width: size,
       height: size,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(size * 0.28),
-        border: Border.all(
-            color: LHColors.orDeep.withValues(alpha: 0.35), width: 1),
-        boxShadow: [
-          BoxShadow(
-              color: Colors.black.withValues(alpha: isDark ? 0.45 : 0.15),
-              blurRadius: size * 0.30,
-              offset: Offset(0, size * 0.06)),
-        ],
-      ),
-      padding: EdgeInsets.all(size * 0.14),
-      child: Image.asset(
-        'assets/brand/logo-lifehelm.png',
-        fit: BoxFit.contain,
-        filterQuality: FilterQuality.high,
-      ),
+      fit: BoxFit.contain,
+      filterQuality: FilterQuality.high,
+      errorBuilder: (_, __, ___) => Icon(Icons.explore_rounded,
+          size: size * 0.7, color: isDark ? LHColors.or : LHColors.orDeep),
     );
   }
 }

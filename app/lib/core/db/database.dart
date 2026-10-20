@@ -395,6 +395,8 @@ class AppDatabase extends _$AppDatabase {
 
     await setSetting('activeSpaceId', personal.id);
     await setSetting('onboarded', 'true');
+    // Installation neuve : déjà en v2 (aucune donnée de démo à purger).
+    await setSetting('dataVersion', '2');
     await setSetting('themeMode', 'dark');
     await setSetting('upcomingWindowDays', '7');
     await setSetting('budgetAlertThreshold', '0.8');
@@ -415,8 +417,44 @@ class AppDatabase extends _$AppDatabase {
     }
   }
 
-  /// Charge des données d'exemple dans les trois espaces (choix onboarding).
-  Future<void> seedDemoData() => seedAllDemoData(this);
+  /// Charge des données de démonstration — RETIRÉ : l'application démarre
+  /// désormais vide et propre (plus aucune donnée d'exemple n'est créée).
+  /// [purgeDemoDataOnce] nettoie les anciennes installations.
+
+  /// Purge UNIQUE des données de démonstration des installations antérieures
+  /// (dataVersion absent = install créée avant la v2). Supprime tout le
+  /// contenu métier (tâches, finances, notes, messages…) tout en conservant
+  /// la structure : espaces, membres, listes, calendriers, catégories,
+  /// questions de bilan, profils carrière et réglages.
+  Future<void> purgeDemoDataOnce() async {
+    final version = await getSetting('dataVersion');
+    if (version != null) return; // déjà à jour
+    await transaction(() async {
+      // Tableau typé TableInfo (les tables générées partagent cette
+      // interface) — permet un `delete` générique sur chaque table.
+      final tables = <TableInfo<Table, dynamic>>[
+        tasks, taskAssignees, taskDependencies, recurrenceRules,
+        calendarEvents, eventParticipants, eventExceptions,
+        financialAccounts, financialTransactions, transfers,
+        transactionAllocations, budgets, budgetAdjustments,
+        budgetCarryovers, financialDueItems, accountReconciliations,
+        folders, notes, noteVersions, documents, attachmentLinks,
+        projects, projectMembers, projectStages, projectMilestones,
+        projectTaskLinks, goals, goalMetrics, goalProgressEntries,
+        habits, habitSchedules, habitOccurrences, routines,
+        routineSteps, routineOccurrences, wellbeingEntries, dailyReviews,
+        skills, userSkills, learningPaths, learningPathSteps,
+        professionalExperiences, certifications, portfolioItems,
+        contacts, contactPoints, contactInteractions, contactLinks,
+        conversations, conversationMembers, messages, messageReactions,
+        notifications, recentSearches, syncOperations,
+      ];
+      for (final t in tables) {
+        await delete(t).go();
+      }
+    });
+    await setSetting('dataVersion', '2');
+  }
 
   /// Purge la corbeille et les notifications expirées (rétention).
   Future<void> purgeExpired() async {

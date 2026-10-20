@@ -97,7 +97,42 @@ class SectionHeader extends StatelessWidget {
   }
 }
 
-/// État vide : icône + message + action optionnelle.
+/// Illustration de marque (assets/illustrations) — visuel chaleureux par
+/// module : affiché dans une carte arrondie sombre aux couleurs LifeHelm,
+/// harmonieuse sur les deux thèmes.
+class LHIllustration extends StatelessWidget {
+  const LHIllustration({super.key, required this.asset, this.height = 210});
+
+  final String asset;
+  final double height;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      height: height,
+      width: double.infinity,
+      clipBehavior: Clip.antiAlias,
+      decoration: BoxDecoration(
+        color: LHColors.noir,
+        borderRadius: BorderRadius.circular(LHRadius.xl),
+        border: Border.all(
+            color: theme.colorScheme.outline.withValues(alpha: 0.7)),
+      ),
+      child: Image.asset(
+        asset,
+        fit: BoxFit.cover,
+        filterQuality: FilterQuality.medium,
+        errorBuilder: (_, __, ___) => Center(
+          child: Icon(Icons.auto_awesome_rounded,
+              size: 48, color: LHColors.or.withValues(alpha: 0.6)),
+        ),
+      ),
+    );
+  }
+}
+
+/// État vide : illustration de module (optionnelle) + icône + message + action.
 class EmptyState extends StatelessWidget {
   const EmptyState({
     super.key,
@@ -105,12 +140,17 @@ class EmptyState extends StatelessWidget {
     required this.message,
     this.hint,
     this.action,
+    this.illustration,
   });
 
   final IconData icon;
   final String message;
   final String? hint;
   final Widget? action;
+
+  /// Visuel de module (ex. assets/illustrations/finance.png) — rend l'état
+  /// vide accueillant plutôt qu'un simple pictogramme.
+  final String? illustration;
 
   @override
   Widget build(BuildContext context) {
@@ -119,6 +159,10 @@ class EmptyState extends StatelessWidget {
       child: Padding(
         padding: const EdgeInsets.all(LHSpacing.xxl),
         child: Column(mainAxisSize: MainAxisSize.min, children: [
+          if (illustration != null) ...[
+            LHIllustration(asset: illustration!, height: 190),
+            const SizedBox(height: LHSpacing.lg),
+          ],
           Icon(icon, size: 44,
               color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.6)),
           const SizedBox(height: LHSpacing.md),

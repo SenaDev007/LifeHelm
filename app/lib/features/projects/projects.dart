@@ -626,6 +626,7 @@ class ProjectsScreen extends ConsumerWidget {
             EmptyState(icon: Icons.error_outline, message: 'Erreur : $e'),
         data: (projects) => projects.isEmpty
             ? EmptyState(
+                illustration: 'assets/illustrations/projects.png',
                 icon: Icons.rocket_launch_outlined,
                 message: 'Aucun projet',
                 hint:

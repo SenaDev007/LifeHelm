@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../core/net/api_client.dart';
 import '../../core/net/sync_service.dart';
 import '../../core/theme/tokens.dart';
 import '../../core/widgets/common.dart';
+import '../../main.dart' show bootState;
 import '../../shell/widgets.dart' show HelmMark;
 
 // ══════════════════════════ SOCLES COMMUNS ══════════════════════════
@@ -118,7 +120,11 @@ extension AuthSuccessState on ConsumerState {
 
 /// Connexion : courriel ou téléphone + mot de passe (+ TOTP si 2FA active).
 class LoginScreen extends ConsumerStatefulWidget {
-  const LoginScreen({super.key});
+  const LoginScreen({super.key, this.loggedOut = false});
+
+  /// Vrai quand on arrive depuis une déconnexion : affiche un bandeau
+  /// informatif et l'option « continuer sans compte ».
+  final bool loggedOut;
 
   @override
   ConsumerState<LoginScreen> createState() => _LoginScreenState();
@@ -161,7 +167,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           );
       await _persistSessionAndWelcome(ref, result);
       if (!mounted) return;
-      Navigator.of(context).pop();
+      // Retour fiable : pop si un écran attend dessous, sinon accueil.
+      if (Navigator.of(context).canPop()) {
+        Navigator.of(context).pop();
+      } else {
+        context.go('/');
+      }
     } on LhApiException catch (e) {
       setState(() {
         if (e.statusCode == 428 || e.code == 'TOTP_REQUIRED') {
@@ -186,17 +197,53 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       title: 'Se connecter',
       subtitle:
           'Activez la sauvegarde multi-appareils de vos espaces LifeHelm.',
-      footer: TextButton(
-        onPressed: _busy
-            ? null
-            : () => Navigator.of(context).push(MaterialPageRoute<void>(
-                builder: (_) => const ForgotPasswordScreen())),
-        child: const Text('Mot de passe oublié ?'),
-      ),
+      footer: Column(children: [
+        TextButton(
+          onPressed: _busy
+              ? null
+              : () => Navigator.of(context).push(MaterialPageRoute<void>(
+                  builder: (_) => const ForgotPasswordScreen())),
+          child: const Text('Mot de passe oublié ?'),
+        ),
+        // Sortie propre pour les installations déjà configurées : l'app
+        // reste utilisable sans compte (hors ligne) — on ne bloque personne.
+        if (bootState.onboarded)
+          TextButton(
+            onPressed: _busy ? null : () => context.go('/'),
+            child: const Text('Continuer sans compte'),
+          ),
+      ]),
       child: LHCard(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            if (widget.loggedOut) ...[
+              Container(
+                padding: const EdgeInsets.all(LHSpacing.md),
+                decoration: BoxDecoration(
+                  color: LHColors.emeraudeClair.withValues(alpha: 0.10),
+                  borderRadius: BorderRadius.circular(LHRadius.md),
+                  border: Border.all(
+                      color: LHColors.emeraudeClair.withValues(alpha: 0.4))),
+                child: Row(children: [
+                  const Icon(Icons.logout,
+                      size: 18, color: LHColors.emeraudeClair),
+                  const SizedBox(width: LHSpacing.sm),
+                  Expanded(
+                    child: Text(
+                      'Vous êtes déconnecté. Vos données restent sur cet '
+                      'appareil — reconnectez-vous pour reprendre la '
+                      'synchronisation.',
+                      style: Theme.of(context)
+                          .textTheme
+                          .bodySmall
+                          ?.copyWith(height: 1.4),
+                    ),
+                  ),
+                ]),
+              ),
+              const SizedBox(height: LHSpacing.md),
+            ],
             _ErrorBanner(_error),
             LabeledField(
               label: 'Courriel ou téléphone',
@@ -353,7 +400,12 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
           );
       await _persistSessionAndWelcome(ref, result);
       if (!mounted) return;
-      Navigator.of(context).pop();
+      // Retour fiable : pop si un écran attend dessous, sinon accueil.
+      if (Navigator.of(context).canPop()) {
+        Navigator.of(context).pop();
+      } else {
+        context.go('/');
+      }
     } on LhApiException catch (e) {
       setState(() => _error = apiErrorText(e));
     } on LhNetworkException catch (e) {

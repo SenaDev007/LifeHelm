@@ -561,6 +561,7 @@ class _TodayView extends StatelessWidget {
     final theme = Theme.of(context);
     if (habits.isEmpty) {
       return EmptyState(
+        illustration: 'assets/illustrations/habits.png',
         icon: Icons.self_improvement_outlined,
         message: 'Aucune habitude active',
         hint:

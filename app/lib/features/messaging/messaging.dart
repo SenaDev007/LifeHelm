@@ -333,6 +333,7 @@ class ConversationsScreen extends ConsumerWidget {
           final messages = messagesAsync.valueOrNull ?? <Message>[];
           if (convs.isEmpty) {
             return EmptyState(
+              illustration: 'assets/illustrations/messaging.png',
               icon: Icons.forum_outlined,
               message: 'Aucune conversation',
               hint:

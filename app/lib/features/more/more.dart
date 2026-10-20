@@ -295,7 +295,9 @@ class _AccountSection extends ConsumerWidget {
     }
     await store.clear();
     if (context.mounted) {
-      lhToast(context, 'Déconnecté — vos données restent sur l\'appareil.');
+      // Déconnexion effective : retour à l'écran de connexion (et non au
+      // shell) — impossible de continuer à naviguer « déconnecté ».
+      context.go('/login?loggedOut=1');
     }
   }
 
@@ -324,10 +326,10 @@ class _AccountSection extends ConsumerWidget {
               child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Activer la synchronisation',
+                    Text('Se connecter ou créer un compte',
                         style: theme.textTheme.titleSmall),
                     Text(
-                      'Sauvegardez vos données sur vos appareils',
+                      'Retrouvez vos espaces sur vos autres appareils',
                       style: theme.textTheme.bodySmall?.copyWith(
                           color: theme.colorScheme.onSurfaceVariant),
                     ),
@@ -1124,8 +1126,8 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen> {
     }
     await store.clear();
     if (mounted) {
-      lhToast(context, 'Tous les appareils sont déconnectés.');
-      context.go('/more');
+      // Toutes les sessions sont révoquées : écran de connexion.
+      context.go('/login?loggedOut=1');
     }
   }
 

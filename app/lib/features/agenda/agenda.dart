@@ -408,6 +408,7 @@ class _AgendaScreenState extends ConsumerState<AgendaScreen> {
     final overlaps = _findOverlaps(dayEntries);
     if (dayEntries.isEmpty) {
       return EmptyState(
+        illustration: 'assets/illustrations/agenda.png',
         icon: Icons.event_available,
         message: 'Rien de prévu ${fmt.isSameDay(day, fmt.today()) ? "aujourd'hui" : 'ce jour-là'}',
         hint: 'Profitez-en — ou planifiez quelque chose.',

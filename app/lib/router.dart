@@ -300,7 +300,9 @@ final router = GoRouter(
     // ── Compte & authentification (plein écran, hors shell) ──
     GoRoute(
       path: '/login',
-      builder: (context, state) => const LoginScreen(),
+      builder: (context, state) => LoginScreen(
+        loggedOut: state.uri.queryParameters['loggedOut'] == '1',
+      ),
     ),
     GoRoute(
       path: '/register',

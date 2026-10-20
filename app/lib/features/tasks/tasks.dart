@@ -460,6 +460,7 @@ class _TasksBodyState extends State<_TasksBody> {
       Expanded(
         child: visible.isEmpty
             ? EmptyState(
+                illustration: 'assets/illustrations/tasks.png',
                 icon: Icons.task_alt_outlined,
                 message: 'Aucune tâche ici',
                 hint: 'Créez votre première tâche pour organiser votre journée.',

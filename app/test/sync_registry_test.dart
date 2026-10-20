@@ -60,7 +60,79 @@ void main() {
   setUp(() async {
     db = AppDatabase.test(NativeDatabase.memory());
     await db.initializeDefaultSpaces(ownerName: 'Test');
-    await db.seedDemoData();
+    // Les données de démonstration ont été retirées de l'app : le test
+    // insère lui-même une ligne minimale par type synchronisable.
+    final spaces = await db.getAllSpaces();
+    final personal = spaces.firstWhere((s) => s.type == 'PERSONAL');
+    final spaceId = personal.id;
+    final lists = await (db.select(db.taskLists)
+          ..where((l) => l.spaceId.equals(spaceId)))
+        .get();
+    final cals = await (db.select(db.calendars)
+          ..where((c) => c.spaceId.equals(spaceId)))
+        .get();
+
+    // Compte financier + membre de conversation pour les clés étrangères.
+    await db.into(db.financialAccounts).insert(FinancialAccountsCompanion.insert(
+        id: 'acc1', spaceId: spaceId, name: 'Espèces', type: 'CASH',
+        initialDate: '2026-01-01'));
+    await db.into(db.conversations).insert(
+        ConversationsCompanion.insert(id: 'conv1', spaceId: spaceId));
+    await db.into(db.conversationMembers).insert(
+        ConversationMembersCompanion.insert(
+            id: 'cm1', conversationId: 'conv1', displayName: 'Test'));
+    await db.into(db.contacts).insert(
+        ContactsCompanion.insert(id: 'ct1', spaceId: spaceId, kind: 'PERSON'));
+    await db.into(db.goals).insert(
+        GoalsCompanion.insert(id: 'g1', spaceId: spaceId, title: 'Objectif test'));
+
+    await db.into(db.tasks).insert(TasksCompanion.insert(
+        id: 'task1', spaceId: spaceId, title: 'Tâche test',
+        listId: Value(lists.first.id)));
+    await db.into(db.notes).insert(
+        NotesCompanion.insert(id: 'note1', spaceId: spaceId, title: 'Note test'));
+    await db.into(db.financialTransactions).insert(
+        FinancialTransactionsCompanion.insert(
+            id: 'tx1', spaceId: spaceId, accountId: 'acc1',
+            kind: 'EXPENSE', currency: 'XOF', amount: 500,
+            occurredAt: DateTime(2026)));
+    await db.into(db.habits).insert(
+        HabitsCompanion.insert(id: 'hb1', spaceId: spaceId, name: 'Habitude test'));
+    await db.into(db.messages).insert(MessagesCompanion.insert(
+        id: 'msg1', conversationId: 'conv1', senderMemberId: 'cm1',
+        body: 'Message test'));
+    await db.into(db.recurrenceRules).insert(
+        RecurrenceRulesCompanion.insert(id: 'rr1', freq: 'WEEKLY'));
+    await db.into(db.calendarEvents).insert(CalendarEventsCompanion.insert(
+        id: 'ev1', spaceId: spaceId, calendarId: cals.first.id,
+        title: 'Événement test',
+        startDate: '2026-01-01T08:00', endDate: '2026-01-01T09:00'));
+    await db.into(db.budgets).insert(BudgetsCompanion.insert(
+        id: 'bg1', spaceId: spaceId, name: 'Budget test', initialAmount: 50000,
+        periodStart: '2026-01-01', periodEnd: '2026-01-31'));
+    await db.into(db.transfers).insert(TransfersCompanion.insert(
+        id: 'tr1', spaceId: spaceId, fromAccountId: 'acc1', toAccountId: 'acc1',
+        fromCurrency: 'XOF', toCurrency: 'XOF',
+        fromAmount: 500, toAmount: 500, occurredAt: DateTime(2026)));
+    await db.into(db.folders).insert(
+        FoldersCompanion.insert(id: 'fd1', spaceId: spaceId, name: 'Dossier test'));
+    await db.into(db.projects).insert(
+        ProjectsCompanion.insert(id: 'pj1', spaceId: spaceId, name: 'Projet test'));
+    await db.into(db.routines).insert(
+        RoutinesCompanion.insert(id: 'rt1', spaceId: spaceId, name: 'Routine test'));
+    await db.into(db.wellbeingEntries).insert(
+        WellbeingEntriesCompanion.insert(
+            id: 'wb1', spaceId: spaceId, dateKey: '2026-01-01'));
+    await db.into(db.skills).insert(
+        SkillsCompanion.insert(id: 'sk1', name: 'Compétence test'));
+    await db.into(db.certifications).insert(
+        CertificationsCompanion.insert(id: 'ce1', name: 'Certification test'));
+    await db.into(db.contactInteractions).insert(
+        ContactInteractionsCompanion.insert(
+            id: 'ci1', contactId: 'ct1', dateKey: '2026-01-01',
+            kind: 'NOTE', summary: 'Interaction test'));
+    await db.into(db.goalProgressEntries).insert(
+        GoalProgressEntriesCompanion.insert(id: 'gp1', goalId: 'g1', value: 1));
   });
 
   tearDown(() async => db.close());
