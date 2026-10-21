@@ -133,10 +133,16 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
     );
   }
 
-  // ══════════════════════ PAGE 1 — BIENVENUE ══════════════════════
+  // ══════════════════════ PAGE 1 — BIENVENUE YEYO TECH ══════════════════════
 
+  /// Accueil : message de bienvenue de YEYO TECH, création de compte ou
+  /// connexion en un geste — ou découverte locale en toute discrétion.
   Widget _page1(BuildContext context) {
     final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final or = isDark ? LHColors.or : LHColors.orDeep;
+    final connected = ref.watch(sessionProvider).isConnected;
+
     return SingleChildScrollView(
       padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 16),
       child: Column(children: [
@@ -173,24 +179,103 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
             style: theme.textTheme.titleMedium?.copyWith(
                 color: theme.colorScheme.onSurfaceVariant,
                 fontWeight: FontWeight.w500)),
-        const SizedBox(height: LHSpacing.xxl),
+        const SizedBox(height: LHSpacing.md),
+        // Message de bienvenue signé YEYO TECH.
+        Container(
+          padding: const EdgeInsets.all(LHSpacing.lg),
+          decoration: BoxDecoration(
+            color: or.withValues(alpha: 0.06),
+            borderRadius: BorderRadius.circular(LHRadius.lg),
+            border: Border.all(color: or.withValues(alpha: 0.35)),
+          ),
+          child: Column(children: [
+            Text('Un mot de notre équipe',
+                style: theme.textTheme.labelSmall?.copyWith(
+                    letterSpacing: 1.2,
+                    fontWeight: FontWeight.w700,
+                    color: or)),
+            const SizedBox(height: LHSpacing.sm),
+            Text(
+              '« Bienvenue ! Toute l\'équipe de YEYO TECH vous remercie de '
+              'choisir LifeHelm. Nous avons conçu cette application pour que '
+              'vous pilotiez vos journées, vos finances et vos projets avec '
+              'élégance — où que vous soyez, même sans réseau. Bonne '
+              'découverte ! »',
+              textAlign: TextAlign.center,
+              style:
+                  theme.textTheme.bodyMedium?.copyWith(height: 1.55),
+            ),
+            const SizedBox(height: LHSpacing.sm),
+            Text('— YEYO TECH',
+                style: theme.textTheme.labelMedium
+                    ?.copyWith(fontWeight: FontWeight.w800, color: or)),
+          ]),
+        ),
+        const SizedBox(height: LHSpacing.lg),
         LHIllustration(asset: 'assets/illustrations/onboard-welcome.png'),
         const SizedBox(height: LHSpacing.xl),
-        Text('Tout ce qui compte, au même endroit',
-            textAlign: TextAlign.center,
-            style: theme.textTheme.titleMedium
-                ?.copyWith(fontWeight: FontWeight.w700)),
-        const SizedBox(height: LHSpacing.md),
-        _feature(theme, Icons.checklist_rounded, LHColors.or, 'Tâches & agenda',
-            'Organisez vos journées, vos projets et vos rendez-vous.'),
-        _feature(theme, Icons.account_balance_wallet_rounded,
-            LHColors.emeraudeClair, 'Finances en FCFA',
-            'Espèces, banque et Mobile Money — même sans connexion.'),
-        _feature(theme, Icons.nightlight_round, LHColors.info,
-            'Confidentiel et hors ligne',
-            'Vos données restent d\'abord sur votre appareil.'),
+        if (connected) ...[
+          Icon(Icons.cloud_done_outlined, color: LHColors.emeraudeClair,
+              size: 32),
+          const SizedBox(height: LHSpacing.sm),
+          Text('Compte connecté — la sauvegarde est active.',
+              textAlign: TextAlign.center,
+              style: theme.textTheme.bodySmall
+                  ?.copyWith(color: LHColors.emeraudeClair)),
+          const SizedBox(height: LHSpacing.md),
+          FilledButton(
+            onPressed: _busy ? null : _finish,
+            child: _busy
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2))
+                : const Text('Commencer'),
+          ),
+        ] else ...[
+          // Création de compte — parcours complet guidé.
+          FilledButton.icon(
+            onPressed: _busy ? null : () => _openRegister(),
+            icon: const Icon(Icons.person_add_alt_rounded, size: 20),
+            label: const Text('Créer mon compte'),
+          ),
+          const SizedBox(height: LHSpacing.md),
+          OutlinedButton.icon(
+            onPressed: _busy ? null : () => _openLogin(),
+            icon: const Icon(Icons.login_rounded, size: 20),
+            label: const Text('Se connecter'),
+          ),
+          const SizedBox(height: LHSpacing.md),
+          TextButton(
+            onPressed: () => _controller.nextPage(
+                duration: const Duration(milliseconds: 350),
+                curve: Curves.easeOutCubic),
+            child: const Text('Découvrir d\'abord l\'application'),
+          ),
+        ],
+        const SizedBox(height: LHSpacing.lg),
       ]),
     );
+  }
+
+  Future<void> _openRegister() async {
+    await Navigator.of(context).push(MaterialPageRoute<void>(
+        builder: (_) => const RegisterScreen()));
+    if (!mounted) return;
+    if (ref.read(sessionProvider).isConnected) {
+      ref.read(syncControllerProvider).syncNow();
+      await _finish();
+    }
+  }
+
+  Future<void> _openLogin() async {
+    await Navigator.of(context).push(MaterialPageRoute<void>(
+        builder: (_) => const LoginScreen()));
+    if (!mounted) return;
+    if (ref.read(sessionProvider).isConnected) {
+      ref.read(syncControllerProvider).syncNow();
+      await _finish();
+    }
   }
 
   Widget _feature(ThemeData theme, IconData icon, Color color, String title,
@@ -371,10 +456,10 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
     );
   }
 
-  // ══════════════════════ PAGE 5 — SAUVEGARDE ══════════════════════
+  // ══════════════════════ PAGE 5 — DERNIÈRE ÉTAPE ══════════════════════
 
-  /// Étape « Sauvegarde multi-appareils » : créer un compte OU rester local.
-  /// Aucun des deux choix ne bloque — la synchro est optionnelle (CDC §3).
+  /// Dernier écran : compte créé/connecté en page 1 ou usage local —
+  /// l'application se prépare et démarre vide et propre.
   Widget _page5(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
@@ -386,88 +471,49 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
       child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            const SizedBox(height: LHSpacing.xl),
+            Container(
+              width: 88,
+              height: 88,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: (connected ? LHColors.emeraudeClair : or)
+                    .withValues(alpha: 0.12),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                connected
+                    ? Icons.cloud_done_outlined
+                    : Icons.rocket_launch_outlined,
+                size: 44,
+                color: connected ? LHColors.emeraudeClair : or,
+              ),
+            ),
             const SizedBox(height: LHSpacing.lg),
-            Text('Sauvegarde multi-appareils',
+            Text('Tout est prêt',
                 textAlign: TextAlign.center,
                 style: theme.textTheme.headlineSmall
                     ?.copyWith(fontWeight: FontWeight.w800)),
             const SizedBox(height: LHSpacing.sm),
             Text(
-              'Créez un compte pour retrouver vos espaces sur vos autres '
-              'appareils. Sans compte, tout fonctionne quand même — en local.',
+              connected
+                  ? 'Votre compte est actif : vos espaces seront sauvegardés '
+                      'et synchronisés sur tous vos appareils.'
+                  : 'LifeHelm démarre vide et propre, sans aucune donnée '
+                      'd\'exemple. Vous pourrez activer un compte à tout moment '
+                      'depuis l\'onglet Plus.',
               textAlign: TextAlign.center,
               style: theme.textTheme.bodyMedium?.copyWith(
                   color: theme.colorScheme.onSurfaceVariant, height: 1.5),
             ),
             const SizedBox(height: LHSpacing.xl),
-            // Choix 1 — créer un compte maintenant
-            LHCard(
-              onTap: () async {
-                await Navigator.of(context).push(MaterialPageRoute<void>(
-                    builder: (_) => const RegisterScreen()));
-                if (!mounted) return;
-                if (ref.read(sessionProvider).isConnected) {
-                  ref.read(syncControllerProvider).syncNow();
-                  await _finish();
-                }
-              },
-              accent: or,
-              child: Row(children: [
-                Icon(Icons.person_add_alt_outlined, color: or),
-                const SizedBox(width: LHSpacing.md),
-                Expanded(
-                  child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('Créer un compte',
-                            style: theme.textTheme.titleMedium),
-                        Text('Sauvegarde en ligne dès maintenant',
-                            style: theme.textTheme.bodySmall?.copyWith(
-                                color: theme.colorScheme.onSurfaceVariant)),
-                      ]),
-                ),
-              ]),
-            ),
-            const SizedBox(height: LHSpacing.md),
-            // Choix 2 — rester local (défaut recommandé)
-            LHCard(
-              onTap: _finish,
-              accent: LHColors.emeraudeClair,
-              child: Row(children: [
-                const Icon(Icons.cloud_off_outlined,
-                    color: LHColors.emeraudeClair),
-                const SizedBox(width: LHSpacing.md),
-                Expanded(
-                  child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(children: [
-                          const Expanded(
-                            child: Text('Plus tard, rester local',
-                                style: TextStyle(fontWeight: FontWeight.w700)),
-                          ),
-                          StatusChip(
-                            label: 'Recommandé',
-                            color: isDark ? LHColors.or : LHColors.orDeep,
-                            small: true,
-                          ),
-                        ]),
-                        Text('Tout fonctionne sans compte',
-                            style: theme.textTheme.bodySmall?.copyWith(
-                                color: theme.colorScheme.onSurfaceVariant)),
-                      ]),
-                ),
-              ]),
-            ),
-            const SizedBox(height: LHSpacing.lg),
-            if (connected)
+            if (!connected)
               Padding(
                 padding: const EdgeInsets.only(bottom: LHSpacing.md),
-                child: Text(
-                  'Compte connecté — la synchronisation démarre automatiquement.',
-                  textAlign: TextAlign.center,
-                  style: theme.textTheme.bodySmall
-                      ?.copyWith(color: LHColors.emeraudeClair),
+                child: OutlinedButton.icon(
+                  onPressed: _busy ? null : () => _openRegister(),
+                  icon: const Icon(Icons.person_add_alt_outlined, size: 20),
+                  label: const Text('Créer un compte maintenant'),
                 ),
               ),
             FilledButton(

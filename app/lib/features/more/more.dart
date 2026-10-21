@@ -25,6 +25,12 @@ class _ModuleEntry {
 }
 
 const _modules = [
+  _ModuleEntry('/statistics', 'Statistiques',
+      'Recettes, dépenses, budgets, projets',
+      Icons.insights_outlined, 'finance'),
+  _ModuleEntry('/loans', 'Prêts & emprunts',
+      'Accordés, reçus et remboursements',
+      Icons.handshake_outlined, 'finance'),
   _ModuleEntry('/notes', 'Notes', 'Éditeur riche, dossiers, versions',
       Icons.edit_note_rounded, 'notes'),
   _ModuleEntry('/projects', 'Projets', 'Étapes, jalons, progression',
@@ -476,23 +482,36 @@ class SettingsScreen extends ConsumerWidget {
       appBar: AppBar(title: const Text('Paramètres')),
       body: ListView(padding: const EdgeInsets.only(bottom: 32), children: [
         SectionHeader('Apparence', overline: 'Thèmes'),
-        // Thème : clair / sombre / système (CDC §4.3)
+        // Thème : clair / sombre / système (CDC §4.3) — sélecteur maison
+        // équilibré, sans widget Material expérimental.
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: SegmentedButton<String>(
-            segments: const [
-              ButtonSegment(
-                  value: 'light', label: Text('Clair'), icon: Icon(Icons.light_mode_outlined)),
-              ButtonSegment(
-                  value: 'dark', label: Text('Sombre'), icon: Icon(Icons.dark_mode_outlined)),
-              ButtonSegment(
-                  value: 'system', label: Text('Système'), icon: Icon(Icons.settings_suggest)),
-            ],
-            selected: {
-              settings['themeMode'] ?? 'dark'
+          child: LhSegmented<String>(
+            value: settings['themeMode'] ?? 'dark',
+            items: const {
+              'light': 'Clair',
+              'dark': 'Sombre',
+              'system': 'Système',
             },
-            onSelectionChanged: (s) => db.setSetting('themeMode', s.first),
+            onChanged: (v) => db.setSetting('themeMode', v),
           ),
+        ),
+        const SizedBox(height: LHSpacing.sm),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+            Icon(Icons.light_mode_outlined,
+                size: 16,
+                color: theme.colorScheme.onSurfaceVariant),
+            const SizedBox(width: 6),
+            Text('Le thème sombre met l\'or en valeur.',
+                style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant)),
+            const SizedBox(width: 6),
+            Icon(Icons.dark_mode_outlined,
+                size: 16,
+                color: theme.colorScheme.onSurfaceVariant),
+          ]),
         ),
         SectionHeader('Cockpit', overline: 'Personnalisation'),
         ListTile(
@@ -518,19 +537,51 @@ class SettingsScreen extends ConsumerWidget {
           onChanged: (v) => db.setSetting('showFinanceSummary', '$v'),
         ),
         SectionHeader('Finances', overline: 'Alertes'),
-        ListTile(
-          title: const Text('Seuil d\'alerte des budgets'),
-          subtitle: Text(
-              'Alerte à ${((double.tryParse(settings['budgetAlertThreshold'] ?? '0.8') ?? 0.8) * 100).round()} % de l\'enveloppe consommée'),
-          trailing: Slider(
-            value: double.tryParse(settings['budgetAlertThreshold'] ?? '0.8') ??
-                0.8,
-            min: 0.5,
-            max: 1.0,
-            divisions: 10,
-            label:
-                '${(((double.tryParse(settings['budgetAlertThreshold'] ?? '0.8') ?? 0.8) * 100).round())} %',
-            onChanged: (v) => db.setSetting('budgetAlertThreshold', '$v'),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(children: [
+                const Icon(Icons.notifications_active_outlined, size: 18),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text('Seuil d\'alerte des budgets',
+                      style: theme.textTheme.titleSmall),
+                ),
+                Text(
+                    '${((double.tryParse(settings['budgetAlertThreshold'] ?? '0.8') ?? 0.8) * 100).round()} %',
+                    style: theme.textTheme.titleSmall?.copyWith(
+                        color: theme.brightness == Brightness.dark
+                            ? LHColors.or
+                            : LHColors.orDeep,
+                        fontWeight: FontWeight.w800)),
+              ]),
+              SliderTheme(
+                data: SliderTheme.of(context).copyWith(
+                  trackHeight: 3,
+                  overlayShape: const RoundSliderOverlayShape(
+                      overlayRadius: 18),
+                ),
+                child: Slider(
+                  value:
+                      double.tryParse(settings['budgetAlertThreshold'] ?? '0.8') ??
+                          0.8,
+                  min: 0.5,
+                  max: 1.0,
+                  divisions: 10,
+                  label:
+                      '${(((double.tryParse(settings['budgetAlertThreshold'] ?? '0.8') ?? 0.8) * 100).round())} %',
+                  onChanged: (v) =>
+                      db.setSetting('budgetAlertThreshold', '$v'),
+                ),
+              ),
+              Text(
+                'Alerte à ${((double.tryParse(settings['budgetAlertThreshold'] ?? '0.8') ?? 0.8) * 100).round()} % de l\'enveloppe consommée.',
+                style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant),
+              ),
+            ],
           ),
         ),
         SectionHeader('Confidentialité & données', overline: 'Vos droits'),
@@ -581,12 +632,21 @@ class SettingsScreen extends ConsumerWidget {
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 20),
           child: Text(
-            'LifeHelm v0.1.0 — Life Management System.\n'
-            'Implémentation Flutter offline-first des Dossiers 01 à 14 du cahier des charges. '
-            'Backend NestJS/PostgreSQL à brancher via l\'API de synchronisation (D01.4).',
+            'LifeHelm v0.2.0 — Life Management System.\n'
+            'Édité par YEYO TECH. Implémentation Flutter offline-first des '
+            'Dossiers 01 à 14 du cahier des charges, synchronisée par un '
+            'backend NestJS/PostgreSQL.',
             style: theme.textTheme.bodySmall?.copyWith(
                 height: 1.6, color: theme.colorScheme.onSurfaceVariant),
           ),
+        ),
+        ListTile(
+          leading: const Icon(Icons.description_outlined),
+          title: const Text('Conditions Générales d\'Utilisation'),
+          subtitle: const Text('CGU LifeHelm — YEYO TECH'),
+          trailing: const Icon(Icons.chevron_right_rounded,
+              color: LHColors.neutre),
+          onTap: () => context.push('/cgu'),
         ),
       ]),
     );
@@ -799,252 +859,9 @@ final membersProvider =
         (ref, spaceId) => ref.watch(dbProvider).watchMembers(spaceId));
 
 // ═══════════════════════════ ÉCRAN : MON PROFIL ═══════════════════════════
-
-/// Profil du compte : lecture (le MVP n'expose pas de mise à jour serveur du
-/// profil) + changement de mot de passe via POST /auth/password.
-class AccountScreen extends ConsumerStatefulWidget {
-  const AccountScreen({super.key});
-
-  @override
-  ConsumerState<AccountScreen> createState() => _AccountScreenState();
-}
-
-class _AccountScreenState extends ConsumerState<AccountScreen> {
-  final _current = TextEditingController();
-  final _new = TextEditingController();
-  final _confirm = TextEditingController();
-  bool _busy = false;
-  String? _error;
-  String? _info;
-
-  @override
-  void dispose() {
-    _current.dispose();
-    _new.dispose();
-    _confirm.dispose();
-    super.dispose();
-  }
-
-  Future<void> _changePassword() async {
-    if (_new.text.length < 8) {
-      setState(() => _error =
-          'Le nouveau mot de passe doit contenir au moins 8 caractères.');
-      return;
-    }
-    if (_new.text != _confirm.text) {
-      setState(() => _error = 'Les deux mots de passe ne correspondent pas.');
-      return;
-    }
-    setState(() {
-      _busy = true;
-      _error = null;
-      _info = null;
-    });
-    try {
-      await ref.read(apiClientProvider).changePassword(
-            currentPassword: _current.text,
-            newPassword: _new.text,
-          );
-      if (!mounted) return;
-      _current.clear();
-      _new.clear();
-      _confirm.clear();
-      setState(() => _info = 'Mot de passe modifié.');
-    } on LhApiException catch (e) {
-      setState(() => _error = apiErrorText(e));
-    } on LhNetworkException catch (e) {
-      setState(() => _error = apiErrorText(e));
-    } catch (_) {
-      setState(() => _error = 'Une erreur inattendue est survenue.');
-    } finally {
-      if (mounted) setState(() => _busy = false);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final session = ref.watch(sessionProvider);
-    final user = session.user;
-
-    if (!session.isConnected || user == null) {
-      return Scaffold(
-        appBar: AppBar(title: const Text('Mon profil')),
-        body: EmptyState(
-          icon: Icons.cloud_off_outlined,
-          message: 'Aucun compte connecté',
-          hint: 'Créez un compte pour activer la synchronisation.',
-          action: FilledButton.icon(
-            onPressed: () => context.push('/login'),
-            icon: const Icon(Icons.cloud_outlined, size: 18),
-            label: const Text('Activer la synchronisation'),
-          ),
-        ),
-      );
-    }
-
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Mon profil'),
-        actions: [
-          IconButton(
-            tooltip: 'Actualiser',
-            icon: const Icon(Icons.refresh),
-            onPressed: () =>
-                ref.read(sessionProvider.notifier).refreshUser(),
-          ),
-        ],
-      ),
-      body: ListView(
-        padding: const EdgeInsets.only(bottom: 32),
-        children: [
-          const SizedBox(height: LHSpacing.md),
-          Center(
-            child: Column(children: [
-              InitialsAvatar(name: user.displayName, size: 72),
-              const SizedBox(height: LHSpacing.md),
-              Text(user.displayName, style: theme.textTheme.titleLarge),
-              Text(
-                'Membre depuis ${fmt.formatMonthYear(user.createdAt)}',
-                style: theme.textTheme.bodySmall
-                    ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
-              ),
-            ]),
-          ),
-          SectionHeader('Identité', overline: 'Lecture seule'),
-          ListTile(
-            leading: const Icon(Icons.badge_outlined),
-            title: const Text('Prénom'),
-            subtitle: Text(user.firstName.isEmpty ? '—' : user.firstName),
-          ),
-          ListTile(
-            leading: const Icon(Icons.badge_outlined),
-            title: const Text('Nom'),
-            subtitle: Text(user.lastName?.isEmpty ?? true ? '—' : user.lastName!),
-          ),
-          SectionHeader('Contact', overline: 'Coordonnées du compte'),
-          if (user.email != null)
-            ListTile(
-              leading: const Icon(Icons.alternate_email),
-              title: Text(user.email!),
-              subtitle: const Text('Courriel'),
-              trailing: StatusChip(
-                label: user.emailVerifiedAt != null
-                    ? 'Vérifié'
-                    : 'Non vérifié',
-                color: user.emailVerifiedAt != null
-                    ? LHColors.emeraudeClair
-                    : LHColors.alerte,
-                small: true,
-              ),
-            ),
-          if (user.phone != null)
-            ListTile(
-              leading: const Icon(Icons.phone_outlined),
-              title: Text(user.phone!),
-              subtitle: const Text('Téléphone'),
-              trailing: StatusChip(
-                label: user.phoneVerifiedAt != null
-                    ? 'Vérifié'
-                    : 'Non vérifié',
-                color: user.phoneVerifiedAt != null
-                    ? LHColors.emeraudeClair
-                    : LHColors.alerte,
-                small: true,
-              ),
-            ),
-          if (user.email == null && user.phone == null)
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 20),
-              child: Text('Aucune coordonnée renseignée.'),
-            ),
-          SectionHeader('Sécurité', overline: 'Protection du compte'),
-          ListTile(
-            leading: Icon(
-              user.twoFactorEnabled
-                  ? Icons.verified_user_outlined
-                  : Icons.gpp_maybe_outlined,
-              color: user.twoFactorEnabled
-                  ? LHColors.emeraudeClair
-                  : theme.colorScheme.onSurfaceVariant,
-            ),
-            title: const Text('Double authentification (2FA)'),
-            subtitle: Text(user.twoFactorEnabled
-                ? 'Activée — un code TOTP est demandé à la connexion.'
-                : 'Désactivée.'),
-            trailing: TextButton(
-              onPressed: () => context.push('/security'),
-              child: const Text('Gérer'),
-            ),
-          ),
-          SectionHeader('Nouveau mot de passe', overline: 'Sécurité'),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                if (_error != null)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: LHSpacing.md),
-                    child: Text(_error!,
-                        style: theme.textTheme.bodySmall
-                            ?.copyWith(color: LHColors.erreur)),
-                  ),
-                if (_info != null)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: LHSpacing.md),
-                    child: Text(_info!,
-                        style: theme.textTheme.bodySmall
-                            ?.copyWith(color: LHColors.emeraudeClair)),
-                  ),
-                LabeledField(
-                  label: 'Mot de passe actuel',
-                  child: TextField(
-                    controller: _current,
-                    obscureText: true,
-                    decoration: const InputDecoration(
-                        prefixIcon: Icon(Icons.lock_outline)),
-                  ),
-                ),
-                const SizedBox(height: LHSpacing.md),
-                LabeledField(
-                  label: 'Nouveau mot de passe (8 caractères minimum)',
-                  child: TextField(
-                    controller: _new,
-                    obscureText: true,
-                    decoration: const InputDecoration(
-                        prefixIcon: Icon(Icons.lock_outline)),
-                  ),
-                ),
-                const SizedBox(height: LHSpacing.md),
-                LabeledField(
-                  label: 'Confirmer le nouveau mot de passe',
-                  child: TextField(
-                    controller: _confirm,
-                    obscureText: true,
-                    onSubmitted: (_) => _changePassword(),
-                    decoration: const InputDecoration(
-                        prefixIcon: Icon(Icons.lock_outline)),
-                  ),
-                ),
-                const SizedBox(height: LHSpacing.lg),
-                FilledButton(
-                  onPressed: _busy ? null : _changePassword,
-                  child: _busy
-                      ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2))
-                      : const Text('Modifier le mot de passe'),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
+// → L'écran profil complet (photo, coordonnées, questions de sécurité,
+//   mot de passe, suppression du compte) vit désormais dans
+//   features/profile/profile.dart et est servi par la route /account.
 
 // ═══════════════════════════ ÉCRAN : SESSIONS & APPAREILS ═══════════════════════════
 

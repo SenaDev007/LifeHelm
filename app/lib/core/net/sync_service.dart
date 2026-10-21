@@ -69,6 +69,7 @@ Map<String, SyncTable> buildSyncRegistry(AppDatabase db) => {
           (j) => FinancialDueItem.fromJson(j).toCompanion(false)),
       'AccountReconciliation': SyncTable(db.accountReconciliations,
           (j) => AccountReconciliation.fromJson(j).toCompanion(false)),
+      'Loan': SyncTable(db.loans, (j) => Loan.fromJson(j).toCompanion(false)),
       // D06
       'Folder':
           SyncTable(db.folders, (j) => Folder.fromJson(j).toCompanion(false)),

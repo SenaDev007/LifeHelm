@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/db/database.dart';
 import '../../core/providers.dart';
+import '../../core/taxonomy.dart';
 import '../../core/theme/tokens.dart';
 import '../../core/utils/formatters.dart' as fmt;
 import '../../core/utils/money.dart';
@@ -39,7 +40,16 @@ class _TransactionEditScreenState extends ConsumerState<TransactionEditScreen> {
   _OpType _type = _OpType.expense;
   String? _accountId;
   String? _toAccountId;
-  String? _categoryId;
+
+  /// Catégorie parente sélectionnée (premier niveau de la taxonomie).
+  String? _parentCategoryId;
+
+  /// Sous-catégorie sélectionnée (second niveau) — null = toute la catégorie.
+  String? _subCategoryId;
+
+  /// Valeur effectivement enregistrée sur l'opération (sous-cat si définie).
+  String? get _categoryId =>
+      _subCategoryId ?? _parentCategoryId;
   DateTime _date = DateTime.now();
   String _status = 'POSTED';
   bool _saving = false;
@@ -189,9 +199,22 @@ class _TransactionEditScreenState extends ConsumerState<TransactionEditScreen> {
     }
     final account = accounts.where((a) => a.id == _accountId).firstOrNull;
     final currency = Currency.byCode(account?.currency ?? 'XOF');
+
+    // Hiérarchie de la taxonomie : parents de premier niveau + enfants du
+    // parent sélectionné (sélecteurs en cascade).
     final relevantCategories = _type == _OpType.income
         ? categories.where((c) => c.kind == 'INCOME')
         : categories.where((c) => c.kind == 'EXPENSE');
+    final parents = relevantCategories
+        .where((c) => c.parentId == null)
+        .toList()
+      ..sort((a, b) => a.name.compareTo(b.name));
+    final subs = _parentCategoryId == null
+        ? const <FinancialCategory>[]
+        : relevantCategories
+            .where((c) => c.parentId == _parentCategoryId)
+            .toList()
+          ..sort((a, b) => a.name.compareTo(b.name));
     final currentPeriod = fmt.dateKey(DateTime(_date.year, _date.month, 1));
 
     return Scaffold(
@@ -325,10 +348,13 @@ class _TransactionEditScreenState extends ConsumerState<TransactionEditScreen> {
             LabeledField(
               label: 'Catégorie',
               child: DropdownButtonFormField<String>(
-                value: _categoryId,
+                value: _parentCategoryId,
+                isExpanded: true,
+                menuMaxHeight: 420,
                 items: [
-                  const DropdownMenuItem(value: null, child: Text('Sans catégorie')),
-                  ...relevantCategories.map((c) => DropdownMenuItem(
+                  const DropdownMenuItem(
+                      value: null, child: Text('Sans catégorie')),
+                  ...parents.map((c) => DropdownMenuItem(
                       value: c.id,
                       child: Row(children: [
                         Container(
@@ -338,12 +364,38 @@ class _TransactionEditScreenState extends ConsumerState<TransactionEditScreen> {
                                 color: _hex(c.colorHex),
                                 shape: BoxShape.circle)),
                         const SizedBox(width: 8),
-                        Text(c.name),
+                        Expanded(
+                            child: Text(c.name,
+                                overflow: TextOverflow.ellipsis)),
                       ]))),
                 ],
-                onChanged: (v) => setState(() => _categoryId = v),
+                onChanged: (v) => setState(() {
+                  _parentCategoryId = v;
+                  _subCategoryId = null;
+                }),
               ),
             ),
+            if (subs.isNotEmpty) ...[
+              const SizedBox(height: LHSpacing.md),
+              LabeledField(
+                label: 'Sous-catégorie',
+                child: DropdownButtonFormField<String>(
+                  value: _subCategoryId,
+                  isExpanded: true,
+                  menuMaxHeight: 420,
+                  items: [
+                    const DropdownMenuItem(
+                        value: null,
+                        child: Text('Toute la catégorie')),
+                    ...subs.map((c) => DropdownMenuItem(
+                        value: c.id,
+                        child: Text(c.name,
+                            overflow: TextOverflow.ellipsis))),
+                  ],
+                  onChanged: (v) => setState(() => _subCategoryId = v),
+                ),
+              ),
+            ],
             const SizedBox(height: LHSpacing.md),
             if (_type == _OpType.expense) ...[
               LabeledField(
@@ -501,6 +553,23 @@ class BudgetsScreen extends ConsumerWidget {
                             ],
                           ),
                         ]),
+                        if (s.budget.planningCategory != null)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 2, bottom: 4),
+                            child: Wrap(spacing: 6, runSpacing: 4, children: [
+                              StatusChip(
+                                  label: s.budget.planningCategory!,
+                                  color: theme.brightness == Brightness.dark
+                                      ? LHColors.or
+                                      : LHColors.orDeep,
+                                  small: true),
+                              if (s.budget.planningSubCategory != null)
+                                StatusChip(
+                                    label: s.budget.planningSubCategory!,
+                                    color: LHColors.info,
+                                    small: true),
+                            ]),
+                          ),
                         Text(
                           '${fmt.formatShort(fmt.parseKey(s.budget.periodStart))} → ${fmt.formatShort(fmt.parseKey(s.budget.periodEnd))}',
                           style: theme.textTheme.bodySmall?.copyWith(
@@ -640,71 +709,292 @@ class BudgetsScreen extends ConsumerWidget {
 
   Future<void> _createDialog(
       BuildContext context, WidgetRef ref, String spaceId) async {
-    final db = ref.read(dbProvider);
-    final nameCtrl = TextEditingController();
-    final amountCtrl = TextEditingController();
-    final now = DateTime.now();
-    final mStart = DateTime(now.year, now.month, 1);
-    final mEnd = DateTime(now.year, now.month + 1, 0);
-    final categories =
-        ref.read(categoriesProvider(spaceId)).valueOrNull ?? [];
-
-    await showDialog<void>(
+    await showModalBottomSheet<void>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Nouveau budget'),
-        content: Column(mainAxisSize: MainAxisSize.min, children: [
-          TextField(
-              controller: nameCtrl,
-              decoration: const InputDecoration(hintText: 'Nom, ex. : Marché')),
-          const SizedBox(height: 10),
-          TextField(
-              controller: amountCtrl,
-              keyboardType: TextInputType.number,
-              decoration: const InputDecoration(hintText: 'Montant (FCFA)')),
-          const SizedBox(height: 10),
-          StatefulBuilder(builder: (ctx, setInner) {
-            String? catId;
-            return StatefulBuilder(
-              builder: (ctx, setInner2) => DropdownButtonFormField<String>(
-                value: catId,
-                items: [
-                  const DropdownMenuItem(
-                      value: null, child: Text('Sans catégorie')),
-                  ...categories
-                      .where((c) => c.kind == 'EXPENSE')
-                      .map((c) => DropdownMenuItem(
-                          value: c.id, child: Text(c.name))),
-                ],
-                onChanged: (v) => setInner2(() => catId = v),
+      isScrollControlled: true,
+      builder: (ctx) => _BudgetPlanSheet(spaceId: spaceId),
+    );
+  }
+}
+
+/// Formulaire complet de planification budgétaire : catégorie de planification
+/// (taxonomie exhaustive), sous-catégorie, montant, génération multi-mois
+/// (1 à 12 budgets mensuels créés d'un coup) et report de solde.
+class _BudgetPlanSheet extends ConsumerStatefulWidget {
+  const _BudgetPlanSheet({required this.spaceId});
+  final String spaceId;
+
+  @override
+  ConsumerState<_BudgetPlanSheet> createState() => _BudgetPlanSheetState();
+}
+
+class _BudgetPlanSheetState extends ConsumerState<_BudgetPlanSheet> {
+  final _nameCtrl = TextEditingController();
+  final _amountCtrl = TextEditingController();
+  TaxoNode? _planningCat;
+  String? _planningSub;
+  int _months = 1;
+  bool _carryover = false;
+  DateTime _start = DateTime(DateTime.now().year, DateTime.now().month, 1);
+  bool _saving = false;
+  String? _error;
+
+  @override
+  void dispose() {
+    _nameCtrl.dispose();
+    _amountCtrl.dispose();
+    super.dispose();
+  }
+
+  List<String> get _subs => _planningCat?.subs ?? const [];
+
+  String get _preview {
+    final last = DateTime(_start.year, _start.month + _months - 1, 1);
+    if (_months == 1) {
+      return '1 budget créé pour ${fmt.formatShort(_start)}.';
+    }
+    return '$_months budgets mensuels créés : '
+        '${fmt.formatShort(_start)} → ${fmt.formatShort(last)} '
+        '(un budget par mois, même enveloppe).';
+  }
+
+  Future<void> _create() async {
+    final name = _nameCtrl.text.trim();
+    final money = Money.tryParse(_amountCtrl.text, Currency.xof);
+    if (name.isEmpty) {
+      setState(() => _error = 'Donnez un nom au budget.');
+      return;
+    }
+    if (_planningCat == null) {
+      setState(() => _error = 'Choisissez une catégorie de planification.');
+      return;
+    }
+    if (money == null || money.isZero) {
+      setState(() => _error = 'Saisissez un montant mensuel valide.');
+      return;
+    }
+    setState(() {
+      _saving = true;
+      _error = null;
+    });
+    final db = ref.read(dbProvider);
+    final seriesId = _months > 1 ? 'ser_${DateTime.now().microsecondsSinceEpoch}' : null;
+    for (var i = 0; i < _months; i++) {
+      final monthStart = DateTime(_start.year, _start.month + i, 1);
+      final monthEnd = DateTime(_start.year, _start.month + i + 1, 0);
+      final id = 'bud_${DateTime.now().microsecondsSinceEpoch}_$i';
+      await db.into(db.budgets).insert(Budget(
+          id: id,
+          spaceId: widget.spaceId,
+          name: name,
+          periodStart: fmt.dateKey(monthStart),
+          periodEnd: fmt.dateKey(monthEnd),
+          initialAmount: money.minor,
+          carryoverEnabled: _carryover,
+          planningCategory: _planningCat!.name,
+          planningSubCategory: _planningSub,
+          seriesId: seriesId,
+          createdAt: DateTime.now()));
+      db.logOp('Budget', id, 'CREATE', {'name': name, 'series': seriesId});
+    }
+    if (mounted) Navigator.pop(context);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Padding(
+      padding: EdgeInsets.only(
+          left: LHSpacing.screen,
+          right: LHSpacing.screen,
+          top: LHSpacing.lg,
+          bottom: MediaQuery.of(context).viewInsets.bottom + LHSpacing.lg),
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text('Planifier un budget',
+                style: theme.textTheme.headlineSmall
+                    ?.copyWith(fontWeight: FontWeight.w800)),
+            const SizedBox(height: LHSpacing.sm),
+            Text(
+              'Planification professionnelle : catégorie, sous-catégorie et '
+              'génération automatique sur plusieurs mois.',
+              style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant, height: 1.4),
+            ),
+            const SizedBox(height: LHSpacing.lg),
+            if (_error != null)
+              Padding(
+                padding: const EdgeInsets.only(bottom: LHSpacing.md),
+                child: Text(_error!,
+                    style: theme.textTheme.bodySmall
+                        ?.copyWith(color: LHColors.erreur)),
               ),
-            );
-          }),
-        ]),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Annuler')),
-          FilledButton(
-            onPressed: () async {
-              final m = Money.tryParse(amountCtrl.text, Currency.xof);
-              if (nameCtrl.text.trim().isEmpty || m == null) return;
-              final id = 'bud_${DateTime.now().microsecondsSinceEpoch}';
-              await db.into(db.budgets).insert(Budget(
-                  id: id,
-                  spaceId: spaceId,
-                  name: nameCtrl.text.trim(),
-                  periodStart: fmt.dateKey(mStart),
-                  periodEnd: fmt.dateKey(mEnd),
-                  initialAmount: m.minor,
-                  carryoverEnabled: false,
-                  createdAt: DateTime.now()));
-              db.logOp('Budget', id, 'CREATE', {'name': nameCtrl.text.trim()});
-              if (ctx.mounted) Navigator.pop(ctx);
-            },
-            child: const Text('Créer'),
-          ),
-        ],
+            LabeledField(
+              label: 'Nom du budget',
+              child: TextField(
+                controller: _nameCtrl,
+                textCapitalization: TextCapitalization.words,
+                decoration: const InputDecoration(
+                    hintText: 'Ex. : Marché mensuel', prefixIcon: Icon(Icons.label_outline)),
+              ),
+            ),
+            const SizedBox(height: LHSpacing.md),
+            LabeledField(
+              label: 'Catégorie de planification',
+              child: DropdownButtonFormField<String>(
+                value: _planningCat?.slug,
+                isExpanded: true,
+                menuMaxHeight: 420,
+                items: [
+                  for (final c in taxonomyBudget)
+                    DropdownMenuItem(
+                        value: c.slug,
+                        child: Row(children: [
+                          Icon(c.icon, size: 18, color: _hex(c.colorHex)),
+                          const SizedBox(width: 8),
+                          Expanded(
+                              child: Text(c.name,
+                                  overflow: TextOverflow.ellipsis)),
+                        ])),
+                ],
+                onChanged: (v) => setState(() {
+                  _planningCat = taxonomyBudget
+                      .where((c) => c.slug == v)
+                      .firstOrNull;
+                  _planningSub = null;
+                }),
+              ),
+            ),
+            if (_subs.isNotEmpty) ...[
+              const SizedBox(height: LHSpacing.md),
+              LabeledField(
+                label: 'Sous-catégorie',
+                child: DropdownButtonFormField<String>(
+                  value: _planningSub,
+                  isExpanded: true,
+                  menuMaxHeight: 360,
+                  items: [
+                    const DropdownMenuItem(
+                        value: null, child: Text('Toute la catégorie')),
+                    for (final s in _subs)
+                      DropdownMenuItem(
+                          value: s,
+                          child: Text(s, overflow: TextOverflow.ellipsis)),
+                  ],
+                  onChanged: (v) => setState(() => _planningSub = v),
+                ),
+              ),
+            ],
+            const SizedBox(height: LHSpacing.md),
+            LabeledField(
+              label: 'Enveloppe mensuelle (FCFA)',
+              child: TextField(
+                controller: _amountCtrl,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(
+                    hintText: 'Ex. : 75000', prefixIcon: Icon(Icons.payments_outlined)),
+              ),
+            ),
+            const SizedBox(height: LHSpacing.lg),
+            Text('Générer sur combien de mois ?',
+                style: theme.textTheme.labelMedium?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant)),
+            const SizedBox(height: LHSpacing.sm),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                for (final m in const [1, 3, 6, 12])
+                  ChoiceChip(
+                    label: Text(m == 1 ? 'Ce mois' : '$m mois'),
+                    selected: _months == m,
+                    onSelected: (_) => setState(() => _months = m),
+                  ),
+              ],
+            ),
+            if (_months > 1) ...[
+              const SizedBox(height: LHSpacing.sm),
+              OutlinedButton.icon(
+                onPressed: () async {
+                  final picked = await showDatePicker(
+                    context: context,
+                    initialDate: _start,
+                    firstDate: DateTime(2020),
+                    lastDate: DateTime(2100),
+                    locale: const Locale('fr'),
+                  );
+                  if (picked != null) {
+                    setState(() => _start = DateTime(picked.year, picked.month, 1));
+                  }
+                },
+                icon: const Icon(Icons.event_outlined, size: 18),
+                label: Text('Début : ${fmt.formatLong(_start)}'),
+              ),
+            ],
+            const SizedBox(height: LHSpacing.md),
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              secondary: const Icon(Icons.move_up_outlined),
+              title: const Text('Reporter le solde d\'un mois sur l\'autre'),
+              subtitle: Text(
+                  'Le reste non dépensé augmente l\'enveloppe du mois suivant.',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant)),
+              value: _carryover,
+              onChanged: (v) => setState(() => _carryover = v),
+            ),
+            Container(
+              padding: const EdgeInsets.all(LHSpacing.md),
+              decoration: BoxDecoration(
+                color: (theme.brightness == Brightness.dark
+                        ? LHColors.or
+                        : LHColors.orDeep)
+                    .withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(LHRadius.md),
+                border: Border.all(
+                    color: (theme.brightness == Brightness.dark
+                            ? LHColors.or
+                            : LHColors.orDeep)
+                        .withValues(alpha: 0.35)),
+              ),
+              child: Row(children: [
+                Icon(Icons.auto_awesome_outlined,
+                    size: 18,
+                    color: theme.brightness == Brightness.dark
+                        ? LHColors.or
+                        : LHColors.orDeep),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(_preview,
+                      style: theme.textTheme.bodySmall?.copyWith(height: 1.4)),
+                ),
+              ]),
+            ),
+            const SizedBox(height: LHSpacing.lg),
+            FilledButton(
+              onPressed: _saving ? null : _create,
+              child: _saving
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2))
+                  : Text(_months == 1
+                      ? 'Créer le budget'
+                      : 'Créer les $_months budgets'),
+            ),
+          ],
+        ),
       ),
     );
+  }
+
+  Color _hex(String hex) {
+    final h = hex.replaceAll('#', '');
+    if (h.length != 6) return LHColors.neutre;
+    return Color(int.parse('FF$h', radix: 16));
   }
 }
 

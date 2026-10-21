@@ -23,6 +23,11 @@ model User {
   lastName  String?
   avatarUrl String?
 
+  // Profil étendu (V2) — renseignés à l'inscription ou depuis l'application.
+  profession String? // référentiel quasi exhaustif, saisie libre acceptée
+  country    String? // code ISO 3166-1 alpha-2 (ex. "BJ")
+  securityQuestions Json? // [{ question, answerHash sha256 }] — récupération de compte
+
   emailVerifiedAt DateTime?
   phoneVerifiedAt DateTime?
 

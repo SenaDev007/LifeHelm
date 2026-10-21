@@ -21,6 +21,10 @@ Future<void> main() async {
     await db.purgeDemoDataOnce();
     await db.maintenanceScan();
     await db.purgeExpired();
+    // Montée de version de la taxonomie financière (idempotent) : les
+    // installations existantes reçoivent les catégories & sous-catégories
+    // exhaustives sans toucher aux données existantes.
+    await db.ensureTaxonomy();
   }
 
   runApp(ProviderScope(

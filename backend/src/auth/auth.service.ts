@@ -25,6 +25,8 @@ export interface PublicUser {
   firstName: string;
   lastName: string | null;
   avatarUrl: string | null;
+  profession: string | null;
+  country: string | null;
   emailVerifiedAt: string | null;
   phoneVerifiedAt: string | null;
   twoFactorEnabled: boolean;
@@ -55,7 +57,8 @@ export class AuthService {
 
   public toPublicUser(u: {
     id: string; email: string | null; phone: string | null; firstName: string;
-    lastName: string | null; avatarUrl: string | null; emailVerifiedAt: Date | null;
+    lastName: string | null; avatarUrl: string | null; profession: string | null;
+    country: string | null; emailVerifiedAt: Date | null;
     phoneVerifiedAt: Date | null; twoFactorEnabled: boolean; createdAt: Date;
   }): PublicUser {
     return {
@@ -65,6 +68,8 @@ export class AuthService {
       firstName: u.firstName,
       lastName: u.lastName,
       avatarUrl: u.avatarUrl,
+      profession: u.profession,
+      country: u.country,
       emailVerifiedAt: u.emailVerifiedAt?.toISOString() ?? null,
       phoneVerifiedAt: u.phoneVerifiedAt?.toISOString() ?? null,
       twoFactorEnabled: u.twoFactorEnabled,
@@ -199,6 +204,8 @@ export class AuthService {
         passwordHash,
         firstName: dto.firstName.trim(),
         lastName: dto.lastName?.trim() ?? null,
+        profession: dto.profession?.trim() || null,
+        country: dto.country?.trim().toUpperCase() || null,
         emailVerifyCodeHash,
         emailVerifyCodeExpiresAt: emailVerifyCodeHash ? expiresAt : null,
         phoneVerifyCodeHash,
@@ -265,6 +272,161 @@ export class AuthService {
     });
     this.logger.log(`Connexion utilisateur ${user.id}`);
     return { user: this.toPublicUser(user), ...tokens };
+  }
+
+  // ─────────────────────────── Profil ───────────────────────────
+
+  async updateProfile(
+    userId: string,
+    dto: {
+      firstName?: string;
+      lastName?: string;
+      phone?: string;
+      profession?: string;
+      country?: string;
+      avatarUrl?: string;
+    },
+  ) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new UnauthorizedException();
+
+    // Unicité du téléphone si modifié.
+    if (dto.phone !== undefined) {
+      const phone = dto.phone ? this.normalizePhone(dto.phone) : null;
+      if (phone && phone !== user.phone) {
+        const clash = await this.prisma.user.findUnique({ where: { phone } });
+        if (clash) {
+          throw new HttpException(
+            { code: 'PHONE_TAKEN', message: 'Ce numéro est déjà utilisé par un autre compte.' },
+            HttpStatus.CONFLICT,
+          );
+        }
+      }
+    }
+
+    const updated = await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        ...(dto.firstName !== undefined ? { firstName: dto.firstName.trim() } : {}),
+        ...(dto.lastName !== undefined ? { lastName: dto.lastName?.trim() || null } : {}),
+        ...(dto.phone !== undefined
+          ? { phone: dto.phone ? this.normalizePhone(dto.phone) : null }
+          : {}),
+        ...(dto.profession !== undefined ? { profession: dto.profession?.trim() || null } : {}),
+        ...(dto.country !== undefined ? { country: dto.country?.trim().toUpperCase() || null } : {}),
+        ...(dto.avatarUrl !== undefined ? { avatarUrl: dto.avatarUrl || null } : {}),
+      },
+    });
+    return { user: this.toPublicUser(updated) };
+  }
+
+  /** Suppression DÉFINITIVE : sessions, ressources synchronisées et compte
+   *  (cascades Prisma) — après vérification du mot de passe. */
+  async deleteAccount(userId: string, password: string) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new UnauthorizedException();
+    if (!(await bcrypt.compare(password, user.passwordHash))) {
+      throw new HttpException(
+        { code: 'INVALID_CREDENTIALS', message: 'Mot de passe incorrect.' },
+        HttpStatus.UNAUTHORIZED,
+      );
+    }
+    await this.prisma.user.delete({ where: { id: userId } });
+    this.logger.warn(`Compte ${userId} supprimé définitivement (demande utilisateur)`);
+  }
+
+  // ─────────────── Questions de sécurité (récupération) ───────────────
+
+  /** Enregistre 1 à 3 questions avec réponses hachées sha256. */
+  async setSecurityQuestions(
+    userId: string,
+    items: { question: string; answerHash: string }[],
+  ) {
+    const cleaned = items
+      .filter((i) => i.question?.trim() && /^[a-f0-9]{64}$/.test(i.answerHash))
+      .slice(0, 3);
+    if (cleaned.length === 0) {
+      throw new HttpException(
+        { code: 'INVALID_QUESTIONS', message: 'Questions de sécurité invalides.' },
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+    const securityQuestions = cleaned.map((i) => ({
+      question: i.question.trim(),
+      answerHash: i.answerHash,
+    }));
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { securityQuestions },
+    });
+  }
+
+  /** Questions publiques d'un compte (sans les réponses). */
+  async securityQuestionsOf(identifier: string) {
+    const { email, phone } = this.normalizeIdentifier(identifier);
+    const user = await this.prisma.user.findFirst({
+      where: email ? { email } : { phone },
+    });
+    if (!user?.securityQuestions || !Array.isArray(user.securityQuestions)) {
+      return { questions: null };
+    }
+    const questions = (user.securityQuestions as { question: string }[]).map(
+      (q) => q.question,
+    );
+    return { questions: questions.length > 0 ? questions : null };
+  }
+
+  /** Vérifie les réponses (hashes sha256) — succès ⇒ jeton de
+   *  réinitialisation identique au flux « mot de passe oublié ». */
+  async recoverBySecurityQuestions(
+    identifier: string,
+    answers: Record<string, string>,
+  ) {
+    const { email, phone } = this.normalizeIdentifier(identifier);
+    const user = await this.prisma.user.findFirst({
+      where: email ? { email } : { phone },
+    });
+    if (
+      !user?.securityQuestions ||
+      !Array.isArray(user.securityQuestions)
+    ) {
+      throw new HttpException(
+        { code: 'NO_QUESTIONS', message: 'Aucune question de sécurité définie pour ce compte.' },
+        HttpStatus.NOT_FOUND,
+      );
+    }
+    const stored = user.securityQuestions as { question: string; answerHash: string }[];
+
+    // Chaque réponse fournie doit correspondre au hash enregistré,
+    // position par position — et TOUTES les questions doivent être couvertes.
+    let ok = stored.length > 0;
+    for (let i = 0; i < stored.length; i++) {
+      const given = answers[String(i)] ?? answers[`${i}`] ?? '';
+      if (!/^[a-f0-9]{64}$/.test(given) || given !== stored[i].answerHash) {
+        ok = false;
+        break;
+      }
+    }
+    if (!ok) {
+      this.logger.warn(`Échec de récupération par questions pour ${user.id}`);
+      throw new HttpException(
+        { code: 'INVALID_ANSWERS', message: 'Réponses incorrectes.' },
+        HttpStatus.UNAUTHORIZED,
+      );
+    }
+
+    const resetToken = randomToken(32);
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: {
+        resetTokenHash: sha256hex(resetToken),
+        resetTokenExpiresAt: new Date(
+          Date.now() + Number(process.env.RESET_TOKEN_TTL_MIN ?? 30) * 60 * 1000,
+        ),
+      },
+    });
+    this.logger.log(`Récupération par questions de sécurité réussie pour ${user.id}`);
+    return { resetToken };
   }
 
   // ─────────────────────── Renouvellement (rotation) ───────────────────────

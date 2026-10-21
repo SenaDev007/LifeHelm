@@ -1,13 +1,15 @@
+import 'package:drift/drift.dart';
 import 'package:uuid/uuid.dart';
 
+import '../taxonomy.dart';
 import 'database.dart';
-
 
 const _uuid = Uuid();
 
-/// Fondations d'un espace : listes, calendriers, catégories, questions (D01.2).
-/// NOTE : aucune donnée de démonstration n'est plus créée — l'app démarre
-/// vide et propre (les contenus de démo ont été retirés de LifeHelm).
+/// Fondations d'un espace : listes, calendriers, taxonomie financière
+/// complète, questions de bilan (D01.2).
+/// NOTE : aucune donnée de démonstration n'est créée — l'app démarre
+/// vide et propre.
 Future<void> seedSpaceFoundations(AppDatabase db, String spaceId,
     {required String ownerName, required bool withDemo}) async {
   // Listes de tâches par défaut.
@@ -39,28 +41,8 @@ Future<void> seedSpaceFoundations(AppDatabase db, String spaceId,
     db.logOp('Calendar', calId, 'CREATE', {'name': name});
   }
 
-  // Catégories financières communes.
-  const categories = [
-    ('Alimentation', 'EXPENSE', '#10A878'),
-    ('Transport', 'EXPENSE', '#5B8DD9'),
-    ('Logement', 'EXPENSE', '#FFD700'),
-    ('Énergie', 'EXPENSE', '#E8A13D'),
-    ('Santé', 'EXPENSE', '#E05B5B'),
-    ('Éducation', 'EXPENSE', '#8A6DD9'),
-    ('Télécom', 'EXPENSE', '#E8720C'),
-    ('Loisirs', 'EXPENSE', '#5BB8D9'),
-    ('Autres dépenses', 'EXPENSE', '#8A8A8A'),
-    ('Salaire', 'INCOME', '#10A878'),
-    ('Ventes', 'INCOME', '#FFD700'),
-    ('Services', 'INCOME', '#5B8DD9'),
-    ('Autres revenus', 'INCOME', '#8A8A8A'),
-  ];
-  for (final (name, kind, color) in categories) {
-    final catId = _uuid.v4();
-    await db.into(db.financialCategories).insert(FinancialCategory(
-        id: catId, spaceId: spaceId, name: name, kind: kind, colorHex: color));
-    db.logOp('FinancialCategory', catId, 'CREATE', {'name': name, 'kind': kind});
-  }
+  // Taxonomie financière exhaustive (catégories + sous-catégories).
+  await seedTaxonomyForSpace(db, spaceId);
 
   // Profil carrière vierge.
   final profileId = _uuid.v4();
@@ -81,3 +63,74 @@ Future<void> seedSpaceFoundations(AppDatabase db, String spaceId,
         id: _uuid.v4(), question: questions[i], position: i, active: true));
   }
 }
+
+/// Amorce la taxonomie officielle (recettes + dépenses, catégories et
+/// sous-catégories) pour un espace. Idempotent par slug : les lignes déjà
+/// présentes ne sont jamais dupliquées. Les inserts passent par un batch
+/// Drift (une seule transaction) — quasi instantané même sur le web.
+Future<void> seedTaxonomyForSpace(AppDatabase db, String spaceId) async {
+  // Lecture unique des slugs déjà présents (dédoublonnage).
+  final rows = await (db.select(db.financialCategories)
+        ..where((c) => c.spaceId.equals(spaceId)))
+      .get();
+  final existing = rows
+      .map((c) => c.slug)
+      .whereType<String>()
+      .toSet();
+
+  // Collecte de tout ce qui manque, parents d'abord pour référencer leurs
+  // identifiants dans les sous-catégories.
+  final pendingParents = <FinancialCategoriesCompanion>[];
+  final pendingSubs = <FinancialCategoriesCompanion>[];
+  final logged = <(String, String, Map<String, dynamic>)>[]; // (id, kind, log)
+
+  for (final entry in [
+    for (final n in taxonomyIncome) (n, 'INCOME'),
+    for (final n in taxonomyExpense) (n, 'EXPENSE'),
+  ]) {
+    final (node, kind) = entry;
+    if (existing.contains(node.slug)) continue;
+    final parentId = _uuid.v4();
+    pendingParents.add(FinancialCategoriesCompanion.insert(
+        id: parentId,
+        spaceId: spaceId,
+        name: node.name,
+        kind: kind,
+        colorHex: Value(node.colorHex),
+        slug: Value(node.slug)));
+    logged.add((parentId, kind, {'name': node.name, 'kind': kind, 'slug': node.slug}));
+    for (final sub in node.subs) {
+      final subSlug = '${node.slug}::${_slugify(sub)}';
+      if (existing.contains(subSlug)) continue;
+      final subId = _uuid.v4();
+      pendingSubs.add(FinancialCategoriesCompanion.insert(
+          id: subId,
+          spaceId: spaceId,
+          name: sub,
+          kind: kind,
+          colorHex: Value(node.colorHex),
+          parentId: Value(parentId),
+          slug: Value(subSlug)));
+      logged.add((subId, kind, {'name': sub, 'kind': kind, 'slug': subSlug}));
+    }
+  }
+
+  if (pendingParents.isNotEmpty || pendingSubs.isNotEmpty) {
+    await db.batch((batch) {
+      batch.insertAll(db.financialCategories, pendingParents);
+      batch.insertAll(db.financialCategories, pendingSubs);
+    });
+    // Journalisation de synchronisation après le commit du batch.
+    for (final (id, _, payload) in logged) {
+      db.logOp('FinancialCategory', id, 'CREATE', payload);
+    }
+  }
+}
+
+String _slugify(String label) {
+  return label
+      .toLowerCase()
+      .replaceAll(RegExp(r"[^a-z0-9]+"), '-')
+      .replaceAll(RegExp(r'^-+|-+$'), '');
+}
+

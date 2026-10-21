@@ -14,6 +14,8 @@ class LhUser {
     required this.firstName,
     this.lastName,
     this.avatarUrl,
+    this.profession,
+    this.country,
     this.emailVerifiedAt,
     this.phoneVerifiedAt,
     required this.twoFactorEnabled,
@@ -26,6 +28,8 @@ class LhUser {
   final String firstName;
   final String? lastName;
   final String? avatarUrl;
+  final String? profession;
+  final String? country; // code ISO du pays (ex. « BJ »)
   final DateTime? emailVerifiedAt;
   final DateTime? phoneVerifiedAt;
   final bool twoFactorEnabled;
@@ -42,6 +46,8 @@ class LhUser {
         firstName: (json['firstName'] as String?) ?? '',
         lastName: json['lastName'] as String?,
         avatarUrl: json['avatarUrl'] as String?,
+        profession: json['profession'] as String?,
+        country: json['country'] as String?,
         emailVerifiedAt: json['emailVerifiedAt'] == null
             ? null
             : DateTime.parse(json['emailVerifiedAt'] as String),
@@ -61,19 +67,30 @@ class LhUser {
         'firstName': firstName,
         'lastName': lastName,
         'avatarUrl': avatarUrl,
+        'profession': profession,
+        'country': country,
         'emailVerifiedAt': emailVerifiedAt?.toIso8601String(),
         'phoneVerifiedAt': phoneVerifiedAt?.toIso8601String(),
         'twoFactorEnabled': twoFactorEnabled,
         'createdAt': createdAt.toIso8601String(),
       };
 
-  LhUser copyWith({bool? twoFactorEnabled}) => LhUser(
+  LhUser copyWith(
+          {bool? twoFactorEnabled,
+          String? firstName,
+          String? lastName,
+          String? phone,
+          String? profession,
+          String? country}) =>
+      LhUser(
         id: id,
         email: email,
-        phone: phone,
-        firstName: firstName,
-        lastName: lastName,
+        phone: phone ?? this.phone,
+        firstName: firstName ?? this.firstName,
+        lastName: lastName ?? this.lastName,
         avatarUrl: avatarUrl,
+        profession: profession ?? this.profession,
+        country: country ?? this.country,
         emailVerifiedAt: emailVerifiedAt,
         phoneVerifiedAt: phoneVerifiedAt,
         twoFactorEnabled: twoFactorEnabled ?? this.twoFactorEnabled,

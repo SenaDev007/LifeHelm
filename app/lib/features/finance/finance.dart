@@ -163,6 +163,13 @@ extension FinanceQueries on AppDatabase {
         .watch();
   }
 
+  /// Lecture unique des catégories (amorçage, dédoublonnage par slug).
+  Future<List<FinancialCategory>> getCategoriesOnce(String spaceId) {
+    return (select(financialCategories)
+          ..where((c) => c.spaceId.equals(spaceId)))
+        .get();
+  }
+
   Stream<List<Budget>> watchBudgets(String spaceId) {
     return (select(budgets)
           ..where((b) => b.spaceId.equals(spaceId))
@@ -751,18 +758,34 @@ class _QuickActionsRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-      child: Row(children: [
-        Expanded(
-            child: _action(context, Icons.north_east_rounded, 'Dépense',
-                () => context.push('/transaction/new?type=expense'))),
-        const SizedBox(width: 10),
-        Expanded(
-            child: _action(context, Icons.south_west_rounded, 'Revenu',
-                () => context.push('/transaction/new?type=income'))),
-        const SizedBox(width: 10),
-        Expanded(
-            child: _action(context, Icons.swap_horiz_rounded, 'Transfert',
-                () => context.push('/transaction/new?type=transfer'))),
+      child: Column(children: [
+        Row(children: [
+          Expanded(
+              child: _action(context, Icons.north_east_rounded, 'Dépense',
+                  () => context.push('/transaction/new?type=expense'))),
+          const SizedBox(width: 10),
+          Expanded(
+              child: _action(context, Icons.south_west_rounded, 'Revenu',
+                  () => context.push('/transaction/new?type=income'))),
+          const SizedBox(width: 10),
+          Expanded(
+              child: _action(context, Icons.swap_horiz_rounded, 'Transfert',
+                  () => context.push('/transaction/new?type=transfer'))),
+        ]),
+        const SizedBox(height: 10),
+        Row(children: [
+          Expanded(
+              child: _action(context, Icons.handshake_outlined,
+                  'Prêts & emprunts', () => context.push('/loans'))),
+          const SizedBox(width: 10),
+          Expanded(
+              child: _action(context, Icons.insights_outlined, 'Statistiques',
+                  () => context.push('/statistics'))),
+          const SizedBox(width: 10),
+          Expanded(
+              child: _action(context, Icons.event_repeat_outlined, 'Échéances',
+                  () => context.push('/dues'))),
+        ]),
       ]),
     );
   }

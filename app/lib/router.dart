@@ -13,11 +13,15 @@ import 'features/more/more.dart';
 import 'features/notes/notes.dart';
 import 'features/notifications/notifications.dart';
 import 'features/onboarding/onboarding.dart';
+import 'features/onboarding/cgu.dart';
+import 'features/profile/profile.dart';
 import 'features/projects/projects.dart';
 import 'features/search/search.dart';
+import 'features/statistics/statistics.dart';
 import 'features/tasks/tasks.dart';
 import 'features/wellbeing/wellbeing.dart';
 import 'features/career/career.dart';
+import 'features/finance/loans.dart';
 import 'main.dart' show bootState;
 import 'shell/shell.dart';
 
@@ -82,6 +86,14 @@ final router = GoRouter(
               GoRoute(
                 path: 'dues',
                 builder: (context, state) => const DuesScreen(),
+              ),
+              GoRoute(
+                path: 'loans',
+                builder: (context, state) => const LoansScreen(),
+              ),
+              GoRoute(
+                path: 'statistics',
+                builder: (context, state) => const StatisticsScreen(),
               ),
             ],
           ),
@@ -320,7 +332,7 @@ final router = GoRouter(
     ),
     GoRoute(
       path: '/account',
-      builder: (context, state) => const AccountScreen(),
+      builder: (context, state) => const ProfileScreen(),
     ),
     GoRoute(
       path: '/sessions',
@@ -368,6 +380,13 @@ final router = GoRouter(
         builder: (context, state) => const BudgetsScreen()),
     GoRoute(
         path: '/dues', builder: (context, state) => const DuesScreen()),
+    GoRoute(
+        path: '/loans', builder: (context, state) => const LoansScreen()),
+    GoRoute(
+        path: '/statistics',
+        builder: (context, state) => const StatisticsScreen()),
+    GoRoute(
+        path: '/cgu', builder: (context, state) => const CguScreen()),
     GoRoute(
       path: '/note/new',
       builder: (context, state) => NoteEditorScreen(

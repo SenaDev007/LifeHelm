@@ -5,7 +5,9 @@ import {
   Get,
   HttpCode,
   Param,
+  Patch,
   Post,
+  Query,
   Req,
   UseGuards,
 } from '@nestjs/common';
@@ -23,6 +25,10 @@ import {
   ResetPasswordDto,
   TotpDto,
   VerifyCodeDto,
+  UpdateProfileDto,
+  DeleteAccountDto,
+  SetSecurityQuestionsDto,
+  RecoverDto,
 } from './dto/auth.dto';
 import { Request } from 'express';
 
@@ -76,6 +82,48 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   me(@CurrentUser() user: AccessTokenPayload) {
     return this.auth.me(user.sub);
+  }
+
+  @Patch('profile')
+  @UseGuards(JwtAuthGuard)
+  updateProfile(
+    @CurrentUser() user: AccessTokenPayload,
+    @Body() dto: UpdateProfileDto,
+  ) {
+    return this.auth.updateProfile(user.sub, dto);
+  }
+
+  @Delete('account')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(204)
+  deleteAccount(
+    @CurrentUser() user: AccessTokenPayload,
+    @Body() dto: DeleteAccountDto,
+  ) {
+    return this.auth.deleteAccount(user.sub, dto.password);
+  }
+
+  @Post('security-questions')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(204)
+  setSecurityQuestions(
+    @CurrentUser() user: AccessTokenPayload,
+    @Body() dto: SetSecurityQuestionsDto,
+  ) {
+    return this.auth.setSecurityQuestions(user.sub, dto.items);
+  }
+
+  @Get('security-questions')
+  @Throttle(10, 60_000)
+  securityQuestions(@Query('identifier') identifier: string) {
+    return this.auth.securityQuestionsOf(identifier ?? '');
+  }
+
+  @Post('recover')
+  @Throttle(5, 60_000)
+  @HttpCode(200)
+  recover(@Body() dto: RecoverDto) {
+    return this.auth.recoverBySecurityQuestions(dto.identifier, dto.answers);
   }
 
   @Get('sessions')

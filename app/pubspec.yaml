@@ -2,7 +2,7 @@ name: lifehelm
 description: "LifeHelm — Life Management System unifié (Flutter, offline-first)."
 publish_to: 'none'
 
-version: 0.1.0+1
+version: 0.2.0+2
 
 environment:
   # Même contrainte que yeshua-connect-mobile : compatible Dart 3.5 → 3.12/3.13+
@@ -32,6 +32,10 @@ dependencies:
   intl: ^0.20.2
   uuid: ^4.5.1
   collection: ^1.19.1
+  crypto: ^3.0.6
+
+  # Photo de profil (galerie / appareil photo).
+  image_picker: ^1.1.2
 
   # Réseau & synchronisation (CDC §3 — backend REST, JWT).
   http: ^1.2.0

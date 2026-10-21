@@ -22,7 +22,9 @@ part 'database.g.dart';
   // D05
   FinancialAccounts, FinancialCategories, FinancialTransactions, Transfers,
   TransactionAllocations, Budgets, BudgetAdjustments, BudgetCarryovers,
-  FinancialDueItems, AccountReconciliations,
+  FinancialDueItems, AccountReconciliations, Loans,
+  // Profil local (photo, profession, questions de sécurité)
+  UserProfile,
   // D06
   Folders, Notes, NoteVersions, Documents, AttachmentLinks,
   // D07
@@ -54,7 +56,7 @@ class AppDatabase extends _$AppDatabase {
   static const _uuid = Uuid();
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
 
   // ══════════════════════════ RÉGLAGES (clé-valeur) ══════════════════════════
 
@@ -395,8 +397,10 @@ class AppDatabase extends _$AppDatabase {
 
     await setSetting('activeSpaceId', personal.id);
     await setSetting('onboarded', 'true');
-    // Installation neuve : déjà en v2 (aucune donnée de démo à purger).
+    // Installation neuve : déjà en v2 (aucune donnée de démo à purger) et
+    // taxonomie exhaustive amorcée ci-dessus avec les fondations.
     await setSetting('dataVersion', '2');
+    await setSetting('taxonomyVersion', '$taxonomyVersion');
     await setSetting('themeMode', 'dark');
     await setSetting('upcomingWindowDays', '7');
     await setSetting('budgetAlertThreshold', '0.8');
@@ -469,8 +473,128 @@ class AppDatabase extends _$AppDatabase {
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
+        onUpgrade: (m, from, to) async {
+          if (from < 2) {
+            // v2 — hiérarchie des catégories, prêts/emprunts, budget de
+            // planification, profil local (photo, profession, sécurité).
+            await m.addColumn(financialCategories, financialCategories.parentId);
+            await m.addColumn(financialCategories, financialCategories.slug);
+            await m.addColumn(
+                financialTransactions, financialTransactions.loanId);
+            await m.addColumn(budgets, budgets.planningCategory);
+            await m.addColumn(budgets, budgets.planningSubCategory);
+            await m.addColumn(budgets, budgets.seriesId);
+            await m.createTable(loans);
+            await m.createTable(userProfile);
+          }
+        },
         beforeOpen: (details) async {
           await customStatement('PRAGMA foreign_keys = ON');
         },
       );
+
+  // ══════════════════════════ PROFIL LOCAL (photo, profession, sécurité) ══════════════════════════
+
+  /// Charge la ligne unique du profil local (créée à la volée si absente).
+  Future<UserProfileData> getLocalProfile() async {
+    final row = await (select(userProfile)..where((p) => p.id.equals('me')))
+        .getSingleOrNull();
+    if (row != null) return row;
+    final fresh = UserProfileCompanion.insert(id: 'me');
+    await into(userProfile).insert(fresh);
+    return (select(userProfile)..where((p) => p.id.equals('me')))
+        .getSingle();
+  }
+
+  Future<void> saveLocalProfile(UserProfileCompanion patch) async {
+    await getLocalProfile(); // garantit l'existence de la ligne
+    await (update(userProfile)..where((p) => p.id.equals('me')))
+        .write(patch.copyWith(updatedAt: Value(DateTime.now())));
+  }
+
+  Stream<UserProfileData> watchLocalProfile() {
+    return (select(userProfile)..where((p) => p.id.equals('me')))
+        .watchSingleOrNull()
+        .asyncMap((row) async => row ?? await getLocalProfile());
+  }
+
+  // ══════════════════════════ PRÊTS & EMPRUNTS (D05) ══════════════════════════
+
+  Stream<List<Loan>> watchLoans(String spaceId, {String? direction}) {
+    var q = select(loans)
+      ..where((l) => l.spaceId.equals(spaceId));
+    if (direction != null) {
+      q = q..where((l) => l.direction.equals(direction));
+    }
+    return (q..orderBy([(l) => OrderingTerm.desc(l.startedAt)])).watch();
+  }
+
+  Future<Loan?> getLoan(String id) =>
+      (select(loans)..where((l) => l.id.equals(id))).getSingleOrNull();
+
+  /// Opérations liées à un prêt (décaissement initial + remboursements).
+  Future<List<FinancialTransaction>> loanTransactions(String loanId) {
+    return (select(financialTransactions)
+          ..where((t) => t.loanId.equals(loanId))
+          ..orderBy([(t) => OrderingTerm.asc(t.occurredAt)]))
+        .get();
+  }
+
+  Stream<List<FinancialTransaction>> watchLoanTransactions(String loanId) {
+    return (select(financialTransactions)
+          ..where((t) => t.loanId.equals(loanId))
+          ..orderBy([(t) => OrderingTerm.asc(t.occurredAt)]))
+        .watch();
+  }
+
+  // ══════════════════════════ TAXONOMIE ÉVOLUTIVE ══════════════════════════
+
+  /// Version courante de la taxonomie financière embarquée.
+  static const int taxonomyVersion = 2;
+
+  /// Amorce ou complète la taxonomie officielle (catégories + sous-catégories)
+  /// pour tous les espaces existants. Idempotent : les lignes déjà présentes
+  /// (par slug) ne sont jamais dupliquées — les installations existantes
+  /// montent en grade sans perdre leurs catégories personnalisées ni leurs
+  /// opérations. Les anciennes catégories plates (sans slug) deviennent
+  /// obsolètes : elles sont supprimées si aucune donnée ne les référence.
+  Future<void> ensureTaxonomy() async {
+    final current = int.tryParse(await getSetting('taxonomyVersion') ?? '') ?? 0;
+    if (current >= taxonomyVersion) return;
+    final spaces = await getAllSpaces();
+    for (final space in spaces) {
+      await seedTaxonomyForSpace(this, space.id);
+
+      // Nettoyage des anciennes catégories plates non référencées.
+      final legacy = await (select(financialCategories)
+            ..where((c) =>
+                c.spaceId.equals(space.id) &
+                c.slug.isNull() &
+                c.parentId.isNull()))
+          .get();
+      for (final cat in legacy) {
+        final usedByTx = await (select(financialTransactions)
+              ..where((t) =>
+                  t.spaceId.equals(space.id) &
+                  t.categoryId.equals(cat.id)))
+            .getSingleOrNull();
+        final usedByBudget = await (select(budgets)
+              ..where((b) =>
+                  b.spaceId.equals(space.id) &
+                  b.categoryId.equals(cat.id)))
+            .getSingleOrNull();
+        final usedByDue = await (select(financialDueItems)
+              ..where((d) =>
+                  d.spaceId.equals(space.id) &
+                  d.categoryId.equals(cat.id)))
+            .getSingleOrNull();
+        if (usedByTx == null && usedByBudget == null && usedByDue == null) {
+          await (delete(financialCategories)
+                ..where((c) => c.id.equals(cat.id)))
+              .go();
+        }
+      }
+    }
+    await setSetting('taxonomyVersion', '$taxonomyVersion');
+  }
 }

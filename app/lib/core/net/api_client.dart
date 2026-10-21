@@ -384,8 +384,13 @@ class ApiClient {
           {Map<String, dynamic>? body, bool auth = true}) =>
       _send('POST', path, body: body, auth: auth);
 
-  Future<Map<String, dynamic>> delete(String path, {bool auth = true}) =>
-      _send('DELETE', path, auth: auth);
+  Future<Map<String, dynamic>> patch(String path,
+          {Map<String, dynamic>? body, bool auth = true}) =>
+      _send('PATCH', path, body: body, auth: auth);
+
+  Future<Map<String, dynamic>> delete(String path,
+          {Map<String, dynamic>? body, bool auth = true}) =>
+      _send('DELETE', path, body: body, auth: auth);
 
   // ── Authentification (sans Bearer) ──
 
@@ -395,6 +400,8 @@ class ApiClient {
     required String password,
     required String firstName,
     String? lastName,
+    String? profession,
+    String? country,
     String? deviceName,
   }) async {
     final data = await _send('POST', '/auth/register',
@@ -404,6 +411,9 @@ class ApiClient {
           'password': password,
           'firstName': firstName,
           if (lastName != null && lastName.isNotEmpty) 'lastName': lastName,
+          if (profession != null && profession.isNotEmpty)
+            'profession': profession,
+          if (country != null && country.isNotEmpty) 'country': country,
           if (deviceName != null && deviceName.isNotEmpty)
             'deviceName': deviceName,
         },
@@ -447,6 +457,75 @@ class ApiClient {
   Future<LhUser> me() async {
     final data = await get('/auth/me');
     return LhUser.fromJson(Map<String, dynamic>.from(data['user'] as Map));
+  }
+
+  /// Met à jour le profil serveur (PATCH /auth/profile).
+  /// Retourne le profil rafraîchi.
+  Future<LhUser> updateProfile({
+    String? firstName,
+    String? lastName,
+    String? phone,
+    String? profession,
+    String? country,
+    String? avatarUrl,
+  }) async {
+    final data = await patch('/auth/profile', body: {
+      if (firstName != null) 'firstName': firstName,
+      if (lastName != null) 'lastName': lastName,
+      if (phone != null) 'phone': phone,
+      if (profession != null) 'profession': profession,
+      if (country != null) 'country': country,
+      if (avatarUrl != null) 'avatarUrl': avatarUrl,
+    });
+    return LhUser.fromJson(Map<String, dynamic>.from(data['user'] as Map));
+  }
+
+  /// Suppression DÉFINITIVE du compte et de toutes ses données serveur
+  /// (DELETE /auth/account). Exige le mot de passe courant.
+  Future<void> deleteAccount(String password) async {
+    await delete('/auth/account', body: {'password': password});
+  }
+
+  // ── Questions de sécurité (récupération du compte) ──
+
+  /// Enregistre les questions/réponses (réponses hachées sha256 côté client).
+  Future<void> setSecurityQuestions(
+      List<({String question, String answerHash})> items) async {
+    await post('/auth/security-questions', body: {
+      'items': [
+        for (final i in items)
+          {'question': i.question, 'answerHash': i.answerHash}
+      ],
+    });
+  }
+
+  /// Questions publiques d'un compte (écran de récupération).
+  /// Retourne null si le compte n'en a pas défini.
+  Future<List<String>?> securityQuestionsOf(String identifier) async {
+    final data = await _send(
+        'GET',
+        '/auth/security-questions?identifier='
+        '${Uri.encodeComponent(identifier)}',
+        auth: false);
+    final raw = data['questions'];
+    if (raw == null) return null;
+    return (raw as List).map((q) => q as String).toList();
+  }
+
+  /// Vérifie les réponses aux questions de sécurité : si elles sont
+  /// correctes, renvoie un jeton de réinitialisation (comme « mot de passe
+  /// oublié ») utilisable via [resetPassword].
+  Future<String> recoverBySecurityQuestions(
+      String identifier, Map<int, String> answerHashes) async {
+    final data = await _send('POST', '/auth/recover',
+        body: {
+          'identifier': identifier,
+          'answers': {
+            for (final e in answerHashes.entries) '${e.key}': e.value,
+          },
+        },
+        auth: false);
+    return data['resetToken'] as String;
   }
 
   Future<void> logoutAll() async {

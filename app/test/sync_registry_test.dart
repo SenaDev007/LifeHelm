@@ -29,7 +29,7 @@ void main() {
     // D05
     'FinancialAccount', 'FinancialCategory', 'FinancialTransaction',
     'Transfer', 'TransactionAllocation', 'Budget', 'BudgetAdjustment',
-    'BudgetCarryover', 'FinancialDueItem', 'AccountReconciliation',
+    'BudgetCarryover', 'FinancialDueItem', 'AccountReconciliation', 'Loan',
     // D06
     'Folder', 'Note', 'NoteVersion',
     // D07

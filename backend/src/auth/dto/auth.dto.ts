@@ -1,4 +1,5 @@
-import { IsOptional, IsString, MinLength, MaxLength, IsEmail, Matches, IsNotEmpty } from 'class-validator';
+import { IsOptional, IsString, MinLength, MaxLength, IsEmail, Matches, IsNotEmpty, IsArray, ArrayMaxSize, ValidateNested } from 'class-validator';
+import { Type } from 'class-transformer';
 
 /** Inscription — courriel OU téléphone (au moins un des deux), D01.3 §6.3. */
 export class RegisterDto {
@@ -24,6 +25,18 @@ export class RegisterDto {
   @IsString()
   @MaxLength(60)
   lastName?: string;
+
+  /** Profession libre (référentiel quasi exhaustif côté application). */
+  @IsOptional()
+  @IsString()
+  @MaxLength(80)
+  profession?: string;
+
+  /** Code ISO du pays (ex. « BJ »). */
+  @IsOptional()
+  @IsString()
+  @MaxLength(2)
+  country?: string;
 
   @IsOptional()
   @IsString()
@@ -100,4 +113,75 @@ export class VerifyCodeDto {
   @IsString()
   @Matches(/^\d{6}$/, { message: 'Code à 6 chiffres requis.' })
   code!: string;
+}
+
+/** Mise à jour du profil (PATCH /auth/profile). */
+export class UpdateProfileDto {
+  @IsOptional()
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(60)
+  firstName?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(60)
+  lastName?: string;
+
+  @IsOptional()
+  @Matches(/^\+?[0-9\s-]{8,16}$/, { message: 'Numéro de téléphone invalide.' })
+  phone?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(80)
+  profession?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(2)
+  country?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(2048)
+  avatarUrl?: string;
+}
+
+/** Suppression définitive du compte (DELETE /auth/account). */
+export class DeleteAccountDto {
+  @IsString()
+  @IsNotEmpty({ message: 'Mot de passe requis.' })
+  password!: string;
+}
+
+/** Question de sécurité (question + réponse hachée sha256 côté client). */
+export class SecurityQuestionItem {
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(200)
+  question!: string;
+
+  @IsString()
+  @Matches(/^[a-f0-9]{64}$/, { message: 'Réponse hachée sha256 attendue.' })
+  answerHash!: string;
+}
+
+/** Enregistrement des questions de sécurité (POST /auth/security-questions). */
+export class SetSecurityQuestionsDto {
+  @IsArray()
+  @ArrayMaxSize(3)
+  @ValidateNested({ each: true })
+  @Type(() => SecurityQuestionItem)
+  items!: SecurityQuestionItem[];
+}
+
+/** Vérification des réponses → jeton de réinitialisation (POST /auth/recover). */
+export class RecoverDto {
+  @IsString()
+  @IsNotEmpty()
+  identifier!: string;
+
+  @IsNotEmpty()
+  answers!: Record<string, string>;
 }

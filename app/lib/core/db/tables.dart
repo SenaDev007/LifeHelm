@@ -176,6 +176,14 @@ class FinancialCategories extends Table {
   TextColumn get name => text()();
   TextColumn get kind => text()(); // INCOME | EXPENSE
   TextColumn get colorHex => text().withDefault(const Constant('#8A8A8A'))();
+
+  /// Hiérarchie : catégorie parente (null = catégorie de premier niveau).
+  TextColumn get parentId => text().nullable()();
+
+  /// Identifiant stable de la taxonomie officielle (ex. « inc-salariaux »).
+  /// Sert au dédoublonnage lors des montées de version — null pour les
+  /// catégories personnalisées créées par l'utilisateur.
+  TextColumn get slug => text().nullable()();
   @override
   Set<Column> get primaryKey => {id};
 }
@@ -187,6 +195,9 @@ class FinancialTransactions extends Table {
   TextColumn get kind => text()(); // INCOME | EXPENSE | TRANSFER | ADJUSTMENT
   IntColumn get amount => integer()(); // unités mineures, toujours positif
   TextColumn get currency => text()();
+
+  /// Lien optionnel vers un prêt/emprunt (remboursement ou décaissement).
+  TextColumn get loanId => text().nullable()();
   TextColumn get status => text().withDefault(const Constant('POSTED'))();
   // POSTED | PENDING | REVERSED | VOIDED
   TextColumn get categoryId => text().nullable()();
@@ -231,6 +242,15 @@ class Budgets extends Table {
   TextColumn get spaceId => text()();
   TextColumn get name => text()();
   TextColumn get categoryId => text().nullable()();
+
+  /// Planification : catégorie & sous-catégorie budgétaires (taxonomie).
+  TextColumn get planningCategory => text().nullable()();
+  TextColumn get planningSubCategory => text().nullable()();
+
+  /// Série de génération multi-mois : budgets issus du même plan partagent
+  /// cet identifiant (null = budget isolé).
+  TextColumn get seriesId => text().nullable()();
+
   TextColumn get periodStart => text()(); // date civile
   TextColumn get periodEnd => text()();
   IntColumn get initialAmount => integer()(); // B
@@ -285,6 +305,47 @@ class AccountReconciliations extends Table {
   DateTimeColumn get observedAt => dateTime()();
   TextColumn get note => text().nullable()();
   TextColumn get adjustmentTransactionId => text().nullable()();
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
+/// Prêts et emprunts (D05) — un prêt accordé sort du patrimoine (dépense
+/// « Épargne et dettes »), un emprunt reçu y entre (recette). Les
+/// remboursements sont des opérations liées via FinancialTransactions.loanId.
+class Loans extends Table {
+  TextColumn get id => text()();
+  TextColumn get spaceId => text()();
+
+  /// LENT = prêt accordé (vous prêtez) ; BORROWED = emprunt reçu.
+  TextColumn get direction => text()(); // LENT | BORROWED
+  TextColumn get counterparty => text()(); // personne / institution
+  IntColumn get principalAmount => integer()(); // unités mineures
+  TextColumn get currency => text().withDefault(const Constant('XOF'))();
+  RealColumn get interestRate => real().nullable()(); // % annuel, optionnel
+  TextColumn get startedAt => text()(); // date civile
+  TextColumn get expectedAt => text().nullable()(); // date de retour attendue
+  TextColumn get status => text().withDefault(const Constant('ACTIVE'))(); // ACTIVE | SETTLED | CANCELLED
+  TextColumn get note => text().nullable()();
+  DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
+/// Profil local de l'utilisateur (complément au compte serveur) :
+/// photo, profession, pays, questions de sécurité. Table mono-ligne (id='me').
+class UserProfile extends Table {
+  TextColumn get id => text()(); // toujours 'me'
+  TextColumn get avatarPath => text().nullable()(); // fichier local
+  TextColumn get profession => text().nullable()();
+  TextColumn get countryIso => text().nullable()(); // ex. 'BJ'
+  TextColumn get securityQuestion1 => text().nullable()();
+  TextColumn get securityQuestion2 => text().nullable()();
+  TextColumn get securityQuestion3 => text().nullable()();
+  /// Réponses stockées hachées (sha256) — jamais en clair.
+  TextColumn get securityAnswer1 => text().nullable()();
+  TextColumn get securityAnswer2 => text().nullable()();
+  TextColumn get securityAnswer3 => text().nullable()();
+  DateTimeColumn get updatedAt => dateTime().withDefault(currentDateAndTime)();
   @override
   Set<Column> get primaryKey => {id};
 }

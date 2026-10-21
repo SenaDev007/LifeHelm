@@ -1,16 +1,30 @@
+import 'dart:convert';
+
+import 'package:crypto/crypto.dart';
+import 'package:drift/drift.dart' hide Column;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/db/database.dart';
 import '../../core/net/api_client.dart';
 import '../../core/net/sync_service.dart';
+import '../../core/providers.dart';
+import '../../core/taxonomy.dart';
 import '../../core/theme/tokens.dart';
 import '../../core/widgets/common.dart';
+import '../../core/widgets/pickers.dart';
 import '../../main.dart' show bootState;
 import '../../shell/widgets.dart' show HelmMark;
+import '../onboarding/cgu.dart';
 
 // ══════════════════════════ SOCLES COMMUNS ══════════════════════════
+
+/// Hachage sha256 d'une réponse de sécurité (normalisée : trim + minuscules).
+/// Identique côté profil (enregistrement) et récupération (vérification).
+String sha256Hash(String answer) =>
+    sha256.convert(utf8.encode(answer.trim().toLowerCase())).toString();
 
 /// Écran d'authentification plein écran : marque + carte + formulaire.
 class _AuthScaffold extends StatelessWidget {
@@ -321,9 +335,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   }
 }
 
-// ══════════════════════════ INSCRIPTION ══════════════════════════
+// ══════════════════════════ INSCRIPTION (assistant) ══════════════════════════
 
-/// Inscription : prénom (requis), nom, courriel OU téléphone, mot de passe.
+/// Inscription en six étapes fluides et illustrées : identité, téléphone
+/// (tous pays, sélecteur d'indicatif), courriel, profession (liste quasi
+/// exhaustive + saisie libre), mot de passe, puis acceptation des
+/// Conditions Générales d'Utilisation.
 class RegisterScreen extends ConsumerStatefulWidget {
   const RegisterScreen({super.key});
 
@@ -331,55 +348,126 @@ class RegisterScreen extends ConsumerStatefulWidget {
   ConsumerState<RegisterScreen> createState() => _RegisterScreenState();
 }
 
-enum _ContactMode { email, phone }
-
 class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   final _firstName = TextEditingController();
   final _lastName = TextEditingController();
-  final _contact = TextEditingController();
+  final _phone = TextEditingController();
+  final _email = TextEditingController();
+  final _profession = TextEditingController();
   final _password = TextEditingController();
   final _confirm = TextEditingController();
-  _ContactMode _mode = _ContactMode.email;
+
+  CountryInfo _country = defaultCountry;
+  int _step = 0;
   bool _obscure = true;
+  bool _acceptedCgu = false;
   bool _busy = false;
   String? _error;
+
+  static const _stepsCount = 6;
+
+  static const _stepData = [
+    (
+      'Votre identité',
+      'Comment devons-nous vous appeler ?',
+      'assets/illustrations/onboard-welcome.png',
+    ),
+    (
+      'Votre téléphone',
+      'Choisissez votre pays et saisissez votre numéro.',
+      'assets/illustrations/contacts.png',
+    ),
+    (
+      'Votre adresse e-mail',
+      'Pour sécuriser votre compte et récupérer l\'accès.',
+      'assets/illustrations/messaging.png',
+    ),
+    (
+      'Votre profession',
+      'Sélectionnez dans la liste ou saisissez librement.',
+      'assets/illustrations/career.png',
+    ),
+    (
+      'Votre mot de passe',
+      'Au moins 8 caractères, choisissez-le solide.',
+      'assets/illustrations/notes.png',
+    ),
+    (
+      'Conditions d\'utilisation',
+      'Un dernier instant avant de créer votre compte.',
+      'assets/illustrations/onboard-offline.png',
+    ),
+  ];
 
   @override
   void dispose() {
     _firstName.dispose();
     _lastName.dispose();
-    _contact.dispose();
+    _phone.dispose();
+    _email.dispose();
+    _profession.dispose();
     _password.dispose();
     _confirm.dispose();
     super.dispose();
   }
 
-  bool get _contactValid => switch (_mode) {
-        _ContactMode.email => RegExp(
-                r'^[^\s@]+@[^\s@]+\.[^\s@]+$')
-            .hasMatch(_contact.text.trim()),
-        _ContactMode.phone =>
-          _contact.text.trim().replaceAll(RegExp(r'[\s\-().]'), '').length >= 8,
-      };
+  String? get _fullPhone {
+    final raw = _phone.text.trim().replaceAll(RegExp(r'[\s\-().]'), '');
+    if (raw.isEmpty) return null;
+    return '$_country.dial$raw';
+  }
+
+  String? _stepError() {
+    switch (_step) {
+      case 0:
+        if (_firstName.text.trim().isEmpty) return 'Le prénom est obligatoire.';
+      case 1:
+        final raw = _phone.text.trim().replaceAll(RegExp(r'[\s\-().]'), '');
+        if (raw.isNotEmpty && raw.length < 8) {
+          return 'Numéro trop court — vérifiez votre saisie.';
+        }
+      case 2:
+        final e = _email.text.trim();
+        if (e.isNotEmpty &&
+            !RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(e)) {
+          return 'Cette adresse e-mail semble invalide.';
+        }
+      case 4:
+        if (_password.text.length < 8) {
+          return 'Le mot de passe doit contenir au moins 8 caractères.';
+        }
+        if (_password.text != _confirm.text) {
+          return 'Les deux mots de passe ne correspondent pas.';
+        }
+      case 5:
+        if (!_acceptedCgu) {
+          return 'Veuillez accepter les Conditions Générales d\'Utilisation.';
+        }
+    }
+    return null;
+  }
+
+  bool get _contactProvided =>
+      _fullPhone != null || _email.text.trim().isNotEmpty;
+
+  Future<void> _next() async {
+    final err = _stepError();
+    if (err != null) {
+      setState(() => _error = err);
+      return;
+    }
+    setState(() => _error = null);
+    if (_step < _stepsCount - 1) {
+      setState(() => _step++);
+      return;
+    }
+    await _submit();
+  }
 
   Future<void> _submit() async {
-    final first = _firstName.text.trim();
-    if (first.isEmpty) {
-      setState(() => _error = 'Le prénom est obligatoire.');
-      return;
-    }
-    if (!_contactValid) {
-      setState(() => _error = _mode == _ContactMode.email
-          ? 'Renseignez un courriel valide ou basculez sur téléphone.'
-          : 'Renseignez un numéro de téléphone valide ou basculez sur courriel.');
-      return;
-    }
-    if (_password.text.length < 8) {
-      setState(() => _error = 'Le mot de passe doit contenir au moins 8 caractères.');
-      return;
-    }
-    if (_password.text != _confirm.text) {
-      setState(() => _error = 'Les deux mots de passe ne correspondent pas.');
+    if (!_contactProvided) {
+      setState(() =>
+          _error = 'Renseignez au moins un numéro de téléphone ou un e-mail.');
       return;
     }
     setState(() {
@@ -387,25 +475,24 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
       _error = null;
     });
     try {
-      final contact = _contact.text.trim();
       final result = await ref.read(apiClientProvider).register(
-            email: _mode == _ContactMode.email ? contact : null,
-            phone: _mode == _ContactMode.phone
-                ? contact.replaceAll(RegExp(r'[\s\-().]'), '')
-                : null,
+            email: _email.text.trim().isEmpty ? null : _email.text.trim(),
+            phone: _fullPhone,
             password: _password.text,
-            firstName: first,
+            firstName: _firstName.text.trim(),
             lastName:
                 _lastName.text.trim().isEmpty ? null : _lastName.text.trim(),
+            profession: _profession.text.trim(),
+            country: _country.iso,
           );
       await _persistSessionAndWelcome(ref, result);
+      // Profession conservée aussi localement (profil hors ligne).
+      await ref.read(dbProvider).saveLocalProfile(UserProfileCompanion(
+            profession: Value(_profession.text.trim()),
+            countryIso: Value(_country.iso),
+          ));
       if (!mounted) return;
-      // Retour fiable : pop si un écran attend dessous, sinon accueil.
-      if (Navigator.of(context).canPop()) {
-        Navigator.of(context).pop();
-      } else {
-        context.go('/');
-      }
+      Navigator.of(context).pop();
     } on LhApiException catch (e) {
       setState(() => _error = apiErrorText(e));
     } on LhNetworkException catch (e) {
@@ -419,130 +506,299 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return _AuthScaffold(
-      title: 'Créer un compte',
-      subtitle:
-          'Vos données restent sur votre appareil tant que vous n\'activez pas la synchronisation.',
-      child: LHCard(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            _ErrorBanner(_error),
-            Row(children: [
-              Expanded(
-                child: LabeledField(
-                  label: 'Prénom *',
-                  child: TextField(
-                    controller: _firstName,
-                    textCapitalization: TextCapitalization.words,
-                    decoration: const InputDecoration(
-                        hintText: 'Ex. : Awa', prefixIcon: Icon(Icons.person_outline)),
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final or = isDark ? LHColors.or : LHColors.orDeep;
+    final (title, subtitle, illustration) = _stepData[_step];
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Créer mon compte'),
+        leading: BackButton(onPressed: () {
+          if (_step > 0) {
+            setState(() {
+              _step--;
+              _error = null;
+            });
+          } else {
+            Navigator.of(context).maybePop();
+          }
+        }),
+      ),
+      body: SafeArea(
+        child: Column(children: [
+          // Progression de l'assistant.
+          Padding(
+            padding: const EdgeInsets.fromLTRB(24, 10, 24, 0),
+            child: Row(children: [
+              for (var i = 0; i < _stepsCount; i++)
+                Expanded(
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 250),
+                    margin: const EdgeInsets.symmetric(horizontal: 3),
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: i <= _step
+                          ? or
+                          : theme.colorScheme.outline,
+                      borderRadius: BorderRadius.circular(4),
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(width: LHSpacing.md),
-              Expanded(
-                child: LabeledField(
-                  label: 'Nom',
-                  child: TextField(
-                    controller: _lastName,
-                    textCapitalization: TextCapitalization.words,
-                    decoration: const InputDecoration(hintText: 'Ex. : Diallo'),
-                  ),
-                ),
-              ),
             ]),
-            const SizedBox(height: LHSpacing.md),
-            LabeledField(
-              label: 'Moyen de contact (au moins un)',
-              child: LhSegmented<_ContactMode>(
-                value: _mode,
-                items: const {
-                  _ContactMode.email: 'Courriel',
-                  _ContactMode.phone: 'Téléphone',
-                },
-                onChanged: (m) => setState(() => _mode = m),
-              ),
-            ),
-            const SizedBox(height: LHSpacing.md),
-            TextField(
-              controller: _contact,
-              keyboardType: _mode == _ContactMode.email
-                  ? TextInputType.emailAddress
-                  : TextInputType.phone,
-              decoration: InputDecoration(
-                hintText: _mode == _ContactMode.email
-                    ? 'awa@exemple.tg'
-                    : '+228 90 12 34 56',
-                prefixIcon: Icon(_mode == _ContactMode.email
-                    ? Icons.alternate_email
-                    : Icons.phone_outlined),
-              ),
-            ),
-            const SizedBox(height: LHSpacing.md),
-            LabeledField(
-              label: 'Mot de passe (8 caractères minimum)',
-              child: TextField(
-                controller: _password,
-                obscureText: _obscure,
-                decoration: InputDecoration(
-                  hintText: 'Choisissez un mot de passe solide',
-                  prefixIcon: const Icon(Icons.lock_outline),
-                  suffixIcon: IconButton(
-                    tooltip: _obscure ? 'Afficher' : 'Masquer',
-                    onPressed: () => setState(() => _obscure = !_obscure),
-                    icon: Icon(_obscure
-                        ? Icons.visibility_outlined
-                        : Icons.visibility_off_outlined),
+          ),
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  LHIllustration(asset: illustration, height: 150),
+                  const SizedBox(height: LHSpacing.lg),
+                  Text(title,
+                      textAlign: TextAlign.center,
+                      style: theme.textTheme.headlineSmall
+                          ?.copyWith(fontWeight: FontWeight.w800)),
+                  const SizedBox(height: LHSpacing.sm),
+                  Text(subtitle,
+                      textAlign: TextAlign.center,
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                          height: 1.4)),
+                  const SizedBox(height: LHSpacing.xl),
+                  if (_error != null)
+                    Container(
+                      margin: const EdgeInsets.only(bottom: LHSpacing.md),
+                      padding: const EdgeInsets.all(LHSpacing.md),
+                      decoration: BoxDecoration(
+                        color: LHColors.erreur.withValues(alpha: 0.10),
+                        borderRadius:
+                            BorderRadius.circular(LHRadius.md),
+                        border: Border.all(
+                            color:
+                                LHColors.erreur.withValues(alpha: 0.5)),
+                      ),
+                      child: Row(children: [
+                        const Icon(Icons.error_outline,
+                            color: LHColors.erreur, size: 18),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(_error!,
+                              style: theme.textTheme.bodySmall
+                                  ?.copyWith(color: LHColors.erreur)),
+                        ),
+                      ]),
+                    ),
+                  _buildStep(theme),
+                  const SizedBox(height: LHSpacing.xl),
+                  FilledButton(
+                    onPressed: _busy ? null : _next,
+                    child: _busy
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child:
+                                CircularProgressIndicator(strokeWidth: 2))
+                        : Text(_step == _stepsCount - 1
+                            ? 'Créer mon compte'
+                            : 'Continuer'),
                   ),
-                ),
+                  if (_step == 0)
+                    Padding(
+                      padding: const EdgeInsets.only(top: LHSpacing.md),
+                      child: TextButton(
+                        onPressed: () => Navigator.of(context).maybePop(),
+                        child:
+                            const Text('J\'ai déjà un compte — me connecter'),
+                      ),
+                    ),
+                ],
               ),
             ),
-            const SizedBox(height: LHSpacing.md),
-            LabeledField(
-              label: 'Confirmer le mot de passe',
-              child: TextField(
-                controller: _confirm,
-                obscureText: _obscure,
-                onSubmitted: (_) => _submit(),
-                decoration: const InputDecoration(
-                    hintText: 'Répétez le mot de passe',
-                    prefixIcon: Icon(Icons.lock_outline)),
-              ),
-            ),
-            const SizedBox(height: LHSpacing.lg),
-            FilledButton(
-              onPressed: _busy ? null : _submit,
-              child: _busy
-                  ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2))
-                  : const Text('Créer mon compte'),
-            ),
-            const SizedBox(height: LHSpacing.md),
-            Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-              Text('Déjà un compte ?',
-                  style: Theme.of(context).textTheme.bodySmall),
-              TextButton(
-                onPressed: _busy
-                    ? null
-                    : () => Navigator.of(context).push(MaterialPageRoute<void>(
-                        builder: (_) => const LoginScreen())),
-                child: const Text('Se connecter'),
-              ),
-            ]),
-          ],
-        ),
+          ),
+        ]),
       ),
     );
+  }
+
+  Widget _buildStep(ThemeData theme) {
+    switch (_step) {
+      case 0:
+        return Column(children: [
+          Row(children: [
+            Expanded(
+              child: LabeledField(
+                label: 'Prénom *',
+                child: TextField(
+                  controller: _firstName,
+                  textCapitalization: TextCapitalization.words,
+                  autofocus: true,
+                  decoration: const InputDecoration(
+                      hintText: 'Ex. : Awa',
+                      prefixIcon: Icon(Icons.person_outline)),
+                ),
+              ),
+            ),
+            const SizedBox(width: LHSpacing.md),
+            Expanded(
+              child: LabeledField(
+                label: 'Nom',
+                child: TextField(
+                  controller: _lastName,
+                  textCapitalization: TextCapitalization.words,
+                  decoration: const InputDecoration(hintText: 'Ex. : Diallo'),
+                ),
+              ),
+            ),
+          ]),
+        ]);
+      case 1:
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            LabeledField(
+              label: 'Pays (indicatif)',
+              child: CountryPickerField(
+                selected: _country,
+                onChanged: (c) => setState(() => _country = c),
+              ),
+            ),
+            const SizedBox(height: LHSpacing.md),
+            LabeledField(
+              label: 'Numéro de téléphone',
+              child: TextField(
+                controller: _phone,
+                keyboardType: TextInputType.phone,
+                decoration: InputDecoration(
+                  hintText: 'Ex. : 97 12 34 56',
+                  prefixText: '${_country.dial} ',
+                  prefixIcon: const Icon(Icons.phone_outlined),
+                ),
+              ),
+            ),
+            const SizedBox(height: LHSpacing.sm),
+            Text(
+              'Facultatif si vous renseignez un e-mail à l\'étape suivante.',
+              style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant),
+            ),
+          ],
+        );
+      case 2:
+        return LabeledField(
+          label: 'Adresse e-mail',
+          child: TextField(
+            controller: _email,
+            keyboardType: TextInputType.emailAddress,
+            autofocus: true,
+            decoration: const InputDecoration(
+                hintText: 'awa@exemple.com',
+                prefixIcon: Icon(Icons.alternate_email)),
+          ),
+        );
+      case 3:
+        return Column(children: [
+          LabeledField(
+            label: 'Profession (liste ou saisie libre)',
+            child: ProfessionAutocomplete(
+              onSelected: (p) => _profession.text = p,
+            ),
+          ),
+          const SizedBox(height: LHSpacing.sm),
+          Text(
+            'Plus de 200 professions du référentiel — ou écrivez la vôtre.',
+            style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant),
+          ),
+        ]);
+      case 4:
+        return Column(children: [
+          LabeledField(
+            label: 'Mot de passe (8 caractères minimum)',
+            child: TextField(
+              controller: _password,
+              obscureText: _obscure,
+              autofocus: true,
+              decoration: InputDecoration(
+                hintText: 'Choisissez un mot de passe solide',
+                prefixIcon: const Icon(Icons.lock_outline),
+                suffixIcon: IconButton(
+                  tooltip: _obscure ? 'Afficher' : 'Masquer',
+                  onPressed: () => setState(() => _obscure = !_obscure),
+                  icon: Icon(_obscure
+                      ? Icons.visibility_outlined
+                      : Icons.visibility_off_outlined),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: LHSpacing.md),
+          LabeledField(
+            label: 'Confirmer le mot de passe',
+            child: TextField(
+              controller: _confirm,
+              obscureText: _obscure,
+              onSubmitted: (_) => _next(),
+              decoration: const InputDecoration(
+                  hintText: 'Répétez le mot de passe',
+                  prefixIcon: Icon(Icons.lock_outline)),
+            ),
+          ),
+        ]);
+      default:
+        return Column(children: [
+          InkWell(
+            onTap: () => setState(() => _acceptedCgu = !_acceptedCgu),
+            borderRadius: BorderRadius.circular(LHRadius.sm),
+            child: Row(children: [
+              Icon(
+                _acceptedCgu
+                    ? Icons.check_box_rounded
+                    : Icons.check_box_outline_blank,
+                color: _acceptedCgu
+                    ? (theme.brightness == Brightness.dark
+                        ? LHColors.or
+                        : LHColors.orDeep)
+                    : null,
+                size: 22,
+              ),
+              const SizedBox(width: LHSpacing.sm),
+              Expanded(
+                child: Text(
+                  'J\'ai lu et j\'accepte les Conditions Générales '
+                  'd\'Utilisation de LifeHelm.',
+                  style: theme.textTheme.bodyMedium,
+                ),
+              ),
+            ]),
+          ),
+          const SizedBox(height: LHSpacing.md),
+          OutlinedButton.icon(
+            onPressed: () => Navigator.of(context)
+                .push(MaterialPageRoute<void>(builder: (_) => const CguScreen())),
+            icon: const Icon(Icons.description_outlined, size: 18),
+            label: const Text('Lire les Conditions Générales'),
+          ),
+          const SizedBox(height: LHSpacing.md),
+          Text(
+            'Vos données restent sur votre appareil tant que la '
+            'synchronisation n\'est pas active. Vous pouvez supprimer votre '
+            'compte à tout moment depuis votre profil.',
+            style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant, height: 1.4),
+          ),
+        ]);
+    }
   }
 }
 
 // ══════════════════════════ MOT DE PASSE OUBLIÉ ══════════════════════════
 
-/// Demande de réinitialisation : identifiant → 202. En mode démo, le serveur
-/// renvoie un `devResetToken` affiché discrètement avec bouton copier.
+enum _RecoveryMode { link, questions }
+
+/// Récupération du compte : par lien envoyé (démo : code affiché) OU par
+/// les questions de sécurité définies dans le profil — les réponses
+/// correctes ouvrent directement la réinitialisation du mot de passe.
 class ForgotPasswordScreen extends ConsumerStatefulWidget {
   const ForgotPasswordScreen({super.key});
 
@@ -553,6 +809,11 @@ class ForgotPasswordScreen extends ConsumerStatefulWidget {
 
 class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
   final _identifier = TextEditingController();
+  final _answers = List.generate(3, (_) => TextEditingController());
+  _RecoveryMode _mode = _RecoveryMode.link;
+
+  List<String>? _questions; // questions du compte (mode sécurité)
+  String? _resetToken; // jeton obtenu par les réponses correctes
   bool _busy = false;
   String? _error;
   String? _info;
@@ -561,10 +822,14 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
   @override
   void dispose() {
     _identifier.dispose();
+    for (final a in _answers) {
+      a.dispose();
+    }
     super.dispose();
   }
 
-  Future<void> _submit() async {
+  // ── Mode 1 : lien de réinitialisation ──
+  Future<void> _submitLink() async {
     final identifier = _identifier.text.trim();
     if (identifier.isEmpty) {
       setState(() => _error = 'Renseignez votre courriel ou votre téléphone.');
@@ -577,9 +842,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
       _devToken = null;
     });
     try {
-      final res = await ref
-          .read(apiClientProvider)
-          .forgotPassword(identifier);
+      final res = await ref.read(apiClientProvider).forgotPassword(identifier);
       final devToken = res['devResetToken'] as String?;
       if (!mounted) return;
       setState(() {
@@ -602,13 +865,86 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
     }
   }
 
+  // ── Mode 2 : questions de sécurité ──
+  Future<void> _loadQuestions() async {
+    final identifier = _identifier.text.trim();
+    if (identifier.isEmpty) {
+      setState(() => _error = 'Renseignez d\'abord votre identifiant.');
+      return;
+    }
+    setState(() {
+      _busy = true;
+      _error = null;
+      _questions = null;
+      _resetToken = null;
+    });
+    try {
+      final qs =
+          await ref.read(apiClientProvider).securityQuestionsOf(identifier);
+      if (!mounted) return;
+      if (qs == null || qs.isEmpty) {
+        setState(() => _error =
+            'Ce compte n\'a pas défini de questions de sécurité. '
+            'Utilisez le lien de réinitialisation.');
+      } else {
+        setState(() => _questions = qs);
+      }
+    } on LhNetworkException catch (e) {
+      setState(() => _error = apiErrorText(e));
+    } on LhApiException catch (e) {
+      setState(() => _error = apiErrorText(e));
+    } catch (_) {
+      setState(() => _error = 'Une erreur inattendue est survenue.');
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _submitAnswers() async {
+    final identifier = _identifier.text.trim();
+    final qs = _questions;
+    if (qs == null) return;
+    if (_answers.any((a) => a.text.trim().isEmpty)) {
+      setState(() => _error = 'Répondez à toutes les questions.');
+      return;
+    }
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    try {
+      final hashes = <int, String>{};
+      for (var i = 0; i < qs.length && i < 3; i++) {
+        hashes[i] = sha256Hash(_answers[i].text);
+      }
+      final token = await ref
+          .read(apiClientProvider)
+          .recoverBySecurityQuestions(identifier, hashes);
+      if (!mounted) return;
+      setState(() {
+        _resetToken = token;
+        _info = 'Réponses vérifiées — définissez votre nouveau mot de passe.';
+      });
+    } on LhApiException catch (e) {
+      setState(() => _error = e.code == 'INVALID_ANSWERS'
+          ? 'Les réponses ne correspondent pas. Réessayez.'
+          : apiErrorText(e));
+    } on LhNetworkException catch (e) {
+      setState(() => _error = apiErrorText(e));
+    } catch (_) {
+      setState(() => _error = 'Une erreur inattendue est survenue.');
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return _AuthScaffold(
       title: 'Mot de passe oublié',
       subtitle:
-          'Nous enverrons un lien de réinitialisation à votre courriel ou par SMS.',
+          'Récupérez votre compte par lien envoyé, ou par vos questions de sécurité.',
       child: LHCard(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -628,70 +964,140 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
                     style: theme.textTheme.bodySmall
                         ?.copyWith(color: LHColors.emeraudeClair)),
               ),
-            if (_devToken != null) ...[
-              Container(
-                margin: const EdgeInsets.only(bottom: LHSpacing.md),
-                padding: const EdgeInsets.all(LHSpacing.md),
-                decoration: BoxDecoration(
-                  color: theme.colorScheme.surfaceContainerHighest,
-                  borderRadius: BorderRadius.circular(LHRadius.md),
-                ),
-                child: Row(children: [
-                  Expanded(
-                    child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text('Code (démo) :',
-                              style: theme.textTheme.labelSmall?.copyWith(
-                                  color: theme.colorScheme.onSurfaceVariant)),
-                          const SizedBox(height: 2),
-                          SelectableText(_devToken!,
-                              style: const TextStyle(
-                                  fontFamily: 'monospace',
-                                  fontWeight: FontWeight.w700)),
-                        ]),
-                  ),
-                  IconButton(
-                    tooltip: 'Copier le code',
-                    icon: const Icon(Icons.copy_rounded, size: 20),
-                    onPressed: () {
-                      Clipboard.setData(ClipboardData(text: _devToken!));
-                      lhToast(context, 'Code copié.');
-                    },
-                  ),
-                ]),
-              ),
-              OutlinedButton.icon(
-                onPressed: () =>
-                    Navigator.of(context).push(MaterialPageRoute<void>(
-                  builder: (_) =>
-                      ResetPasswordScreen(initialToken: _devToken),
-                )),
-                icon: const Icon(Icons.key_outlined, size: 18),
-                label: const Text('Définir un nouveau mot de passe'),
-              ),
-              const SizedBox(height: LHSpacing.md),
-            ],
+            LhSegmented<_RecoveryMode>(
+              value: _mode,
+              items: const {
+                _RecoveryMode.link: 'Par lien',
+                _RecoveryMode.questions: 'Questions de sécurité',
+              },
+              onChanged: (m) => setState(() {
+                _mode = m;
+                _error = null;
+                _info = null;
+                _devToken = null;
+                _questions = null;
+                _resetToken = null;
+              }),
+            ),
+            const SizedBox(height: LHSpacing.md),
             LabeledField(
               label: 'Courriel ou téléphone du compte',
               child: TextField(
                 controller: _identifier,
-                onSubmitted: (_) => _submit(),
+                onSubmitted: (_) =>
+                    _mode == _RecoveryMode.link ? _submitLink() : _loadQuestions(),
                 decoration: const InputDecoration(
-                    hintText: 'awa@exemple.tg',
+                    hintText: 'awa@exemple.com',
                     prefixIcon: Icon(Icons.alternate_email)),
               ),
             ),
-            const SizedBox(height: LHSpacing.lg),
-            FilledButton(
-              onPressed: _busy ? null : _submit,
-              child: _busy
-                  ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2))
-                  : const Text('Envoyer le lien'),
-            ),
+            const SizedBox(height: LHSpacing.md),
+
+            // ── Par lien ──
+            if (_mode == _RecoveryMode.link) ...[
+              if (_devToken != null) ...[
+                Container(
+                  margin: const EdgeInsets.only(bottom: LHSpacing.md),
+                  padding: const EdgeInsets.all(LHSpacing.md),
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.surfaceContainerHighest,
+                    borderRadius: BorderRadius.circular(LHRadius.md),
+                  ),
+                  child: Row(children: [
+                    Expanded(
+                      child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('Code (démo) :',
+                                style: theme.textTheme.labelSmall?.copyWith(
+                                    color:
+                                        theme.colorScheme.onSurfaceVariant)),
+                            const SizedBox(height: 2),
+                            SelectableText(_devToken!,
+                                style: const TextStyle(
+                                    fontFamily: 'monospace',
+                                    fontWeight: FontWeight.w700)),
+                          ]),
+                    ),
+                    IconButton(
+                      tooltip: 'Copier le code',
+                      icon: const Icon(Icons.copy_rounded, size: 20),
+                      onPressed: () {
+                        Clipboard.setData(
+                            ClipboardData(text: _devToken!));
+                        lhToast(context, 'Code copié.');
+                      },
+                    ),
+                  ]),
+                ),
+                OutlinedButton.icon(
+                  onPressed: () =>
+                      Navigator.of(context).push(MaterialPageRoute<void>(
+                    builder: (_) =>
+                        ResetPasswordScreen(initialToken: _devToken),
+                  )),
+                  icon: const Icon(Icons.key_outlined, size: 18),
+                  label: const Text('Définir un nouveau mot de passe'),
+                ),
+                const SizedBox(height: LHSpacing.md),
+              ],
+              FilledButton(
+                onPressed: _busy ? null : _submitLink,
+                child: _busy
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2))
+                    : const Text('Envoyer le lien'),
+              ),
+            ],
+
+            // ── Par questions de sécurité ──
+            if (_mode == _RecoveryMode.questions) ...[
+              if (_questions == null)
+                OutlinedButton.icon(
+                  onPressed: _busy ? null : _loadQuestions,
+                  icon: const Icon(Icons.quiz_outlined, size: 18),
+                  label: const Text('Afficher mes questions de sécurité'),
+                )
+              else ...[
+                for (var i = 0; i < _questions!.length; i++)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: LHSpacing.md),
+                    child: LabeledField(
+                      label: _questions![i],
+                      child: TextField(
+                        controller: _answers[i],
+                        obscureText: true,
+                        decoration: const InputDecoration(
+                            hintText: 'Votre réponse',
+                            prefixIcon: Icon(Icons.key_outlined)),
+                      ),
+                    ),
+                  ),
+                if (_resetToken == null)
+                  FilledButton(
+                    onPressed: _busy ? null : _submitAnswers,
+                    child: _busy
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child:
+                                CircularProgressIndicator(strokeWidth: 2))
+                        : const Text('Vérifier mes réponses'),
+                  )
+                else
+                  FilledButton.icon(
+                    onPressed: () =>
+                        Navigator.of(context).push(MaterialPageRoute<void>(
+                      builder: (_) =>
+                          ResetPasswordScreen(initialToken: _resetToken),
+                    )),
+                    icon: const Icon(Icons.key_outlined, size: 18),
+                    label: const Text('Définir un nouveau mot de passe'),
+                  ),
+              ],
+            ],
             const SizedBox(height: LHSpacing.md),
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
