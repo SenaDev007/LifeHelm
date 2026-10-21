@@ -456,5 +456,5 @@ final router = GoRouter(
 
 // Petit alias de couleur pour l'écran d'erreur (évite un import de plus).
 class LHColorsNeutral {
-  static const Color neutre = Color(0xFF8A8A8A);
+  static const Color neutre = Color(0xFF64748B); // gris ardoise — palette officielle
 }

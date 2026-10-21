@@ -30,7 +30,7 @@ class $SpacesTable extends Spaces with TableInfo<$SpacesTable, Space> {
       'color_hex', aliasedName, false,
       type: DriftSqlType.string,
       requiredDuringInsert: false,
-      defaultValue: const Constant('#FFD700'));
+      defaultValue: const Constant('#FFB400'));
   static const VerificationMeta _isDefaultMeta =
       const VerificationMeta('isDefault');
   @override
@@ -1767,7 +1767,7 @@ class $TaskListsTable extends TaskLists
       'color_hex', aliasedName, false,
       type: DriftSqlType.string,
       requiredDuringInsert: false,
-      defaultValue: const Constant('#FFD700'));
+      defaultValue: const Constant('#FFB400'));
   @override
   List<GeneratedColumn> get $columns => [id, spaceId, name, colorHex];
   @override
@@ -3387,7 +3387,7 @@ class $CalendarsTable extends Calendars
       'color_hex', aliasedName, false,
       type: DriftSqlType.string,
       requiredDuringInsert: false,
-      defaultValue: const Constant('#5B8DD9'));
+      defaultValue: const Constant('#3B82F6'));
   static const VerificationMeta _isVisibleMeta =
       const VerificationMeta('isVisible');
   @override
@@ -15626,7 +15626,7 @@ class $HabitsTable extends Habits with TableInfo<$HabitsTable, Habit> {
       'color_hex', aliasedName, false,
       type: DriftSqlType.string,
       requiredDuringInsert: false,
-      defaultValue: const Constant('#10A878'));
+      defaultValue: const Constant('#22C55E'));
   static const VerificationMeta _archivedAtMeta =
       const VerificationMeta('archivedAt');
   @override
@@ -23463,7 +23463,7 @@ class $ConversationMembersTable extends ConversationMembers
       'color_hex', aliasedName, false,
       type: DriftSqlType.string,
       requiredDuringInsert: false,
-      defaultValue: const Constant('#5B8DD9'));
+      defaultValue: const Constant('#3B82F6'));
   @override
   List<GeneratedColumn> get $columns =>
       [id, conversationId, displayName, role, colorHex];

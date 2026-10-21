@@ -169,7 +169,7 @@ Color accountTypeColor(String type, BuildContext context) {
     case 'SAVING':
       return const Color(0xFFFFB400);
     default:
-      return const Color(0xFF8A8A8A);
+      return const Color(0xFF64748B); // gris ardoise — neutre palette officielle
   }
 }
 

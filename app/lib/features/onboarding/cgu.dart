@@ -54,7 +54,7 @@ class CguScreen extends StatelessWidget {
           SectionHeader('Contact', overline: 'YEHI OR Tech'),
           Text(
             'Pour toute question relative aux présentes conditions : '
-            'support@yehiortech.com. Nous nous engageons à répondre à toute '
+            'contact@yehiortech.com. Nous nous engageons à répondre à toute '
             'sollicitation dans un délai raisonnable et à vous accompagner '
             'dans l\'exercice de vos droits.',
             style:

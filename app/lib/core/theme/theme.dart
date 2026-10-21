@@ -109,7 +109,7 @@ class LHTheme {
         iconTheme: WidgetStateProperty.resolveWith((s) => IconThemeData(
               size: 26,
               color: s.contains(WidgetState.selected)
-                  ? (isDark ? LHColors.or : LHColors.or) // actif : or solaire
+                  ? LHColors.or // actif : or solaire
                   : (isDark ? LHColors.texteSecondaire : LHColors.ardoise), // inactif : gris ardoise
             )),
       ),

@@ -246,7 +246,7 @@ class _QuickActions extends StatelessWidget {
         _qa(context, Icons.north_east_rounded, 'Dépense', LHColors.erreur, () => context.push('/transaction/new?type=expense')),
         _qa(context, Icons.south_west_rounded, 'Revenu', LHColors.emeraudeClair, () => context.push('/transaction/new?type=income')),
         _qa(context, Icons.event_rounded, 'Événement', LHColors.info, () => context.push('/event/new')),
-        _qa(context, Icons.edit_note_rounded, 'Note', const Color(0xFF8B5CF6), () => context.push('/notes')),
+        _qa(context, Icons.edit_note_rounded, 'Note', LHColors.navy, () => context.push('/notes')),
       ]),
     );
   }

@@ -642,7 +642,7 @@ class _ConsolidatedCard extends StatelessWidget {
           end: Alignment.bottomRight,
           colors: theme.brightness == Brightness.dark
               ? [const Color(0xFF1E1B12), const Color(0xFF14251E)]
-              : [const Color(0xFFFBF6E9), const Color(0xFFEDF7F2)],
+              : [const Color(0xFFFFF4D6), const Color(0xFFEDF7F2)],
         ),
         borderRadius: BorderRadius.circular(LHRadius.xl),
         border: Border.all(
