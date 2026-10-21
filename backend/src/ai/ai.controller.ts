@@ -7,27 +7,42 @@ import {
   HttpException,
   HttpStatus,
   Param,
+  Patch,
   Post,
+  Query,
   Req,
   UseGuards,
+  ValidationPipe,
 } from '@nestjs/common';
 import { Request } from 'express';
 import { Throttle, ThrottleGuard } from '../common/throttle.guard';
 import { JwtAuthGuard } from '../common/jwt-auth.guard';
 import { CurrentUser, AccessTokenPayload } from '../common/current-user.decorator';
 import { AiService } from './ai.service';
+import { AiActionsService } from './ai-actions.service';
+import { AiPreferencesService } from './ai-preferences.service';
 import { NvidiaProviderError } from './nvidia.provider';
-import { CreateConversationDto, SendMessageDto } from './dto/ai.dto';
+import {
+  CancelActionDto,
+  ConfirmActionDto,
+  CreateConversationDto,
+  SendMessageDto,
+  UpdatePreferencesDto,
+} from './dto/ai.dto';
 
 /**
- * API HELM AI — Dossier 17.4 §4 (préfixe global /api/v1).
+ * API HELM AI — Dossiers 17.2 / 17.4 (préfixe global /api/v1).
  * Authentification JWT obligatoire ; les identifiants d'URL ne sont jamais
  * des preuves d'autorisation (vérification du propriétaire à chaque route).
  */
 @Controller('ai')
 @UseGuards(ThrottleGuard, JwtAuthGuard)
 export class AiController {
-  constructor(private readonly ai: AiService) {}
+  constructor(
+    private readonly ai: AiService,
+    private readonly actions: AiActionsService,
+    private readonly prefs: AiPreferencesService,
+  ) {}
 
   /** Disponibilité de l'assistant (AVAILABLE / OFFLINE — D17.3 §17.4). */
   @Get('status')
@@ -104,5 +119,99 @@ export class AiController {
       }
       throw e;
     }
+  }
+
+  // ─────────────────────── Actions confirmées (D17.2 §6) ───────────────────────
+
+  /** Détail d'une action — expiration paresseuse incluse. */
+  @Get('actions/:id')
+  async getAction(@CurrentUser() user: AccessTokenPayload, @Param('id') id: string) {
+    const action = await this.actions.get(user.sub, id);
+    if (!action) {
+      throw new HttpException(
+        { statusCode: HttpStatus.NOT_FOUND, code: 'NOT_FOUND', message: 'Action introuvable.' },
+        HttpStatus.NOT_FOUND,
+      );
+    }
+    return action;
+  }
+
+  /** Historique des actions (filtre par statut : ?status=AWAITING_CONFIRMATION,SUCCEEDED). */
+  @Get('actions')
+  async listActions(
+    @CurrentUser() user: AccessTokenPayload,
+    @Query('status') status?: string,
+  ) {
+    const statuses = status?.split(',').map((s) => s.trim().toUpperCase()).filter(Boolean);
+    const actions = await this.actions.list(user.sub, statuses);
+    return { actions };
+  }
+
+  /**
+   * Confirmation + exécution. Le client DOIT renvoyer le payloadHash tel
+   * qu'affiché (preuve de lecture) et une clé d'idempotence UUID par
+   * tentative (double-tap et rejeu réseau protégés).
+   */
+  @Post('actions/:id/confirm')
+  @HttpCode(200)
+  @Throttle(30, 60_000)
+  async confirmAction(
+    @CurrentUser() user: AccessTokenPayload,
+    @Param('id') id: string,
+    @Body(new ValidationPipe({ transform: true })) dto: ConfirmActionDto,
+    @Req() req: Request,
+  ) {
+    const result = await this.actions.confirm(user.sub, id, dto, req.ip);
+    if (result === null) {
+      throw new HttpException(
+        { statusCode: HttpStatus.NOT_FOUND, code: 'NOT_FOUND', message: 'Action introuvable.' },
+        HttpStatus.NOT_FOUND,
+      );
+    }
+    return result;
+  }
+
+  /** Refus utilisateur — l'action passe en CANCELLED (traçable). */
+  @Post('actions/:id/cancel')
+  @HttpCode(200)
+  @Throttle(30, 60_000)
+  async cancelAction(
+    @CurrentUser() user: AccessTokenPayload,
+    @Param('id') id: string,
+    @Body() dto: CancelActionDto,
+    @Req() req: Request,
+  ) {
+    const result = await this.actions.cancel(user.sub, id, dto.reason, req.ip);
+    if (result === null) {
+      throw new HttpException(
+        { statusCode: HttpStatus.NOT_FOUND, code: 'NOT_FOUND', message: 'Action introuvable.' },
+        HttpStatus.NOT_FOUND,
+      );
+    }
+    return result;
+  }
+
+  // ─────────────────────── Préférences (D17.2 §7.2) ───────────────────────
+
+  @Get('preferences')
+  async getPreferences(@CurrentUser() user: AccessTokenPayload) {
+    return this.prefs.get(user.sub);
+  }
+
+  @Patch('preferences')
+  @Throttle(20, 60_000)
+  async updatePreferences(
+    @CurrentUser() user: AccessTokenPayload,
+    @Body() dto: UpdatePreferencesDto,
+    @Req() req: Request,
+  ) {
+    return this.prefs.update(user.sub, dto, req.ip);
+  }
+
+  // ─────────────────────── Usage & quotas (D17.2 §7.5) ───────────────────────
+
+  @Get('usage')
+  async usage(@CurrentUser() user: AccessTokenPayload) {
+    return this.prefs.usage(user.sub);
   }
 }

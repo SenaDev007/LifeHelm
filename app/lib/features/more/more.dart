@@ -181,6 +181,24 @@ class MoreScreen extends ConsumerWidget {
             ]),
           ),
         ),
+        // Accès direct aux préférences de l'assistant (D17.2 §7.2).
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+          child: LHCard(
+            onTap: () => context.push('/ai-preferences'),
+            child: Row(children: [
+              const Icon(Icons.tune_rounded, color: LHColors.navy, size: 22),
+              const SizedBox(width: LHSpacing.md),
+              Expanded(
+                child: Text('Préférences HELM AI',
+                    style: theme.textTheme.titleSmall
+                        ?.copyWith(fontWeight: FontWeight.w700)),
+              ),
+              const Icon(Icons.chevron_right_rounded,
+                  color: LHColors.neutre),
+            ]),
+          ),
+        ),
         SectionHeader('Modules', overline: 'Toute votre vie'),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16),

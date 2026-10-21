@@ -101,6 +101,15 @@ export class AiTools {
       .slice(0, 8)
       .map(([name, total]) => ({ name, total }));
 
+    // Comptes (ids exposés pour cibler une correction financière).
+    const accountList = accounts
+      .map((a) => {
+        const d = (a.data as Record<string, unknown> | null) ?? {};
+        return { id: str(d.id) ?? '', name: str(d.name) ?? 'Compte', type: str(d.type) ?? 'CASH' };
+      })
+      .filter((a) => a.id !== '')
+      .slice(0, 6);
+
     return {
       period: { from: monthStart.toISOString().slice(0, 10), to: monthEnd.toISOString().slice(0, 10) },
       currency: XOF,
@@ -108,6 +117,7 @@ export class AiTools {
       expense,
       balance: income - expense,
       topExpenseCategories: topCategories,
+      accounts: accountList,
       accountsCount: accounts.length,
       transactionsCounted: txs.length,
       asOf: ctx.asOf.toISOString(),
@@ -267,16 +277,23 @@ export class AiTools {
       .map((e) => {
         const d = (e.data as Record<string, unknown> | null) ?? {};
         if (str(d.status) === 'CANCELLED') return null;
-        const start = asDate(d.startAt);
-        if (!inWindow(start, from, to)) return null;
+        // La table Drift CalendarEvents porte startDate (date civile) + startTime
+        // (« HH:mm ») — pas de champ startAt (bug Phase 1 corrigé).
+        const dateStr = str(d.startDate);
+        if (!dateStr) return null;
+        const day = new Date(`${dateStr}T00:00:00.000Z`);
+        if (Number.isNaN(day.getTime()) || day < from || day > to) return null;
         return {
+          id: str(d.id) ?? '',
           title: str(d.title) ?? 'Événement',
-          startAt: start!.toISOString(),
+          startDate: dateStr,
+          startTime: str(d.startTime) ?? undefined,
+          endDate: str(d.endDate) ?? undefined,
           location: str(d.location) ?? undefined,
         };
       })
       .filter((x): x is NonNullable<typeof x> => x !== null)
-      .sort((a, b) => a.startAt.localeCompare(b.startAt))
+      .sort((a, b) => a.startDate.localeCompare(b.startDate))
       .slice(0, 10);
   }
 

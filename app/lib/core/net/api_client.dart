@@ -624,12 +624,53 @@ class ApiClient {
     return LhAiAnswer.fromJson(data);
   }
 
+  // ── HELM AI Phase 2 — actions confirmées, préférences, usage ──
+
+  /// Détail d'une action (statut, expiration paresseuse incluse).
+  Future<LhAiActionDetail> aiGetAction(String id) async {
+    final data = await get('/ai/actions/$id');
+    return LhAiActionDetail.fromJson(data);
+  }
+
+  /// Confirme puis exécute une action — [payloadHash] = preuve que
+  /// l'utilisateur a vu exactement ce qui sera exécuté ;
+  /// [idempotencyKey] = UUID généré POUR CETTE tentative (double-tap sûr).
+  Future<LhAiActionDetail> aiConfirmAction(
+      String id, String payloadHash, String idempotencyKey) async {
+    final data = await post('/ai/actions/$id/confirm',
+        body: {'payloadHash': payloadHash, 'idempotencyKey': idempotencyKey});
+    return LhAiActionDetail.fromJson(data);
+  }
+
+  /// Refuse une action proposée.
+  Future<void> aiCancelAction(String id, {String? reason}) async {
+    await post('/ai/actions/$id/cancel',
+        body: {if (reason != null) 'reason': reason});
+  }
+
+  /// Préférences HELM AI (autonomie, périmètre de contexte, alertes).
+  Future<LhAiPreferences> aiGetPreferences() async {
+    final data = await get('/ai/preferences');
+    return LhAiPreferences.fromJson(data);
+  }
+
+  Future<LhAiPreferences> aiUpdatePreferences(
+      Map<String, dynamic> changes) async {
+    final data = await patch('/ai/preferences', body: changes);
+    return LhAiPreferences.fromJson(data);
+  }
+
+  /// Compteurs d'usage (messages, actions, quota 24 h).
+  Future<LhAiUsage> aiUsage() async {
+    final data = await get('/ai/usage');
+    return LhAiUsage.fromJson(data);
+  }
+
   /// Libère les ressources (contrôleur d'événements de session).
   void dispose() {
     _sessionExpired.close();
   }
 }
-
 // ══════════════════════════ MODÈLES HELM AI (D17) ══════════════════════════
 
 /// Disponibilité de l'assistant (AVAILABLE / OFFLINE — D17.3 §17.4).
@@ -719,28 +760,149 @@ class LhAiFact {
 
 /// Action proposée par HELM AI — JAMAIS exécutée sans confirmation
 /// explicite de l'utilisateur (cycle D17.2 §6).
+///
+/// Phase 2 : les propositions matérielles côté serveur portent un [id]
+/// et un [payloadHash] — la confirmation passe par /ai/actions/:id/confirm.
+/// Une proposition sans [id] (repli hors-ligne) reste appliquable localement.
 class LhAiProposedAction {
-  const LhAiProposedAction(
-      {required this.actionType,
-      required this.title,
-      this.dueDate,
-      this.priority = 'NORMAL'});
-  final String actionType; // CREATE_TASK (phase 1)
+  const LhAiProposedAction({
+    required this.actionType,
+    required this.title,
+    this.id,
+    this.summary,
+    this.payload,
+    this.payloadHash,
+    this.expiresAt,
+    this.status,
+    this.dueDate,
+    this.priority = 'NORMAL',
+  });
+  final String actionType; // CREATE_TASK_DRAFT | PROPOSE_EVENT_CHANGE | PROPOSE_FINANCIAL_CORRECTION | CREATE_TASK (repli)
   final String title;
-  final String? dueDate;
+  final String? id; // présent = action serveur confirmable
+  final String? summary;
+  final Map<String, dynamic>? payload;
+  final String? payloadHash; // preuve d'identité du contenu confirmé
+  final DateTime? expiresAt;
+  final String? status; // AWAITING_CONFIRMATION | SUCCEEDED | …
+  final String? dueDate; // repli local CREATE_TASK
   final String priority;
+
+  bool get isServerAction => id != null && payloadHash != null;
+  bool get confirmable =>
+      isServerAction && (status == null || status == 'AWAITING_CONFIRMATION');
 
   factory LhAiProposedAction.fromJson(Map<String, dynamic> json) =>
       LhAiProposedAction(
         actionType: json['actionType'] as String? ?? 'CREATE_TASK',
         title: json['title'] as String? ?? '',
+        id: json['id'] as String?,
+        summary: json['summary'] as String?,
+        payload: json['payload'] == null
+            ? null
+            : Map<String, dynamic>.from(json['payload'] as Map),
+        payloadHash: json['payloadHash'] as String?,
+        expiresAt: json['expiresAt'] == null
+            ? null
+            : DateTime.tryParse(json['expiresAt'] as String),
+        status: json['status'] as String?,
         dueDate: json['dueDate'] as String?,
         priority: json['priority'] as String? ?? 'NORMAL',
       );
 }
 
+/// Détail/état d'une action (réponse de GET/confirm — D17.2 §6.4).
+class LhAiActionDetail {
+  const LhAiActionDetail({
+    required this.id,
+    required this.actionType,
+    required this.status,
+    required this.title,
+    this.summary,
+    this.result,
+    this.error,
+    this.expiresAt,
+  });
+  final String id;
+  final String actionType;
+  final String status; // AWAITING_CONFIRMATION | SUCCEEDED | FAILED | CANCELLED | EXPIRED | …
+  final String title;
+  final String? summary;
+  final Map<String, dynamic>? result; // { resourceId, serverVersion, kind }
+  final Map<String, dynamic>? error; // { code, message }
+  final DateTime? expiresAt;
+
+  factory LhAiActionDetail.fromJson(Map<String, dynamic> json) =>
+      LhAiActionDetail(
+        id: json['id'] as String,
+        actionType: json['actionType'] as String? ?? '',
+        status: json['status'] as String? ?? 'AWAITING_CONFIRMATION',
+        title: json['title'] as String? ?? '',
+        summary: json['summary'] as String?,
+        result: json['result'] == null
+            ? null
+            : Map<String, dynamic>.from(json['result'] as Map),
+        error: json['error'] == null
+            ? null
+            : Map<String, dynamic>.from(json['error'] as Map),
+        expiresAt: json['expiresAt'] == null
+            ? null
+            : DateTime.tryParse(json['expiresAt'] as String),
+      );
+}
+
+/// Préférences HELM AI (D17.2 §7.2) — autonomie, alertes, périmètre.
+class LhAiPreferences {
+  const LhAiPreferences({
+    this.autonomyLevel = 'SUGGEST',
+    this.alertThreshold = 'NORMAL',
+    this.contextScope = const {},
+    this.dailyBriefing = false,
+    this.briefingHour = 7,
+  });
+  final String autonomyLevel; // SUGGEST | PREPARE | ASSIST
+  final String alertThreshold; // INFORMATION | NORMAL | IMPORTANT
+  final Map<String, dynamic> contextScope; // { finance, tasks, agenda, projects, notes }
+  final bool dailyBriefing;
+  final int briefingHour;
+
+  bool scope(String key) => contextScope[key] == true;
+
+  factory LhAiPreferences.fromJson(Map<String, dynamic> json) =>
+      LhAiPreferences(
+        autonomyLevel: json['autonomyLevel'] as String? ?? 'SUGGEST',
+        alertThreshold: json['alertThreshold'] as String? ?? 'NORMAL',
+        contextScope: json['contextScope'] == null
+            ? const {}
+            : Map<String, dynamic>.from(json['contextScope'] as Map),
+        dailyBriefing: json['dailyBriefing'] == true,
+        briefingHour: (json['briefingHour'] as num?)?.toInt() ?? 7,
+      );
+}
+
+/// Compteurs d'usage sur 24 h (D17.2 §7.5).
+class LhAiUsage {
+  const LhAiUsage({
+    this.messages = 0,
+    this.messageQuota = 60,
+    this.actionsConfirmed = 0,
+    this.averageLatencyMs = 0,
+  });
+  final int messages;
+  final int messageQuota;
+  final int actionsConfirmed;
+  final int averageLatencyMs;
+
+  factory LhAiUsage.fromJson(Map<String, dynamic> json) => LhAiUsage(
+        messages: (json['messages'] as num?)?.toInt() ?? 0,
+        messageQuota: (json['messageQuota'] as num?)?.toInt() ?? 60,
+        actionsConfirmed: (json['actionsConfirmed'] as num?)?.toInt() ?? 0,
+        averageLatencyMs: (json['averageLatencyMs'] as num?)?.toInt() ?? 0,
+      );
+}
+
 /// Réponse structurée HELM AI (contrat D17.4 §4.2) : réponse, faits
-/// vérifiés, hypothèses, incertitudes et actions proposées.
+/// vérifiés, hypothèses, incertitudes, actions proposées et drapeaux
 class LhAiAnswer {
   const LhAiAnswer({
     required this.answer,
@@ -748,7 +910,10 @@ class LhAiAnswer {
     this.facts = const [],
     this.assumptions = const [],
     this.uncertainties = const [],
+    this.safetyFlags = const [],
     this.proposedActions = const [],
+    this.requiresConfirmation = false,
+    this.degraded = false,
     this.latencyMs,
   });
   final String answer;
@@ -756,7 +921,10 @@ class LhAiAnswer {
   final List<LhAiFact> facts;
   final List<String> assumptions;
   final List<String> uncertainties;
+  final List<String> safetyFlags;
   final List<LhAiProposedAction> proposedActions;
+  final bool requiresConfirmation;
+  final bool degraded;
   final int? latencyMs;
 
   factory LhAiAnswer.fromJson(Map<String, dynamic> json) => LhAiAnswer(
@@ -771,10 +939,15 @@ class LhAiAnswer {
         uncertainties: (json['uncertainties'] as List? ?? [])
             .map((u) => u as String)
             .toList(),
+        safetyFlags: (json['safetyFlags'] as List? ?? [])
+            .map((s) => s as String)
+            .toList(),
         proposedActions: (json['proposedActions'] as List? ?? [])
             .map((a) =>
                 LhAiProposedAction.fromJson(Map<String, dynamic>.from(a as Map)))
             .toList(),
+        requiresConfirmation: json['requiresConfirmation'] == true,
+        degraded: json['degraded'] == true,
         latencyMs: (json['latencyMs'] as num?)?.toInt(),
       );
 }

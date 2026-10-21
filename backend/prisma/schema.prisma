@@ -14,9 +14,9 @@ datasource db {
 }
 
 model User {
-  id        String    @id @default(uuid())
-  email     String?   @unique
-  phone     String?   @unique
+  id           String  @id @default(uuid())
+  email        String? @unique
+  phone        String? @unique
   passwordHash String
 
   firstName String
@@ -24,8 +24,8 @@ model User {
   avatarUrl String?
 
   // Profil étendu (V2) — renseignés à l'inscription ou depuis l'application.
-  profession String? // référentiel quasi exhaustif, saisie libre acceptée
-  country    String? // code ISO 3166-1 alpha-2 (ex. "BJ")
+  profession        String? // référentiel quasi exhaustif, saisie libre acceptée
+  country           String? // code ISO 3166-1 alpha-2 (ex. "BJ")
   securityQuestions Json? // [{ question, answerHash sha256 }] — récupération de compte
 
   emailVerifiedAt DateTime?
@@ -42,50 +42,56 @@ model User {
   phoneVerifyCodeExpiresAt DateTime?
 
   // Réinitialisation mot de passe (token 32 octets, hashé sha256, 30 min)
-  resetTokenHash    String?
+  resetTokenHash      String?
   resetTokenExpiresAt DateTime?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  sessions   Session[]
-  resources  Resource[]
-  appliedOps AppliedOp[]
-  aiConversations AiConversation[]
+  sessions             Session[]
+  resources            Resource[]
+  appliedOps           AppliedOp[]
+  aiConversations      AiConversation[]
+  aiActions            AiAction[]
+  aiToolExecutions     AiToolExecution[]
+  aiAuditEvents        AiAuditEvent[]
+  aiConsents           AiConsent[]
+  aiPreference         AiPreference?
+  aiIdempotencyRecords AiIdempotencyRecord[]
+  aiUsageRecords       AiUsageRecord[]
 }
 
 model Session {
-  id        String   @id @default(uuid())
-  familyId  String   // famille de rotation (un login = une famille)
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id       String @id @default(uuid())
+  familyId String // famille de rotation (un login = une famille)
+  userId   String
+  user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  refreshTokenHash String @unique // sha256 du refresh token courant (jamais en clair)
-  deviceName String?
-  userAgent  String?
-  ip         String?
+  refreshTokenHash String  @unique // sha256 du refresh token courant (jamais en clair)
+  deviceName       String?
+  userAgent        String?
+  ip               String?
 
-  lastUsedAt DateTime @default(now())
-  createdAt  DateTime @default(now())
-  expiresAt  DateTime
-  revokedAt  DateTime?
+  lastUsedAt   DateTime  @default(now())
+  createdAt    DateTime  @default(now())
+  expiresAt    DateTime
+  revokedAt    DateTime?
   replacedById String? // session suivante après rotation
 
   @@index([userId])
   @@index([familyId])
-  
 }
 
 model Resource {
-  id        String  @id // resourceId client (UUID stable, CDC §6.4 « identifiants stables »)
-  ownerId   String
-  owner     User    @relation(fields: [ownerId], references: [id], onDelete: Cascade)
-  type      String  // ex: Task, Note, FinancialTransaction…
-  data      Json?   // snapshot JSON complet de la ligne locale (format Drift)
-  version   Int     @default(1)
+  id      String @id // resourceId client (UUID stable, CDC §6.4 « identifiants stables »)
+  ownerId String
+  owner   User   @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  type    String // ex: Task, Note, FinancialTransaction…
+  data    Json? // snapshot JSON complet de la ligne locale (format Drift)
+  version Int    @default(1)
 
   deletedAt DateTime? // tombstone — les suppressions restent récupérables
-  deviceId  String?   // dernier appareil écrivain (détection de conflit multi-appareils)
+  deviceId  String? // dernier appareil écrivain (détection de conflit multi-appareils)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @default(now())
@@ -97,7 +103,7 @@ model Resource {
 }
 
 model SyncChange {
-  seq        BigInt  @id @default(autoincrement())
+  seq        BigInt   @id @default(autoincrement())
   resourceId String
   resource   Resource @relation(fields: [resourceId], references: [id], onDelete: Cascade)
   ownerId    String
@@ -110,13 +116,13 @@ model SyncChange {
 }
 
 model AppliedOp {
-  opId        String @id // idempotence (CDC §6.4) : UUID de l'opération cliente
-  userId      String
-  user        User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-  deviceId    String?
-  status      String // APPLIED | DUPLICATE
+  opId          String   @id // idempotence (CDC §6.4) : UUID de l'opération cliente
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  deviceId      String?
+  status        String // APPLIED | DUPLICATE
   serverVersion Int?
-  createdAt   DateTime @default(now())
+  createdAt     DateTime @default(now())
 
   @@index([userId, createdAt])
 }
@@ -127,32 +133,175 @@ model AppliedOp {
 // statuts — elle les relit à la source à chaque demande (D17 §17.3).
 
 model AiConversation {
-  id         String   @id @default(uuid())
-  userId     String
-  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  entryPoint String   @default("CENTRAL_ASSISTANT") // CENTRAL_ASSISTANT | MODULE_CONTEXTUAL | DAILY_BRIEFING
+  id            String   @id @default(uuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  entryPoint    String   @default("CENTRAL_ASSISTANT") // CENTRAL_ASSISTANT | MODULE_CONTEXTUAL | DAILY_BRIEFING
   moduleContext String? // module d'origine (accès contextuel), jamais une preuve d'autorisation
-  title      String?
-  status     String   @default("ACTIVE") // ACTIVE | ARCHIVED
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  title         String?
+  status        String   @default("ACTIVE") // ACTIVE | ARCHIVED
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
-  messages   AiMessage[]
+  messages AiMessage[]
+  actions  AiAction[]
 
   @@index([userId, updatedAt])
 }
 
 model AiMessage {
-  id             String   @id @default(uuid())
+  id             String         @id @default(uuid())
   conversationId String
   conversation   AiConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   role           String // USER | ASSISTANT
   content        String
-  structured     Json?    // réponse structurée validée (answerType, facts, sources, proposedActions…)
-  answerType     String?  // INFORMATION | ANALYSIS | RECOMMENDATION | CLARIFICATION | REFUSAL | TEMPORARY_UNAVAILABLE
-  modelKey       String?  // identifiant interne du modèle (jamais un secret)
+  structured     Json? // réponse structurée validée (answerType, facts, sources, proposedActions…)
+  answerType     String? // INFORMATION | ANALYSIS | RECOMMENDATION | CLARIFICATION | REFUSAL | TEMPORARY_UNAVAILABLE
+  modelKey       String? // identifiant interne du modèle (jamais un secret)
   latencyMs      Int?
-  createdAt      DateTime @default(now())
+  createdAt      DateTime       @default(now())
 
   @@index([conversationId, createdAt])
+}
+
+// ═══════════════════ D17.5 — HELM AI Phase 2 : actions confirmées, ═══════════════════
+// ═══ exécutions d'outils, audit, consentements, préférences, idempotence, usage ═══
+
+/// Action proposée par l'IA puis confirmée par l'utilisateur (D17.2 §6).
+/// Cycle : PROPOSED → AWAITING_CONFIRMATION → REVALIDATING → EXECUTING
+///         → SUCCEEDED | FAILED ; sorts terminaux secondaires :
+///         REJECTED | CANCELLED | EXPIRED.
+/// L'IA ne JAMAIS exécuter sans confirmation explicite (décision validée D17 §1).
+model AiAction {
+  id             String          @id @default(uuid())
+  userId         String
+  user           User            @relation(fields: [userId], references: [id], onDelete: Restrict) // piste d'audit — suppression de compte = purge explicite
+  conversationId String?
+  conversation   AiConversation? @relation(fields: [conversationId], references: [id], onDelete: SetNull)
+
+  actionType  String // CREATE_TASK_DRAFT | PROPOSE_EVENT_CHANGE | PROPOSE_FINANCIAL_CORRECTION
+  status      String  @default("AWAITING_CONFIRMATION")
+  title       String
+  summary     String? // description lisible de l'effet attendu (montrée avant confirmation)
+  payload     Json // paramètres validés au moment de la proposition
+  payloadHash String // sha256 canonique — un écart à la confirmation = AI_ACTION_STALE
+  safetyFlags Json? // ["needs_space", "amount_check"…] — jamais de secret
+
+  result Json? // { resourceId, serverVersion } en cas de succès
+  error  Json? // { code, message } en cas d'échec
+
+  confirmedAt DateTime?
+  executedAt  DateTime?
+  expiresAt   DateTime // fenêtre de confirmation bornée (15 minutes)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  toolExecutions AiToolExecution[]
+
+  @@index([userId, status])
+  @@index([userId, createdAt])
+  @@index([conversationId])
+}
+
+/// Journal de chaque appel d'outil métier (lecture ou écriture-brouillon).
+model AiToolExecution {
+  id         String    @id @default(uuid())
+  actionId   String?
+  action     AiAction? @relation(fields: [actionId], references: [id], onDelete: SetNull)
+  userId     String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Restrict)
+  toolName   String // get_finance_summary | create_task_draft …
+  direction  String    @default("READ") // READ | WRITE_DRAFT
+  arguments  Json? // arguments réellement exécutés (minimisés)
+  result     Json? // sortie (résumé, jamais de dump complet)
+  status     String    @default("SUCCEEDED") // SUCCEEDED | FAILED | DENIED
+  errorCode  String?
+  durationMs Int?
+  createdAt  DateTime  @default(now())
+
+  @@index([userId, createdAt])
+  @@index([actionId])
+}
+
+/// Piste d'audit minimisée (D17.2 §7.4) — qui a fait quoi, quand ; jamais
+/// de contenu métier complet (les données restent dans Resource).
+model AiAuditEvent {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Restrict)
+  action    String // ACTION_CONFIRMED | ACTION_CANCELLED | ACTION_EXPIRED | ACTION_EXECUTED | ACTION_FAILED | PREFS_UPDATED | CONSENT_GRANTED | CONSENT_REVOKED
+  entity    String? // identifiant visé (AiAction.id, scope de consentement…)
+  details   Json? // minimisé : { from, to, reason } — sans contenu métier
+  ip        String?
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt])
+  @@index([action, createdAt])
+}
+
+/// Consentements explicites par périmètre sensible (D17 §1 : confidentialité
+/// limitée par défaut — l'accès aux données sensibles est REFUSÉ sauf ici).
+model AiConsent {
+  id        String    @id @default(uuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  scope     String // wellbeing.journal | messaging.read | notes.content …
+  granted   Boolean   @default(false)
+  grantedAt DateTime?
+  revokedAt DateTime?
+  expiresAt DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@unique([userId, scope])
+}
+
+/// Préférences HELM AI de l'utilisateur (D17.2 §7.2) — une ligne par compte.
+model AiPreference {
+  id             String   @id @default(uuid())
+  userId         String   @unique
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  autonomyLevel  String   @default("SUGGEST") // SUGGEST | PREPARE | ASSIST (AUTOMATE hors périmètre V1)
+  alertThreshold String   @default("NORMAL") // INFORMATION | NORMAL | IMPORTANT (CRITIQUE = règles métier uniquement)
+  contextScope   Json     @default("{\"finance\":true,\"tasks\":true,\"agenda\":true,\"projects\":true,\"notes\":false,\"wellbeing\":false,\"messaging\":false}")
+  dailyBriefing  Boolean  @default(false)
+  briefingHour   Int      @default(7)
+  language       String   @default("fr")
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+/// Idempotence des requêtes mutantes HELM AI (D17.2 §7.3) — la clé vient du
+/// client (UUID) ; un rejeu identique renvoie la réponse cachée, un rejeu
+/// divergent est refusé (AI_ACTION_ALREADY_PROCESSED).
+model AiIdempotencyRecord {
+  id             String   @id @default(uuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  idempotencyKey String   @unique
+  requestHash    String // sha256 du corps — rejeu divergent détecté
+  endpoint       String // ex. /api/v1/ai/actions/:id/confirm
+  response       Json? // réponse d'origine rejouée à l'identique
+  statusCode     Int      @default(200)
+  expiresAt      DateTime // purge après 24 h
+  createdAt      DateTime @default(now())
+
+  @@index([userId, createdAt])
+}
+
+/// Compteurs d'usage (D17.2 §7.5) — base des quotas et de la transparence.
+model AiUsageRecord {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  kind      String // MESSAGE | ACTION_CONFIRM | TOOL_EXECUTION
+  modelKey  String?
+  tokensIn  Int      @default(0)
+  tokensOut Int      @default(0)
+  latencyMs Int?
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt])
+  @@index([userId, kind, createdAt])
 }

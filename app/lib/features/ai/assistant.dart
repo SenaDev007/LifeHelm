@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import 'package:uuid/uuid.dart';
 
 import '../auth/auth.dart';
 import '../tasks/tasks.dart';
@@ -142,11 +144,20 @@ class _AiAssistantScreenState extends ConsumerState<AiAssistantScreen> {
               ],
               'uncertainties': answer.uncertainties,
               'assumptions': answer.assumptions,
+              'safetyFlags': answer.safetyFlags,
+              'degraded': answer.degraded,
               'proposedActions': [
+                // Actions Phase 2 : on conserve l'intégralité (id serveur,
+                // payloadHash, summary, statut) — la confirmation passera
+                // par /ai/actions/:id/confirm (D17.2 §6).
                 for (final a in answer.proposedActions)
                   {
+                    'id': a.id,
                     'actionType': a.actionType,
                     'title': a.title,
+                    'summary': a.summary,
+                    'payloadHash': a.payloadHash,
+                    'status': a.status,
                     'dueDate': a.dueDate,
                     'priority': a.priority,
                   }
@@ -187,12 +198,156 @@ class _AiAssistantScreenState extends ConsumerState<AiAssistantScreen> {
     });
   }
 
-  // ─────────────────────── Action proposée → tâche locale ───────────────────────
+  // ─────────────────────── Actions proposées (D17.2 §6) ───────────────────────
 
-  /// Cycle D17.2 §6 : la proposition est présentée, l'utilisateur confirme,
-  /// puis SEULEMENT la tâche est créée localement (source de vérité) et
-  /// journalisée pour la synchronisation.
+  /// Cycle : la proposition est présentée, l'utilisateur confirme, puis
+  /// SEULEMENT l'action est exécutée.
+  ///  - action SERVEUR (id + payloadHash) : POST /ai/actions/:id/confirm —
+  ///    le serveur écrit le brouillon dans Resource + SyncChange ; le mobile
+  ///    le récupère au prochain pull (canal de sync habituel, D01.4).
+  ///  - action LOCALE (repli, CREATE_TASK sans id) : création Drift locale
+  ///    + journalisation pour la synchronisation (Phase 1).
   Future<void> _applyProposedAction(Map<String, dynamic> action) async {
+    final actionId = action['id'] as String?;
+    final payloadHash = action['payloadHash'] as String?;
+    if (actionId != null && payloadHash != null) {
+      await _confirmServerAction(actionId, payloadHash, action);
+      return;
+    }
+    await _applyLocalTask(action);
+  }
+
+  /// Confirmation d'une action serveur — idempotence par UUID de tentative.
+  Future<void> _confirmServerAction(
+      String actionId, String payloadHash, Map<String, dynamic> action) async {
+    final actionType = (action['actionType'] as String?) ?? '';
+    final title = (action['title'] as String?) ?? 'Action proposée';
+    final summary = (action['summary'] as String?) ?? '';
+
+    final ok = await lhConfirm(
+      context,
+      title: _confirmDialogTitle(actionType),
+      message: '« $title »'
+          '${summary.isNotEmpty ? '\n$summary' : ''}'
+          '\n\nAprès confirmation, HELM AI prépare cette écriture et la '
+          'synchronise avec vos appareils. Vous pourrez la modifier ou '
+          'l\'annuler dans le module concerné.',
+      confirmLabel: 'Confirmer',
+    );
+    if (!ok || !mounted) return;
+
+    try {
+      final detail = await ref.read(apiClientProvider).aiConfirmAction(
+            actionId,
+            payloadHash,
+            const Uuid().v4(), // clé d'idempotence : UNE par tentative
+          );
+      if (!mounted) return;
+      _updateActionStatus(actionId, detail.status);
+      lhToast(
+        context,
+        detail.status == 'SUCCEEDED'
+            ? 'Action confirmée — synchronisation en cours.'
+            : 'Action : ${detail.status}',
+      );
+    } catch (e) {
+      if (!mounted) return;
+      final code = e is LhApiException ? e.code : null;
+      _updateActionStatus(actionId, _statusForError(code));
+      lhToast(context, _errorText(code, apiErrorText(e)));
+    }
+  }
+
+  /// Met à jour le statut affiché d'une action dans la bulle.
+  void _updateActionStatus(String actionId, String? status) {
+    if (status == null) return;
+    setState(() {
+      _messages = [
+        for (final m in _messages)
+          (m.role == 'ASSISTANT' && m.structured?['proposedActions'] != null)
+              ? LhAiMessage(
+                  role: m.role,
+                  content: m.content,
+                  answerType: m.answerType,
+                  structured: {
+                    ...m.structured!,
+                    'proposedActions': [
+                      for (final a
+                          in (m.structured!['proposedActions'] as List))
+                        if (a is Map && a['id'] == actionId)
+                          {...a, 'status': status}
+                        else
+                          a,
+                    ],
+                  },
+                )
+              : m,
+      ];
+    });
+  }
+
+  String _statusForError(String? code) {
+    switch (code) {
+      case 'AI_ACTION_EXPIRED':
+        return 'EXPIRED';
+      case 'AI_ACTION_REJECTED':
+      case 'AI_ACTION_ALREADY_PROCESSED':
+        return 'ALREADY_PROCESSED';
+      case 'AI_ACTION_STALE':
+        return 'STALE';
+      default:
+        return 'FAILED';
+    }
+  }
+
+  String _errorText(String? code, String fallback) {
+    switch (code) {
+      case 'AI_ACTION_EXPIRED':
+        return 'Délai dépassé — la proposition a expiré (15 minutes). '
+            'Reformulez votre demande pour obtenir une nouvelle proposition.';
+      case 'AI_ACTION_STALE':
+        return 'Les données ont changé depuis la proposition. '
+            'Demandez une nouvelle proposition à HELM AI.';
+      case 'AI_ACTION_ALREADY_PROCESSED':
+        return 'Cette action a déjà été traitée.';
+      case 'AI_ACTION_REJECTED':
+        return 'Cette action a été refusée.';
+      case 'AI_TOOL_VALIDATION_FAILED':
+        return 'Les paramètres de l\'action ne sont plus valides '
+            '(élément supprimé ou modifié). Demandez une nouvelle proposition.';
+      default:
+        return fallback;
+    }
+  }
+
+  String _confirmDialogTitle(String actionType) {
+    switch (actionType) {
+      case 'PROPOSE_EVENT_CHANGE':
+        return 'Déplacer cet événement ?';
+      case 'PROPOSE_FINANCIAL_CORRECTION':
+        return 'Enregistrer cette correction ?';
+      default:
+        return 'Créer cette tâche ?';
+    }
+  }
+
+  /// Refus explicite d'une action serveur (traçable côté audit).
+  Future<void> _rejectServerAction(Map<String, dynamic> action) async {
+    final actionId = action['id'] as String?;
+    if (actionId == null) return;
+    try {
+      await ref
+          .read(apiClientProvider)
+          .aiCancelAction(actionId, reason: 'Refusé depuis l\'assistant');
+      if (!mounted) return;
+      _updateActionStatus(actionId, 'CANCELLED');
+    } catch (_) {
+      _updateActionStatus(actionId, 'CANCELLED');
+    }
+  }
+
+  /// Repli local (Phase 1) : création directe d'une tâche Drift.
+  Future<void> _applyLocalTask(Map<String, dynamic> action) async {
     final title = (action['title'] as String?) ?? '';
     if (title.isEmpty) return;
     final dueDate = action['dueDate'] as String?;
@@ -266,7 +421,7 @@ class _AiAssistantScreenState extends ConsumerState<AiAssistantScreen> {
               _status == null
                   ? 'Assistant intelligent LifeHelm'
                   : _status!.available
-                      ? 'Assistant disponible — Phase 1'
+                      ? 'Assistant disponible'
                       : 'Assistant distant indisponible',
               style: theme.textTheme.bodySmall
                   ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
@@ -274,6 +429,11 @@ class _AiAssistantScreenState extends ConsumerState<AiAssistantScreen> {
           ]),
         ]),
         actions: [
+          IconButton(
+            tooltip: 'Préférences HELM AI',
+            icon: const Icon(Icons.tune_rounded),
+            onPressed: () => context.push('/ai-preferences'),
+          ),
           if (_conversationId != null)
             IconButton(
               tooltip: 'Nouvelle conversation',
@@ -368,7 +528,7 @@ class _AiAssistantScreenState extends ConsumerState<AiAssistantScreen> {
             : _AssistantBubble(
                 message: m,
                 onApplyAction: _applyProposedAction,
-                priorityLabel: _priorityLabel,
+                onRejectAction: _rejectServerAction,
               );
       },
     );
@@ -579,12 +739,12 @@ class _AssistantBubble extends StatelessWidget {
   const _AssistantBubble({
     required this.message,
     required this.onApplyAction,
-    required this.priorityLabel,
+    required this.onRejectAction,
   });
 
   final LhAiMessage message;
   final Future<void> Function(Map<String, dynamic>) onApplyAction;
-  final String Function(String) priorityLabel;
+  final Future<void> Function(Map<String, dynamic>) onRejectAction;
 
   @override
   Widget build(BuildContext context) {
@@ -690,43 +850,159 @@ class _AssistantBubble extends StatelessWidget {
                     style: theme.textTheme.labelMedium
                         ?.copyWith(fontWeight: FontWeight.w700)),
                 const SizedBox(height: 6),
-                for (final a in actions)
-                  Container(
-                    margin: const EdgeInsets.only(bottom: 8),
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: theme.colorScheme.surfaceContainerHighest,
-                      borderRadius: BorderRadius.circular(LHRadius.md),
-                      border: Border.all(color: theme.colorScheme.outline),
-                    ),
-                    child: Row(children: [
-                      Icon(Icons.check_circle_outline_rounded,
-                          color: theme.colorScheme.primary, size: 20),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(a['title'] as String? ?? '',
-                                  style: theme.textTheme.bodyMedium
-                                      ?.copyWith(fontWeight: FontWeight.w600)),
-                              if (a['dueDate'] != null)
-                                Text(
-                                    'Échéance : ${a['dueDate']} · ${priorityLabel(a['priority'] as String? ?? 'NORMAL')}',
-                                    style: theme.textTheme.bodySmall?.copyWith(
-                                        color: theme.colorScheme
-                                            .onSurfaceVariant)),
-                            ]),
-                      ),
-                      TextButton(
-                        onPressed: () => onApplyAction(a),
-                        child: const Text('Créer'),
-                      ),
-                    ]),
-                  ),
+                for (final a in actions) _ActionCard(action: a, onApply: onApplyAction, onReject: onRejectAction),
               ],
             ]),
       ),
+    );
+  }
+}
+
+/// Carte d'action proposée — présentation et issue du cycle de
+/// confirmation (D17.2 §6) : en attente → confirmée/refusée/expirée.
+class _ActionCard extends StatelessWidget {
+  const _ActionCard({
+    required this.action,
+    required this.onApply,
+    required this.onReject,
+  });
+
+  final Map<String, dynamic> action;
+  final Future<void> Function(Map<String, dynamic>) onApply;
+  final Future<void> Function(Map<String, dynamic>) onReject;
+
+  IconData get _icon {
+    switch (action['actionType'] as String? ?? '') {
+      case 'PROPOSE_EVENT_CHANGE':
+        return Icons.event_rounded;
+      case 'PROPOSE_FINANCIAL_CORRECTION':
+        return Icons.currency_exchange_rounded;
+      default:
+        return Icons.check_circle_outline_rounded;
+    }
+  }
+
+  Color get _iconColor {
+    switch (action['actionType'] as String? ?? '') {
+      case 'PROPOSE_EVENT_CHANGE':
+        return LHColors.electrique;
+      case 'PROPOSE_FINANCIAL_CORRECTION':
+        return LHColors.orange;
+      default:
+        return LHColors.navy;
+    }
+  }
+
+  String get _statusLabel {
+    switch (action['status'] as String? ?? '') {
+      case 'SUCCEEDED':
+        return 'Confirmée — synchronisée';
+      case 'CANCELLED':
+        return 'Refusée';
+      case 'EXPIRED':
+        return 'Expirée';
+      case 'ALREADY_PROCESSED':
+        return 'Déjà traitée';
+      case 'STALE':
+        return 'Données changées — à reproposer';
+      case 'FAILED':
+        return 'Échec';
+      default:
+        return '';
+    }
+  }
+
+  Color? get _statusColor {
+    switch (action['status'] as String? ?? '') {
+      case 'SUCCEEDED':
+        return LHColors.vertSucces;
+      case 'CANCELLED':
+      case 'EXPIRED':
+      case 'ALREADY_PROCESSED':
+        return themeColors;
+      case 'STALE':
+      case 'FAILED':
+        return LHColors.orange;
+      default:
+        return null;
+    }
+  }
+
+  Color get themeColors => const Color(0xFF64748B); // gris ardoise
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final status = action['status'] as String?;
+    final done = status != null && status != 'AWAITING_CONFIRMATION';
+    final summary = action['summary'] as String?;
+    final statusColor = _statusColor;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(LHRadius.md),
+        border: Border.all(
+            color: status == 'SUCCEEDED'
+                ? LHColors.vertSucces.withValues(alpha: 0.5)
+                : theme.colorScheme.outline),
+      ),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          Icon(_icon, color: done && statusColor != null ? statusColor : _iconColor, size: 20),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(action['title'] as String? ?? '',
+                      style: theme.textTheme.bodyMedium
+                          ?.copyWith(fontWeight: FontWeight.w600)),
+                  if (summary != null && summary.isNotEmpty)
+                    Text(summary,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant)),
+                  if (!done && action['dueDate'] != null)
+                    Text(
+                        'Échéance : ${action['dueDate']} · Priorité : ${action['priority'] ?? 'NORMAL'}',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant)),
+                ]),
+          ),
+          if (!done) ...[
+            if (action['id'] != null)
+              TextButton(
+                onPressed: () => onReject(action),
+                style: TextButton.styleFrom(
+                    foregroundColor: theme.colorScheme.onSurfaceVariant),
+                child: const Text('Refuser'),
+              ),
+            FilledButton.tonal(
+              onPressed: () => onApply(action),
+              child: const Text('Confirmer'),
+            ),
+          ] else
+            Row(mainAxisSize: MainAxisSize.min, children: [
+              Icon(
+                  status == 'SUCCEEDED'
+                      ? Icons.check_circle_rounded
+                      : status == 'CANCELLED'
+                          ? Icons.cancel_rounded
+                          : Icons.schedule_rounded,
+                  size: 15,
+                  color: statusColor ?? theme.colorScheme.onSurfaceVariant),
+              const SizedBox(width: 5),
+              Flexible(
+                child: Text(_statusLabel,
+                    style: theme.textTheme.labelSmall?.copyWith(
+                        color: statusColor ?? theme.colorScheme.onSurfaceVariant,
+                        fontWeight: FontWeight.w600)),
+              ),
+            ]),
+        ]),
+      ]),
     );
   }
 }

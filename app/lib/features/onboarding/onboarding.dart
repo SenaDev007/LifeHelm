@@ -88,7 +88,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
             child: Row(children: [
-              const SizedBox(width: 56),
+              const SizedBox(width: 72),
               const Spacer(),
               Row(children: [
                 for (var i = 0; i < _pagesCount; i++)
@@ -107,10 +107,16 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
               ]),
               const Spacer(),
               SizedBox(
-                width: 56,
+                width: 72,
                 child: _page < _pagesCount - 1
                     ? TextButton(
-                        onPressed: _skip, child: const Text('Passer'))
+                        style: TextButton.styleFrom(
+                          padding: EdgeInsets.zero,
+                          minimumSize: const Size(72, 36),
+                        ),
+                        onPressed: _skip,
+                        child: const Text('Passer',
+                            maxLines: 1, overflow: TextOverflow.ellipsis))
                     : null,
               ),
             ]),
