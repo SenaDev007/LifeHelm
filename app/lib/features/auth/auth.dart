@@ -700,13 +700,12 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
         return Column(children: [
           LabeledField(
             label: 'Profession (liste ou saisie libre)',
-            child: ProfessionAutocomplete(
-              onSelected: (p) => _profession.text = p,
-            ),
+            child: ProfessionPickerField(controller: _profession),
           ),
           const SizedBox(height: LHSpacing.sm),
           Text(
-            'Plus de 200 professions du référentiel — ou écrivez la vôtre.',
+            'Touchez le chevron pour parcourir les ${allProfessions.length} '
+            'métiers du référentiel — ou écrivez librement la vôtre.',
             style: theme.textTheme.bodySmall?.copyWith(
                 color: theme.colorScheme.onSurfaceVariant),
           ),
