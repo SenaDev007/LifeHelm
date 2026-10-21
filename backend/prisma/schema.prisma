@@ -59,6 +59,8 @@ model User {
   aiPreference         AiPreference?
   aiIdempotencyRecords AiIdempotencyRecord[]
   aiUsageRecords       AiUsageRecord[]
+  aiBriefings          AiBriefing[]
+  aiAlerts             AiAlert[]
 }
 
 model Session {
@@ -295,7 +297,7 @@ model AiUsageRecord {
   id        String   @id @default(uuid())
   userId    String
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  kind      String // MESSAGE | ACTION_CONFIRM | TOOL_EXECUTION
+  kind      String // MESSAGE | ACTION_CONFIRM | TOOL_EXECUTION | BRIEFING
   modelKey  String?
   tokensIn  Int      @default(0)
   tokensOut Int      @default(0)
@@ -304,4 +306,51 @@ model AiUsageRecord {
 
   @@index([userId, createdAt])
   @@index([userId, kind, createdAt])
+}
+
+// ═══════════════════ D17.6 — HELM AI Phase 3 : briefing quotidien, ═══════════════════
+// ═══ alertes intelligentes (données dérivées — purgées avec le compte) ═══
+
+/// Briefing quotidien automatique (D17.6) — une ligne par utilisateur et par
+/// date. Assemblage structuré des données métier (sections) + accroche
+/// rédigée (headline/message), avec ou sans modèle selon la disponibilité.
+model AiBriefing {
+  id          String   @id @default(uuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  date        String // AAAA-MM-JJ (date civile du destinataire)
+  headline    String // titre court du jour (ex. « Trois priorités et un budget à surveiller »)
+  message     String // accroche rédigée (2-3 phrases, facts sourcés uniquement)
+  sections    Json // { agenda, tasks, budgets, dues, projects, habits? } — données agrégées
+  alertCount  Int      @default(0)
+  generatedBy String   @default("ON_DEMAND") // CRON | ON_DEMAND
+  modelKey    String? // null = assemblage déterministe (mode honnête sans clé)
+  degraded    Boolean  @default(false) // true = sans modèle (assemblage pur)
+  createdAt   DateTime @default(now())
+
+  @@unique([userId, date])
+  @@index([userId, createdAt])
+}
+
+/// Alerte intelligente (D17.6) — dérivée des données synchronisées par des
+/// règles métier (budgets, échéances, tâches, prêts) ; dédupliquée par
+/// dedupKey (une même alerte n'est jamais créée deux fois pour une période).
+model AiAlert {
+  id          String    @id @default(uuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  kind        String // BUDGET_THRESHOLD | DUE_ITEM_UPCOMING | DUE_ITEM_OVERDUE | TASK_OVERDUE | LOAN_DUE
+  severity    String    @default("NORMAL") // INFORMATION | NORMAL | IMPORTANT
+  title       String
+  body        String
+  payload     Json? // { budgetName, percent, dueDate, amount… } — minimisé
+  dedupKey    String // kind + référence + période (ex. budget-<id>-2026-10)
+  status      String    @default("UNREAD") // UNREAD | READ | DISMISSED
+  createdAt   DateTime  @default(now())
+  readAt      DateTime?
+  dismissedAt DateTime?
+
+  @@unique([userId, dedupKey])
+  @@index([userId, status])
+  @@index([userId, createdAt])
 }

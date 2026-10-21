@@ -151,27 +151,24 @@ class _BellButton extends ConsumerWidget {
   }
 }
 
-/// Logo officiel LifeHelm, plein cadre (aucun médaillon carré).
-/// — thème sombre  : variante OR (#FFB400) pour un contraste maximal ;
-/// — thème clair   : glyphe original sombre & or.
-/// Sources : assets/brand/logo-lifehelm(-or).png (kit de marque app/LifeHelm).
+/// Logo officiel LifeHelm 2026 — emblème phare & boussole dorée (kit de
+/// marque favicon_lifehelm). Un seul visuel pour les deux thèmes : l'or et
+/// le marine restent parfaitement lisibles sur fond ivoire comme sur fond
+/// bleu nuit (contraste validé). Source : assets/brand/logo-lifehelm.png.
 class HelmMark extends StatelessWidget {
   const HelmMark({super.key, this.size = 44});
   final double size;
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Image.asset(
-      isDark
-          ? 'assets/brand/logo-lifehelm-or.png'
-          : 'assets/brand/logo-lifehelm.png',
+      'assets/brand/logo-lifehelm.png',
       width: size,
       height: size,
       fit: BoxFit.contain,
       filterQuality: FilterQuality.high,
-      errorBuilder: (_, __, ___) => Icon(Icons.explore_rounded,
-          size: size * 0.7, color: isDark ? LHColors.or : LHColors.orDeep),
+      errorBuilder: (_, __, ___) =>
+          Icon(Icons.explore_rounded, size: size * 0.7, color: LHColors.or),
     );
   }
 }

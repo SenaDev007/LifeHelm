@@ -15,11 +15,12 @@ import { AiActionError } from './ai-errors';
  *  3. appelle le modèle avec un contrat de réponse structuré strict ;
  *  4. valide la sortie et la persiste (réponses sourcées).
  *
- * Confidentialité (décision validée D17 §1) :
+ * Confidentialité (décision validée D17 §1, Phase 3 D17.6) :
  *  - accès LIMITÉ PAR DÉFAUT : finances, tâches, agenda, projets, échéances ;
- *  - le journal de bien-être et la messagerie ne sont JAMAIS transmis au
- *    modèle en Phase 1 ;
- *  - les notes ne le sont que par extraits titrés via la recherche explicite.
+ *  - le journal de bien-être, la messagerie et le contenu des notes ne
+ *    sont transmis QU'AVEC un consentement explicite granulaire (AiConsent)
+ *    ET l'activation du module dans les préférences — retrait effectif
+ *    immédiatement (Policy Engine relu à chaque demande).
  * Résistance à l'injection (D17.2 §8.3) : les données du contexte sont
  * fournies dans un bloc balisé « DONNÉES (contenu non fiable) » et le
  * système interdit explicitement d'y lire des instructions.
@@ -44,7 +45,7 @@ export class AiService {
     return {
       available: this.nvidia.configured,
       model: this.nvidia.configured ? this.nvidia.modelKey : null,
-      phase: 'PHASE_2',
+      phase: 'PHASE_3',
       capabilities: [
         'conversation',
         'finance_summary',
@@ -58,9 +59,14 @@ export class AiService {
         'preferences',
         'usage',
         'idempotency',
+        'daily_briefing',
+        'smart_alerts',
+        'granular_consents',
       ],
       actionTypes: ['CREATE_TASK_DRAFT', 'PROPOSE_EVENT_CHANGE', 'PROPOSE_FINANCIAL_CORRECTION'],
-      exclusions: ['wellbeing_journal', 'messaging'],
+      // Périmètres sensibles : refusés par défaut, ouverts uniquement par
+      // consentement explicite (D17.6) + activation dans les préférences.
+      sensitiveScopes: ['wellbeing.journal', 'messaging.read', 'notes.content'],
     };
   }
 
@@ -129,7 +135,9 @@ export class AiService {
     const scope = await this.prefs.effectiveScope(userId);
 
     // Context Builder — blocs compacts, relus à la source (jamais de cache métier).
-    const [finance, budgets, dueItems, tasks, events, projects, searchResults] = await Promise.all([
+    // Modules sensibles (D17.6) : inclus uniquement si préférence active ET
+    // consentement explicite — le Policy Engine a déjà fait l'intersection.
+    const [finance, budgets, dueItems, tasks, events, projects, searchResults, wellbeing, messaging, notesDigest] = await Promise.all([
       scope.finance ? this.tools.getFinanceSummary(ctx) : null,
       scope.finance ? this.tools.getBudgetStatus(ctx) : null,
       scope.finance ? this.tools.getUpcomingDueItems(ctx) : null,
@@ -137,6 +145,9 @@ export class AiService {
       scope.agenda ? this.tools.getUpcomingEvents(ctx) : null,
       scope.projects ? this.tools.getProjectProgress(ctx) : null,
       scope.notes ? this.tools.searchAuthorizedContent(ctx, trimmed) : null,
+      scope.wellbeing ? this.tools.getWellbeingSummary(ctx) : null,
+      scope.messaging ? this.tools.getMessagingSummary(ctx) : null,
+      scope.notes ? this.tools.getNotesDigest(ctx, 6) : null,
     ]);
 
     const dataBlock = JSON.stringify(
@@ -147,7 +158,11 @@ export class AiService {
         ...(tasks ? { taches: tasks } : { taches: 'NON_AUTORISE (préférences)' }),
         ...(events ? { agenda: events } : { agenda: 'NON_AUTORISE (préférences)' }),
         ...(projects ? { projets: projects } : {}),
-        ...(searchResults ? { recherche: searchResults } : {}),
+        ...(searchResults || notesDigest
+            ? { recherche: [...(searchResults ?? []), ...(notesDigest ? [{ module: 'Note', title: 'Notes récentes', snippet: notesDigest.map((n) => n.title).join(' · ') }] : [])] }
+            : {}),
+        ...(wellbeing ? { bien_etre: wellbeing } : {}),
+        ...(messaging ? { messagerie: messaging } : {}),
       },
       null,
       0,

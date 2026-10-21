@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { AiActionError } from './ai-errors';
+import { MODULE_CONSENT } from './ai-consents.service';
 
 /**
  * HELM AI — Préférences et usage (D17.2 §7.2, §7.5).
@@ -23,10 +24,11 @@ export type ContextScope = (typeof CONTEXT_SCOPES)[number];
 export const AUTONOMY_LEVELS = ['SUGGEST', 'PREPARE', 'ASSIST'] as const;
 export const ALERT_THRESHOLDS = ['INFORMATION', 'NORMAL', 'IMPORTANT'] as const;
 
-/** Périmètres sensibles : JAMAIS transmis au modèle, même si contextScope
- *  dit true (Phase 2) — un consentement explicite (AiConsent) sera requis
- *  pour les ouvrir en Phase 3. */
-const ALWAYS_EXCLUDED: ContextScope[] = ['wellbeing', 'messaging'];
+/** Périmètres sensibles (D17 §1) : refusés par défaut — ils exigent, en plus
+ *  de l'activation dans contextScope, un consentement EXPLICITE AiConsent
+ *  (Phase 3, D17.6) : notes → notes.content, bien-être → wellbeing.journal,
+ *  messagerie → messaging.read. Voir MODULE_CONSENT (source de vérité). */
+const SENSITIVE_MODULES = ['notes', 'wellbeing', 'messaging'] as const;
 
 @Injectable()
 export class AiPreferencesService {
@@ -108,15 +110,28 @@ export class AiPreferencesService {
   }
 
   /**
-   * Périmètre effectif du contexte — intersection préférences × exclusions
-   * de sécurité. C'est LA fonction que l'orchestrateur consulte avant chaque
-   * appel au modèle (défense en profondeur : même un bug de prompt ne peut
-   * pas transmettre un module exclu).
+   * Périmètre effectif du contexte — Policy Engine (défense en profondeur).
+   *  • modules standards : ce que dit contextScope ;
+   *  • modules sensibles (notes, bien-être, messagerie) : contextScope ET
+   *    consentement explicite accordé — relus À CHAQUE demande, le retrait
+   *    d'un consentement est donc effectif immédiatement.
+   * C'est LA fonction que l'orchestrateur consulte avant chaque appel au
+   * modèle : même un bug de prompt ne peut pas transmettre un module exclu.
    */
   async effectiveScope(userId: string): Promise<Record<ContextScope, boolean>> {
-    const pref = await this.prisma.aiPreference.findUnique({ where: { userId } });
+    const [pref, consents] = await Promise.all([
+      this.prisma.aiPreference.findUnique({ where: { userId } }),
+      this.prisma.aiConsent.findMany({
+        where: { userId, granted: true },
+        select: { scope: true },
+      }),
+    ]);
+    const granted = new Set(consents.map((c) => c.scope));
     const scope = this.normalizeScope(pref?.contextScope);
-    for (const excluded of ALWAYS_EXCLUDED) scope[excluded] = false;
+    for (const module of SENSITIVE_MODULES) {
+      const requiredConsent = MODULE_CONSENT[module];
+      scope[module] = scope[module] && granted.has(requiredConsent);
+    }
     return scope;
   }
 
@@ -124,10 +139,10 @@ export class AiPreferencesService {
     const scope = raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : {};
     const result = {} as Record<ContextScope, boolean>;
     for (const key of CONTEXT_SCOPES) {
-      result[key] = key === 'notes' ? scope[key] === true : scope[key] !== false; // défaut: activé sauf notes/wellbeing/messaging
+      result[key] = key === 'notes' || key === 'wellbeing' || key === 'messaging'
+          ? scope[key] === true // sensibles : opt-in explicite dans les préférences
+          : scope[key] !== false; // standards : activés par défaut
     }
-    result.wellbeing = false;
-    result.messaging = false;
     return result;
   }
 

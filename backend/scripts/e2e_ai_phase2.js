@@ -49,16 +49,16 @@ const hashPayload = (payload) => {
   const token = login.json?.accessToken ?? login.json?.access_token;
   if (!token) { console.log('PAS DE TOKEN — ABANDON'); process.exit(1); }
 
-  // 1) Statut — Phase 2
+  // 1) Statut — Phase 3 (briefing, alertes, consentements ajoutés)
   const status = await api('GET', '/ai/status', null, token);
-  ok('status phase=PHASE_2', status.json?.phase === 'PHASE_2');
+  ok('status phase=PHASE_3', status.json?.phase === 'PHASE_3');
   ok('status actionTypes=3', Array.isArray(status.json?.actionTypes) && status.json.actionTypes.length === 3);
 
   // 2) Préférences — valeurs par défaut
   const prefs0 = await api('GET', '/ai/preferences', null, token);
   ok('prefs défauts (SUGGEST/NORMAL)', prefs0.json?.autonomyLevel === 'SUGGEST' && prefs0.json?.alertThreshold === 'NORMAL');
   ok('prefs scope finance=true notes=false', prefs0.json?.contextScope?.finance === true && prefs0.json?.contextScope?.notes === false);
-  ok('prefs scope wellbeing FORCÉ false', prefs0.json?.contextScope?.wellbeing === false);
+  ok('prefs scope wellbeing opt-in (false par défaut)', prefs0.json?.contextScope?.wellbeing === false);
 
   // 3) Mise à jour des préférences
   const prefs1 = await api('PATCH', '/ai/preferences', {
@@ -67,7 +67,10 @@ const hashPayload = (payload) => {
     dailyBriefing: true, briefingHour: 8,
   }, token);
   ok('prefs update ASSIST/IMPORTANT', prefs1.json?.autonomyLevel === 'ASSIST' && prefs1.json?.alertThreshold === 'IMPORTANT');
-  ok('prefs wellbeing TOUJOURS false (défense profondeur)', prefs1.json?.contextScope?.wellbeing === false && prefs1.json?.contextScope?.messaging === false);
+  // Phase 3 (D17.6) : les modules sensibles ne sont plus verrouillés dans les
+  // préférences — mais ils restent INERTES sans consentement explicite
+  // (AiConsent) : le Policy Engine fait l'intersection à chaque demande.
+  ok('prefs wellbeing=true MAIS consentement requis (Policy Engine v2)', prefs1.json?.contextScope?.wellbeing === true);
   const badPrefs = await api('PATCH', '/ai/preferences', { autonomyLevel: 'AUTOMATE' }, token);
   ok('prefs AUTOMATE refusé (validation)', badPrefs.status === 400 || badPrefs.status === 422);
 

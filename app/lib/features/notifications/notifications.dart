@@ -8,6 +8,7 @@ import '../../core/providers.dart';
 import '../../core/theme/tokens.dart';
 import '../../core/utils/formatters.dart' as fmt;
 import '../../core/widgets/common.dart';
+import '../ai/briefing.dart' show AiAlertsSection;
 
 // ═══════════════════════════ LABELS (D13) ═══════════════════════════
 
@@ -218,7 +219,10 @@ class NotificationsScreen extends ConsumerWidget {
   Widget _list(BuildContext context, WidgetRef ref,
       List<dbm.Notification> items,
       {required bool active}) {
-    if (items.isEmpty) {
+    // Onglet actif : les alertes intelligentes HELM AI (serveur, Phase 3)
+    // figurent en tête, avant les notifications locales des modules.
+    final leading = active ? const [AiAlertsSection()] : const <Widget>[];
+    if (items.isEmpty && leading.isEmpty) {
       return EmptyState(
         icon: active
             ? Icons.notifications_none_rounded
@@ -231,12 +235,32 @@ class NotificationsScreen extends ConsumerWidget {
             : 'Les notifications archivées sont conservées 90 jours.',
       );
     }
+    if (items.isEmpty) {
+      return ListView(
+          padding: const EdgeInsets.only(bottom: 24, top: 8),
+          children: [...leading, if (active) _emptyActive(theme: Theme.of(context))]);
+    }
     return ListView.builder(
       padding: const EdgeInsets.only(bottom: 24, top: 8),
-      itemCount: items.length,
-      itemBuilder: (context, i) => _NotifTile(n: items[i], activeList: active),
+      itemCount: leading.length + items.length,
+      itemBuilder: (context, i) => i < leading.length
+          ? leading[i]
+          : _NotifTile(
+              n: items[i - leading.length], activeList: active),
     );
   }
+
+  Widget _emptyActive({required ThemeData theme}) => Padding(
+        padding: const EdgeInsets.only(top: 32),
+        child: Column(children: [
+          Icon(Icons.notifications_none_rounded,
+              size: 44, color: theme.colorScheme.onSurfaceVariant),
+          const SizedBox(height: 8),
+          Text('Aucune notification de module active',
+              style: theme.textTheme.bodySmall
+                  ?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+        ]),
+      );
 }
 
 class _NotifTile extends ConsumerWidget {

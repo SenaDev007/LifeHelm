@@ -26,18 +26,25 @@ import 'features/career/career.dart';
 import 'features/finance/loans.dart';
 import 'main.dart' show bootState;
 import 'shell/shell.dart';
+import 'shell/splash.dart';
 
 /// Routeur LifeHelm — navigation principale à 5 destinations (CDC §4.5)
 /// + routes détaillées par module.
 final router = GoRouter(
-  initialLocation: '/',
+  initialLocation: '/splash',
   redirect: (context, state) {
+    // L'écran de lancement premium gère lui-même la suite (tap ou délai).
+    if (state.matchedLocation == '/splash') return null;
     final inOnboarding = state.matchedLocation == '/onboarding';
     if (!bootState.onboarded && !inOnboarding) return '/onboarding';
     if (bootState.onboarded && inOnboarding) return '/';
     return null;
   },
   routes: [
+    GoRoute(
+      path: '/splash',
+      builder: (context, state) => const PremiumSplashScreen(),
+    ),
     GoRoute(
       path: '/onboarding',
       builder: (context, state) => const OnboardingScreen(),

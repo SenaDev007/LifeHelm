@@ -17,7 +17,7 @@ export const SYNCABLE_TYPES: ReadonlySet<string> = new Set([
   // D05 Finances — jamais écrasées silencieusement (CDC §6.4)
   'FinancialAccount', 'FinancialCategory', 'FinancialTransaction', 'Transfer',
   'TransactionAllocation', 'Budget', 'BudgetAdjustment', 'BudgetCarryover',
-  'FinancialDueItem', 'AccountReconciliation',
+  'FinancialDueItem', 'AccountReconciliation', 'Loan',
   // D06 Notes & documents
   'Folder', 'Note', 'NoteVersion', 'Document', 'AttachmentLink',
   // D07 Projets & objectifs

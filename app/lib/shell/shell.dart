@@ -1,9 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
-import '../core/theme/tokens.dart';
-import 'widgets.dart';
-
 /// Shell principal — 5 destinations : Accueil, Finances, Activités, Agenda, Plus
 /// (CDC §4.5 Navigation principale).
 class ShellScreen extends StatelessWidget {
@@ -52,32 +49,3 @@ class ShellScreen extends StatelessWidget {
   }
 }
 
-/// Écran de chargement initial (base en cours d'ouverture).
-class BootSplash extends StatelessWidget {
-  const BootSplash({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: LHColors.noir,
-      body: Center(
-        child: Column(mainAxisSize: MainAxisSize.min, children: [
-          const HelmMark(size: 72),
-          const SizedBox(height: LHSpacing.lg),
-          Text('LifeHelm',
-              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                  color: LHColors.texteClair,
-                  fontFamily: LHFonts.titres,
-                  fontWeight: FontWeight.w800)),
-          const SizedBox(height: LHSpacing.xl),
-          const SizedBox(
-            width: 26,
-            height: 26,
-            child: CircularProgressIndicator(
-                color: LHColors.or, strokeWidth: 2.5),
-          ),
-        ]),
-      ),
-    );
-  }
-}

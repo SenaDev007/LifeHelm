@@ -31,11 +31,13 @@ export class ThrottleGuard implements CanActivate {
     );
     if (!config) return true;
 
-    const request = context.switchToHttp().getRequest<Request>();
+    const request = context.switchToHttp().getRequest<Request & { user?: { sub?: string } }>();
     const ip = (request.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim()
       ?? request.socket.remoteAddress
       ?? 'inconnu';
-    const key = `${ip}:${context.getHandler().name}`;
+    // Clé par utilisateur authentifié lorsque disponible (les clients derrière
+    // un NAT partagé ne s'entre-bloquent pas), sinon par IP (routes anonymes).
+    const key = `${request.user?.sub ?? ip}:${context.getHandler().name}`;
     const now = Date.now();
 
     let bucket = this.buckets.get(key);

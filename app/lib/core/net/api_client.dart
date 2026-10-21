@@ -388,6 +388,10 @@ class ApiClient {
           {Map<String, dynamic>? body, bool auth = true}) =>
       _send('PATCH', path, body: body, auth: auth);
 
+  Future<Map<String, dynamic>> put(String path,
+          {Map<String, dynamic>? body, bool auth = true}) =>
+      _send('PUT', path, body: body, auth: auth);
+
   Future<Map<String, dynamic>> delete(String path,
           {Map<String, dynamic>? body, bool auth = true}) =>
       _send('DELETE', path, body: body, auth: auth);
@@ -664,6 +668,52 @@ class ApiClient {
   Future<LhAiUsage> aiUsage() async {
     final data = await get('/ai/usage');
     return LhAiUsage.fromJson(data);
+  }
+
+  // ── HELM AI Phase 3 — briefing, alertes, consentements (D17.6) ──
+
+  /// Briefing du jour (sections structurées + accroche + alertes du jour).
+  /// Généré côté serveur au premier appel du jour, en cache ensuite.
+  Future<LhAiBriefingResponse> aiGetBriefing({String? date}) async {
+    final data = await get('/ai/briefing${date != null ? '?date=$date' : ''}');
+    return LhAiBriefingResponse.fromJson(data);
+  }
+
+  /// Alertes intelligentes (filtre optionnel : UNREAD | READ | DISMISSED).
+  Future<List<LhAiAlert>> aiListAlerts({String? status}) async {
+    final data =
+        await get('/ai/alerts${status != null ? '?status=$status' : ''}');
+    final list = data['alerts'] as List? ?? [];
+    return list
+        .map((a) => LhAiAlert.fromJson(Map<String, dynamic>.from(a as Map)))
+        .toList();
+  }
+
+  /// Marque une alerte comme lue (idempotent).
+  Future<LhAiAlert> aiMarkAlertRead(String id) async {
+    final data = await post('/ai/alerts/$id/read');
+    return LhAiAlert.fromJson(data);
+  }
+
+  /// Ignore une alerte (elle ne reviendra pas pour la même période).
+  Future<LhAiAlert> aiDismissAlert(String id) async {
+    final data = await post('/ai/alerts/$id/dismiss');
+    return LhAiAlert.fromJson(data);
+  }
+
+  /// Catalogue des consentements granulaires (périmètres sensibles).
+  Future<List<LhAiConsent>> aiGetConsents() async {
+    final data = await get('/ai/consents');
+    final list = data['scopes'] as List? ?? [];
+    return list
+        .map((c) => LhAiConsent.fromJson(Map<String, dynamic>.from(c as Map)))
+        .toList();
+  }
+
+  /// Octroie / retire un consentement — journalisé côté serveur.
+  Future<LhAiConsent> aiSetConsent(String scope, bool granted) async {
+    final data = await put('/ai/consents/$scope', body: {'granted': granted});
+    return LhAiConsent.fromJson(data);
   }
 
   /// Libère les ressources (contrôleur d'événements de session).
@@ -949,6 +999,164 @@ class LhAiAnswer {
         requiresConfirmation: json['requiresConfirmation'] == true,
         degraded: json['degraded'] == true,
         latencyMs: (json['latencyMs'] as num?)?.toInt(),
+      );
+}
+
+// ════════════════ MODÈLES HELM AI PHASE 3 (D17.6) ════════════════
+
+/// Réponse du point d'entrée briefing : soit `{enabled: false}` (opt-in
+/// absent), soit le briefing du jour + les alertes associées.
+class LhAiBriefingResponse {
+  const LhAiBriefingResponse({
+    required this.enabled,
+    this.briefingHour,
+    this.briefing,
+    this.alerts = const [],
+    this.generatedNow = false,
+  });
+  final bool enabled;
+  final int? briefingHour; // heure choisie quand le briefing est désactivé
+  final LhAiBriefing? briefing;
+  final List<LhAiAlert> alerts;
+  final bool generatedNow;
+
+  factory LhAiBriefingResponse.fromJson(Map<String, dynamic> json) =>
+      LhAiBriefingResponse(
+        enabled: json['enabled'] == true,
+        briefingHour: (json['briefingHour'] as num?)?.toInt(),
+        briefing: json['briefing'] == null
+            ? null
+            : LhAiBriefing.fromJson(
+                Map<String, dynamic>.from(json['briefing'] as Map)),
+        alerts: (json['alerts'] as List? ?? [])
+            .map((a) => LhAiAlert.fromJson(Map<String, dynamic>.from(a as Map)))
+            .toList(),
+        generatedNow: json['generatedNow'] == true,
+      );
+}
+
+/// Briefing quotidien — accroche rédigée + sections structurées
+/// (agenda, tâches, finances, budgets, échéances, prêts, projets,
+/// bien-être/messagerie si consentis).
+class LhAiBriefing {
+  const LhAiBriefing({
+    required this.date,
+    required this.headline,
+    required this.message,
+    required this.sections,
+    required this.alertCount,
+    required this.generatedBy,
+    required this.degraded,
+    required this.createdAt,
+  });
+  final String date; // AAAA-MM-JJ
+  final String headline;
+  final String message;
+  final Map<String, dynamic> sections;
+  final int alertCount;
+  final String generatedBy; // CRON | ON_DEMAND
+  final bool degraded; // true = assemblage déterministe (sans modèle)
+  final DateTime createdAt;
+
+  factory LhAiBriefing.fromJson(Map<String, dynamic> json) => LhAiBriefing(
+        date: json['date'] as String? ?? '',
+        headline: json['headline'] as String? ?? '',
+        message: json['message'] as String? ?? '',
+        sections:
+            Map<String, dynamic>.from(json['sections'] as Map? ?? {}),
+        alertCount: (json['alertCount'] as num?)?.toInt() ?? 0,
+        generatedBy: json['generatedBy'] as String? ?? 'ON_DEMAND',
+        degraded: json['degraded'] == true,
+        createdAt: json['createdAt'] == null
+            ? DateTime.now()
+            : DateTime.parse(json['createdAt'] as String),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'date': date,
+        'headline': headline,
+        'message': message,
+        'sections': sections,
+        'alertCount': alertCount,
+        'generatedBy': generatedBy,
+        'degraded': degraded,
+        'createdAt': createdAt.toIso8601String(),
+      };
+}
+
+/// Alerte intelligente (budget, échéance, tâche, prêt) — dédupliquée
+/// par le serveur, cycle UNREAD → READ / DISMISSED.
+class LhAiAlert {
+  const LhAiAlert({
+    required this.id,
+    required this.kind,
+    required this.severity,
+    required this.title,
+    required this.body,
+    required this.status,
+    required this.dedupKey,
+    this.payload,
+    required this.createdAt,
+  });
+  final String id;
+  final String kind; // BUDGET_THRESHOLD | DUE_ITEM_UPCOMING | …
+  final String severity; // INFORMATION | NORMAL | IMPORTANT
+  final String title;
+  final String body;
+  final String status; // UNREAD | READ | DISMISSED
+  final String dedupKey;
+  final Map<String, dynamic>? payload;
+  final DateTime createdAt;
+
+  factory LhAiAlert.fromJson(Map<String, dynamic> json) => LhAiAlert(
+        id: json['id'] as String,
+        kind: json['kind'] as String? ?? '',
+        severity: json['severity'] as String? ?? 'NORMAL',
+        title: json['title'] as String? ?? '',
+        body: json['body'] as String? ?? '',
+        status: json['status'] as String? ?? 'UNREAD',
+        dedupKey: json['dedupKey'] as String? ?? '',
+        payload: json['payload'] == null
+            ? null
+            : Map<String, dynamic>.from(json['payload'] as Map),
+        createdAt: json['createdAt'] == null
+            ? DateTime.now()
+            : DateTime.parse(json['createdAt'] as String),
+      );
+}
+
+/// Consentement granulaire — périmètre sensible (journal de bien-être,
+/// messagerie, notes) refusé par défaut, ouvert uniquement ici.
+class LhAiConsent {
+  const LhAiConsent({
+    required this.scope,
+    required this.module,
+    required this.label,
+    required this.description,
+    required this.granted,
+    this.grantedAt,
+    this.revokedAt,
+  });
+  final String scope; // wellbeing.journal | messaging.read | notes.content
+  final String module;
+  final String label;
+  final String description;
+  final bool granted;
+  final DateTime? grantedAt;
+  final DateTime? revokedAt;
+
+  factory LhAiConsent.fromJson(Map<String, dynamic> json) => LhAiConsent(
+        scope: json['scope'] as String? ?? '',
+        module: json['module'] as String? ?? '',
+        label: json['label'] as String? ?? '',
+        description: json['description'] as String? ?? '',
+        granted: json['granted'] == true,
+        grantedAt: json['grantedAt'] == null
+            ? null
+            : DateTime.parse(json['grantedAt'] as String),
+        revokedAt: json['revokedAt'] == null
+            ? null
+            : DateTime.parse(json['revokedAt'] as String),
       );
 }
 

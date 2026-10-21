@@ -195,10 +195,14 @@ export class AiTools {
       .slice(0, 12);
   }
 
-  /** D17 §3.1 — échéances à venir (ne diminuent pas le solde, D05 §10.6). */
-  async getUpcomingDueItems(ctx: ToolContext, days = 30) {
+  /** D17 §3.1 — échéances à venir (ne diminuent pas le solde, D05 §10.6).
+   *  `includeOverdue` (moteur d'alertes) : inclut aussi les échéances
+   *  ouvertes dont la date est dépassée (jusqu'à 60 jours en arrière). */
+  async getUpcomingDueItems(ctx: ToolContext, days = 30, includeOverdue = false) {
     const items = await this.resources(ctx.userId, ['FinancialDueItem'], 200);
-    const from = ctx.asOf;
+    const from = includeOverdue
+      ? new Date(ctx.asOf.getTime() - 60 * 86_400_000)
+      : ctx.asOf;
     const to = new Date(ctx.asOf.getTime() + days * 86_400_000);
     return items
       .map((i) => {
@@ -211,6 +215,7 @@ export class AiTools {
           expectedAmount: num(d.expectedAmount),
           currency: str(d.currency) === 'XOF' ? XOF : str(d.currency) ?? XOF,
           dueDate: due,
+          overdue: includeOverdue && due < ctx.asOf.toISOString().slice(0, 10),
         };
       })
       .filter((x): x is NonNullable<typeof x> => x !== null)
@@ -268,10 +273,12 @@ export class AiTools {
       .slice(0, limit);
   }
 
-  /** D17 §3.3 — agenda des prochains jours. */
+  /** D17 §3.3 — agenda des prochains jours (le jour même INCLUS). */
   async getUpcomingEvents(ctx: ToolContext, days = 7) {
     const events = await this.resources(ctx.userId, ['CalendarEvent'], 400);
-    const from = ctx.asOf;
+    // Début du jour courant : les événements d'aujourd'hui ne doivent pas être
+    // exclus par la comparaison avec l'heure courante (bug Phase 2 corrigé).
+    const from = new Date(`${ctx.asOf.toISOString().slice(0, 10)}T00:00:00.000Z`);
     const to = new Date(ctx.asOf.getTime() + days * 86_400_000);
     return events
       .map((e) => {
@@ -398,5 +405,147 @@ export class AiTools {
       if (results.length >= limit) break;
     }
     return results;
+  }
+
+  // ─────────────── Phase 3 (D17.6) : périmètres sensibles à consentement ───────────────
+
+  /**
+   * D17.6 — Tendances bien-être (consentement wellbeing.journal requis).
+   * Scores moyens et tendance sur 14 jours — JAMAIS le texte des notes
+   * (minimisation : chiffres uniquement).
+   */
+  async getWellbeingSummary(ctx: ToolContext) {
+    const rows = await this.resources(ctx.userId, ['WellbeingEntry'], 200);
+    const since = new Date(ctx.asOf.getTime() - 14 * 86_400_000);
+    const sinceKey = since.toISOString().slice(0, 10);
+    const entries = rows
+      .map((r) => (r.data as Record<string, unknown> | null) ?? {})
+      .filter((d) => {
+        const dateKey = str(d.dateKey);
+        return dateKey !== null && dateKey >= sinceKey;
+      })
+      .sort((a, b) => (str(b.dateKey) ?? '').localeCompare(str(a.dateKey) ?? ''));
+    if (entries.length === 0) {
+      return { window: '14 jours', entriesCount: 0, note: 'Aucun enregistrement sur la période.' };
+    }
+    const avg = (key: string): number | null => {
+      const vals = entries.map((e) => num(e[key])).filter((v) => v > 0);
+      return vals.length === 0 ? null : Math.round((vals.reduce((a, b) => a + b, 0) / vals.length) * 10) / 10;
+    };
+    // Tendance : moyenne des 3 derniers jours vs les précédents.
+    const trend = (key: string): 'up' | 'down' | 'stable' | null => {
+      const vals = entries.map((e) => num(e[key])).filter((v) => v > 0);
+      if (vals.length < 5) return null;
+      const recent = vals.slice(0, 3);
+      const older = vals.slice(3);
+      const rAvg = recent.reduce((a, b) => a + b, 0) / recent.length;
+      const oAvg = older.reduce((a, b) => a + b, 0) / older.length;
+      if (Math.abs(rAvg - oAvg) < 0.4) return 'stable';
+      return rAvg > oAvg ? 'up' : 'down';
+    };
+    return {
+      window: '14 jours',
+      entriesCount: entries.length,
+      moodAverage: avg('mood'), // 1..5 — subjectif, jamais un diagnostic
+      energyAverage: avg('energy'),
+      stressAverage: avg('stress'),
+      moodTrend: trend('mood'),
+      stressTrend: trend('stress'),
+      lastEntryDate: str(entries[0].dateKey),
+      asOf: ctx.asOf.toISOString(),
+    };
+  }
+
+  /**
+   * D17.6 — Activité messagerie (consentement messaging.read requis).
+   * Comptages uniquement — JAMAIS le contenu des messages.
+   */
+  async getMessagingSummary(ctx: ToolContext) {
+    const [messages, conversations] = await Promise.all([
+      this.resources(ctx.userId, ['Message'], 400),
+      this.resources(ctx.userId, ['Conversation'], 100),
+    ]);
+    const since = new Date(ctx.asOf.getTime() - 7 * 86_400_000);
+    let total = 0;
+    let unread = 0;
+    let recent = 0;
+    const byConversation = new Map<string, number>();
+    for (const m of messages) {
+      const d = (m.data as Record<string, unknown> | null) ?? {};
+      if (str(d.deletedAt)) continue;
+      total++;
+      const status = str(d.status) ?? 'SENT';
+      if (status !== 'READ' && status !== 'FAILED') unread++;
+      const sent = asDate(d.sentAt);
+      if (sent && sent >= since) recent++;
+      const conv = str(d.conversationId);
+      if (conv) byConversation.set(conv, (byConversation.get(conv) ?? 0) + 1);
+    }
+    const topThreads = [...byConversation.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5)
+      .map(([id, count]) => ({
+        id,
+        title: conversations.find((c) => str((c.data as Record<string, unknown>)?.id) === id)
+          ? str((conversations.find((c) => str((c.data as Record<string, unknown>)?.id) === id)!.data as Record<string, unknown>)?.title) ?? 'Conversation'
+          : 'Conversation',
+        messages: count,
+      }));
+    return {
+      window: '7 jours',
+      conversationsCount: conversations.length,
+      messagesTotal: total,
+      messagesUnread: unread,
+      messagesRecent: recent,
+      activeThreads: topThreads,
+      asOf: ctx.asOf.toISOString(),
+    };
+  }
+
+  /**
+   * D17.6 — Digest des notes (consentement notes.content requis).
+   * Titres + extraits courts des notes récentes (maximisation bornée).
+   */
+  async getNotesDigest(ctx: ToolContext, limit = 8) {
+    const rows = await this.resources(ctx.userId, ['Note'], 200);
+    return rows
+      .map((r) => {
+        const d = (r.data as Record<string, unknown> | null) ?? {};
+        if (str(d.trashedAt)) return null;
+        const plain = (str(d.plainText) ?? '').replace(/\s+/g, ' ').trim();
+        return {
+          title: str(d.title) ?? '(sans titre)',
+          pinned: d.pinned === true,
+          excerpt: plain.slice(0, 120) || '(vide)',
+          updatedAt: r.updatedAt.toISOString(),
+        };
+      })
+      .filter((x): x is NonNullable<typeof x> => x !== null)
+      .slice(0, limit);
+  }
+
+  /**
+   * D17.6 — Prêts et emprunts actifs (règles d'alertes intelligentes).
+   * Utilisé par le moteur d'alertes, pas transmis tel quel au modèle.
+   */
+  async getActiveLoans(ctx: ToolContext) {
+    const rows = await this.resources(ctx.userId, ['Loan'], 100);
+    const today = ctx.asOf.toISOString().slice(0, 10);
+    return rows
+      .map((r) => {
+        const d = (r.data as Record<string, unknown> | null) ?? {};
+        if (str(d.status) !== 'ACTIVE') return null;
+        const expected = str(d.expectedAt);
+        return {
+          id: str(d.id) ?? '',
+          direction: str(d.direction) === 'LENT' ? 'LENT' : 'BORROWED',
+          counterparty: str(d.counterparty) ?? '—',
+          principalAmount: num(d.principalAmount),
+          currency: str(d.currency) === 'XOF' ? XOF : str(d.currency) ?? XOF,
+          expectedAt: expected,
+          overdue: expected !== null && expected < today,
+        };
+      })
+      .filter((x): x is NonNullable<typeof x> => x !== null);
   }
 }

@@ -218,7 +218,9 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
           ]),
         ),
         const SizedBox(height: LHSpacing.lg),
-        LHIllustration(asset: 'assets/illustrations/onboard-welcome.png'),
+        // (L'ancienne illustration de bienvenue — roue de gouvernail or —
+        // a été retirée : le nouvel emblème HelmMark ci-dessus est LA marque
+        // LifeHelm 2026, et le visuel plein cadre vit sur l'écran de lancement.)
         const SizedBox(height: LHSpacing.xl),
         if (connected) ...[
           Icon(Icons.cloud_done_outlined, color: LHColors.emeraudeClair,

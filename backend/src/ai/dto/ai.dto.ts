@@ -68,3 +68,10 @@ export class UpdatePreferencesDto {
   @MaxLength(8)
   language?: string;
 }
+
+/** Consentement granulaire (D17.6) — octroi/retrait explicite d'un périmètre
+ *  sensible ; chaque changement est journalisé côté serveur. */
+export class SetConsentDto {
+  @IsBoolean()
+  granted!: boolean;
+}

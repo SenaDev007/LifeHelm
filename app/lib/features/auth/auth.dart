@@ -370,7 +370,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     (
       'Votre identité',
       'Comment devons-nous vous appeler ?',
-      'assets/illustrations/onboard-welcome.png',
+      'assets/illustrations/onboard-spaces.png',
     ),
     (
       'Votre téléphone',

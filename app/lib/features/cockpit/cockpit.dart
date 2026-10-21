@@ -11,6 +11,7 @@ import '../../core/utils/money.dart';
 import '../../core/widgets/common.dart';
 import '../../shell/widgets.dart' show LhAppBar;
 import '../agenda/agenda.dart' as agenda;
+import '../ai/briefing.dart';
 import '../finance/finance.dart' as fin;
 import '../tasks/tasks.dart' as tasks;
 
@@ -68,6 +69,9 @@ class CockpitScreen extends ConsumerWidget {
         padding: const EdgeInsets.only(bottom: 96),
         children: [
           _Greeting(firstName: firstName, spaceName: space?.name ?? ''),
+          // Briefing quotidien HELM AI (Phase 3, D17.6) — invisible si
+          // l'utilisateur ne l'a pas activé dans ses préférences IA.
+          const BriefingCard(),
           // Sections ordonnées et filtrées selon les préférences (D02 §7.1-3).
           for (final key in prefs.sectionOrder)
             if (prefs.visibleSections.contains(key))

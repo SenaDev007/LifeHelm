@@ -11,6 +11,9 @@ const NEON = 'postgresql://neondb_owner:npg_i4rolEXA9fpy@ep-small-mouse-al74os4c
   console.log(`comptes QA à purger : ${users.rows.length}`);
   for (const u of users.rows) {
     await pg.query('DELETE FROM "AiAuditEvent" WHERE "userId"=$1', [u.id]);
+    await pg.query('DELETE FROM "AiBriefing" WHERE "userId"=$1', [u.id]); // Phase 3
+    await pg.query('DELETE FROM "AiAlert" WHERE "userId"=$1', [u.id]); // Phase 3
+    await pg.query('DELETE FROM "AiConsent" WHERE "userId"=$1', [u.id]); // Phase 3
     await pg.query('DELETE FROM "AiToolExecution" WHERE "userId"=$1', [u.id]);
     await pg.query('DELETE FROM "AiIdempotencyRecord" WHERE "userId"=$1', [u.id]);
     await pg.query('DELETE FROM "AiUsageRecord" WHERE "userId"=$1', [u.id]);
@@ -31,7 +34,10 @@ const NEON = 'postgresql://neondb_owner:npg_i4rolEXA9fpy@ep-small-mouse-al74os4c
       (SELECT COUNT(*)::int FROM "Resource") AS resources,
       (SELECT COUNT(*)::int FROM "AiIdempotencyRecord") AS idem,
       (SELECT COUNT(*)::int FROM "AiAuditEvent") AS audit,
-      (SELECT COUNT(*)::int FROM "AiUsageRecord") AS usage
+      (SELECT COUNT(*)::int FROM "AiUsageRecord") AS usage,
+      (SELECT COUNT(*)::int FROM "AiBriefing") AS briefings,
+      (SELECT COUNT(*)::int FROM "AiAlert") AS alerts,
+      (SELECT COUNT(*)::int FROM "AiConsent") AS consents
   `);
   console.log('état final :', counts.rows[0]);
   await pg.end();

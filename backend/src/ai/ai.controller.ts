@@ -9,6 +9,7 @@ import {
   Param,
   Patch,
   Post,
+  Put,
   Query,
   Req,
   UseGuards,
@@ -21,27 +22,33 @@ import { CurrentUser, AccessTokenPayload } from '../common/current-user.decorato
 import { AiService } from './ai.service';
 import { AiActionsService } from './ai-actions.service';
 import { AiPreferencesService } from './ai-preferences.service';
+import { AiConsentsService } from './ai-consents.service';
+import { AiInsightsService } from './ai-insights.service';
 import { NvidiaProviderError } from './nvidia.provider';
 import {
   CancelActionDto,
   ConfirmActionDto,
   CreateConversationDto,
   SendMessageDto,
+  SetConsentDto,
   UpdatePreferencesDto,
 } from './dto/ai.dto';
 
 /**
- * API HELM AI — Dossiers 17.2 / 17.4 (préfixe global /api/v1).
+ * API HELM AI — Dossiers 17.2 / 17.4 / 17.6 (préfixe global /api/v1).
  * Authentification JWT obligatoire ; les identifiants d'URL ne sont jamais
  * des preuves d'autorisation (vérification du propriétaire à chaque route).
+ * NB : JwtAuthGuard AVANT ThrottleGuard → quota par utilisateur (pas par IP).
  */
 @Controller('ai')
-@UseGuards(ThrottleGuard, JwtAuthGuard)
+@UseGuards(JwtAuthGuard, ThrottleGuard)
 export class AiController {
   constructor(
     private readonly ai: AiService,
     private readonly actions: AiActionsService,
     private readonly prefs: AiPreferencesService,
+    private readonly consents: AiConsentsService,
+    private readonly insights: AiInsightsService,
   ) {}
 
   /** Disponibilité de l'assistant (AVAILABLE / OFFLINE — D17.3 §17.4). */
@@ -213,5 +220,76 @@ export class AiController {
   @Get('usage')
   async usage(@CurrentUser() user: AccessTokenPayload) {
     return this.prefs.usage(user.sub);
+  }
+
+  // ─────────────── Briefing quotidien (D17.6 — Phase 3) ───────────────
+
+  /**
+   * Briefing du jour (sections structurées + accroche + alertes du jour).
+   * Cache par date : généré une fois, renvoyé tel quel ensuite.
+   */
+  @Get('briefing')
+  @Throttle(10, 60_000)
+  briefing(@CurrentUser() user: AccessTokenPayload, @Query('date') date?: string) {
+    return this.insights.getOrGenerate(user.sub, date, 'ON_DEMAND');
+  }
+
+  // ─────────────── Alertes intelligentes (D17.6 — Phase 3) ───────────────
+
+  /** Liste des alertes (filtre ?status=UNREAD|READ|DISMISSED). */
+  @Get('alerts')
+  @Throttle(20, 60_000)
+  alerts(@CurrentUser() user: AccessTokenPayload, @Query('status') status?: string) {
+    return this.insights.listAlerts(user.sub, status);
+  }
+
+  /** Marquer comme lue (idempotent). */
+  @Post('alerts/:id/read')
+  @HttpCode(200)
+  @Throttle(30, 60_000)
+  async readAlert(@CurrentUser() user: AccessTokenPayload, @Param('id') id: string) {
+    const alert = await this.insights.markRead(user.sub, id);
+    if (!alert) {
+      throw new HttpException(
+        { statusCode: HttpStatus.NOT_FOUND, code: 'NOT_FOUND', message: 'Alerte introuvable.' },
+        HttpStatus.NOT_FOUND,
+      );
+    }
+    return alert;
+  }
+
+  /** Ignorer l'alerte (pas de recréation pour la même période). */
+  @Post('alerts/:id/dismiss')
+  @HttpCode(200)
+  @Throttle(30, 60_000)
+  async dismissAlert(@CurrentUser() user: AccessTokenPayload, @Param('id') id: string) {
+    const alert = await this.insights.dismiss(user.sub, id);
+    if (!alert) {
+      throw new HttpException(
+        { statusCode: HttpStatus.NOT_FOUND, code: 'NOT_FOUND', message: 'Alerte introuvable.' },
+        HttpStatus.NOT_FOUND,
+      );
+    }
+    return alert;
+  }
+
+  // ─────────────── Consentements granulaires (D17.6 — Phase 3) ───────────────
+
+  /** Catalogue des périmètres sensibles + état courant. */
+  @Get('consents')
+  async listConsents(@CurrentUser() user: AccessTokenPayload) {
+    return this.consents.list(user.sub);
+  }
+
+  /** Octroi / retrait explicite d'un consentement — journalisé. */
+  @Put('consents/:scope')
+  @Throttle(15, 60_000)
+  setConsent(
+    @CurrentUser() user: AccessTokenPayload,
+    @Param('scope') scope: string,
+    @Body(new ValidationPipe({ transform: true })) dto: SetConsentDto,
+    @Req() req: Request,
+  ) {
+    return this.consents.set(user.sub, scope, dto.granted, req.ip);
   }
 }

@@ -3,17 +3,21 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/net/api_client.dart';
 import '../../core/theme/tokens.dart';
+import 'briefing.dart' show aiBriefingProvider;
 import '../../core/widgets/common.dart';
 import '../../shell/widgets.dart' show LhAppBar;
 
-/// Préférences HELM AI (D17.2 §7.2) — autonomie, seuil d'alerte,
-/// périmètre de contexte, briefing quotidien et transparence d'usage.
+/// Préférences HELM AI (D17.2 §7.2 + D17.6 Phase 3) — autonomie, seuil
+/// d'alerte, périmètre de contexte, consentements granulaires, briefing
+/// quotidien et transparence d'usage.
 ///
 /// Confidentialité par conception :
-/// - le journal de bien-être et la messagerie sont EXCLUS par le serveur,
-///   quel que soit le réglage ici (défense en profondeur) ;
+/// - les périmètres sensibles (journal de bien-être, messagerie, notes)
+///   exigent UNE DOUBLE CLÉ : activation dans le périmètre de contexte ET
+///   consentement explicite dédié — refusés par défaut sinon ;
 /// - désactiver un module ici signifie qu'il n'est NI lu NI transmis au
-///   modèle lors des demandes.
+///   modèle lors des demandes ; le retrait d'un consentement est effectif
+///   immédiatement (le serveur relit les consentements à chaque demande).
 class AiPreferencesScreen extends ConsumerStatefulWidget {
   const AiPreferencesScreen({super.key});
 
@@ -25,6 +29,7 @@ class AiPreferencesScreen extends ConsumerStatefulWidget {
 class _AiPreferencesScreenState extends ConsumerState<AiPreferencesScreen> {
   LhAiPreferences? _prefs;
   LhAiUsage? _usage;
+  List<LhAiConsent> _consents = [];
   bool _loading = true;
   bool _saving = false;
   String? _error;
@@ -41,15 +46,22 @@ class _AiPreferencesScreenState extends ConsumerState<AiPreferencesScreen> {
       final client = ref.read(apiClientProvider);
       final prefs = await client.aiGetPreferences();
       LhAiUsage? usage;
+      List<LhAiConsent> consents = [];
       try {
         usage = await client.aiUsage();
       } catch (_) {
         usage = null; // transparence best-effort
       }
+      try {
+        consents = await client.aiGetConsents();
+      } catch (_) {
+        consents = []; // consentements best-effort (Phase 3)
+      }
       if (!mounted) return;
       setState(() {
         _prefs = prefs;
         _usage = usage;
+        _consents = consents;
         _loading = false;
         _error = null;
       });
@@ -69,6 +81,10 @@ class _AiPreferencesScreenState extends ConsumerState<AiPreferencesScreen> {
       final prefs = await ref.read(apiClientProvider).aiUpdatePreferences(patch);
       if (!mounted) return;
       setState(() => _prefs = prefs);
+      // Le briefing dépend des préférences : la carte cockpit se réévalue.
+      if (patch.containsKey('dailyBriefing')) {
+        ref.invalidate(aiBriefingProvider);
+      }
     } catch (e) {
       if (mounted) lhToast(context, apiErrorText(e));
     } finally {
@@ -96,6 +112,8 @@ class _AiPreferencesScreenState extends ConsumerState<AiPreferencesScreen> {
                       _alertsCard(context),
                       const SizedBox(height: LHSpacing.md),
                       _scopeCard(context),
+                      const SizedBox(height: LHSpacing.md),
+                      _consentsCard(context),
                       const SizedBox(height: LHSpacing.md),
                       _briefingCard(context),
                       const SizedBox(height: LHSpacing.md),
@@ -266,13 +284,14 @@ class _AiPreferencesScreenState extends ConsumerState<AiPreferencesScreen> {
         ),
         const Divider(height: LHSpacing.lg),
         Row(children: [
-          Icon(Icons.lock_outline_rounded,
+          Icon(Icons.shield_outlined,
               size: 16, color: theme.colorScheme.onSurfaceVariant),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
-              'Journal de bien-être et messagerie : jamais transmis — '
-              'ce réglage est verrouillé par conception.',
+              'Les périmètres sensibles (bien-être, messagerie, notes) exigent '
+              'une double clé : activation ici ET consentement explicite '
+              'ci-dessous.',
               style: theme.textTheme.bodySmall?.copyWith(
                   color: theme.colorScheme.onSurfaceVariant,
                   fontStyle: FontStyle.italic),
@@ -281,6 +300,135 @@ class _AiPreferencesScreenState extends ConsumerState<AiPreferencesScreen> {
         ]),
       ]),
     );
+  }
+
+  /// Consentements granulaires (D17.6 — Phase 3) — chaque périmètre
+  /// sensible est REFUSÉ par défaut ; l'octroi passe par un dialogue
+  /// explicite, le retrait est immédiat et sans friction.
+  Widget _consentsCard(BuildContext context) {
+    final theme = Theme.of(context);
+    return LHCard(
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        const SectionHeader('Consentements sensibles',
+            overline: 'Double clé — refusés par défaut'),
+        const SizedBox(height: LHSpacing.sm),
+        Text(
+          'Ces données ne sont transmises à HELM AI que si vous l\'autorisez '
+          'explicitement, en plus de l\'activation du module ci-dessus. '
+          'Chaque décision est journalisée ; le retrait est immédiat.',
+          style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant, height: 1.45),
+        ),
+        const SizedBox(height: LHSpacing.sm),
+        if (_consents.isEmpty)
+          Row(children: [
+            Icon(Icons.lock_outline_rounded,
+                size: 16, color: theme.colorScheme.onSurfaceVariant),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                'Journal de bien-être, messagerie et contenu des notes : '
+                'jamais transmis.',
+                style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                    fontStyle: FontStyle.italic),
+              ),
+            ),
+          ])
+        else
+          for (final c in _consents)
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              title: Text(c.label),
+              subtitle: Text(
+                c.granted
+                    ? '${_consentSummary(c)}\nAutorisé${c.grantedAt != null ? ' le ${c.grantedAt!.day}/${c.grantedAt!.month}/${c.grantedAt!.year}' : ''} — révocable à tout moment.'
+                    : c.description,
+                style: TextStyle(height: 1.35),
+              ),
+              isThreeLine: true,
+              value: c.granted,
+              onChanged: _saving
+                  ? null
+                  : (v) => v
+                      ? _askConsent(c)
+                      : _setConsent(c, false),
+            ),
+        if (_consents.isNotEmpty) ...[
+          const Divider(height: LHSpacing.lg),
+          Row(children: [
+            Icon(Icons.info_outline_rounded,
+                size: 16, color: theme.colorScheme.onSurfaceVariant),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                'Le périmètre reste filtré par le serveur à chaque demande : '
+                'un module désactivé dans le périmètre de contexte reste muet, '
+                'même avec un consentement accordé.',
+                style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant, height: 1.4),
+              ),
+            ),
+          ]),
+        ],
+      ]),
+    );
+  }
+
+  String _consentSummary(LhAiConsent c) => c.description;
+
+  /// Dialogue d'octroi explicite — l'utilisateur voit EXACTEMENT ce qui
+  /// sera transmis avant d'autoriser (jamais d'octroi implicite).
+  Future<void> _askConsent(LhAiConsent c) async {
+    final theme = Theme.of(context);
+    final granted = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Autoriser « ${c.label} »'),
+        content: Column(mainAxisSize: MainAxisSize.min, children: [
+          Text('Ce qui sera transmis à HELM AI :',
+              style: theme.textTheme.labelLarge),
+          const SizedBox(height: 8),
+          Text(c.description,
+              style: theme.textTheme.bodyMedium?.copyWith(height: 1.5)),
+          const SizedBox(height: 12),
+          Text(
+            'Vous pouvez retirer cette autorisation à tout moment, effet '
+            'immédiat. Cette décision est journalisée (qui, quand, quoi — '
+            'jamais le contenu lui-même).',
+            style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant, height: 1.45),
+          ),
+        ]),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Annuler'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('J\'autorise'),
+          ),
+        ],
+      ),
+    );
+    if (granted == true) _setConsent(c, true);
+  }
+
+  Future<void> _setConsent(LhAiConsent c, bool granted) async {
+    if (_saving) return;
+    setState(() => _saving = true);
+    try {
+      final client = ref.read(apiClientProvider);
+      await client.aiSetConsent(c.scope, granted);
+      final consents = await client.aiGetConsents();
+      if (!mounted) return;
+      setState(() => _consents = consents);
+    } catch (e) {
+      if (mounted) lhToast(context, apiErrorText(e));
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
   }
 
   Widget _briefingCard(BuildContext context) {
