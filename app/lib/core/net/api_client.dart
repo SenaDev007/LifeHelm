@@ -581,10 +581,202 @@ class ApiClient {
     );
   }
 
+  // ── HELM AI (Dossier 17 — Phase 1) ──
+
+  /// Disponibilité de l'assistant (AVAILABLE / OFFLINE, jamais mensonger).
+  Future<LhAiStatus> aiStatus() async {
+    final data = await get('/ai/status');
+    return LhAiStatus.fromJson(data);
+  }
+
+  Future<String> aiCreateConversation(
+      {String entryPoint = 'CENTRAL_ASSISTANT', String? moduleContext}) async {
+    final data = await post('/ai/conversations', body: {
+      'entryPoint': entryPoint,
+      if (moduleContext != null) 'moduleContext': moduleContext,
+    });
+    return data['id'] as String;
+  }
+
+  Future<List<LhAiConversationSummary>> aiListConversations() async {
+    final data = await get('/ai/conversations');
+    final list = data['conversations'] as List? ?? [];
+    return list
+        .map((c) =>
+            LhAiConversationSummary.fromJson(Map<String, dynamic>.from(c as Map)))
+        .toList();
+  }
+
+  /// Conversation + messages (null si introuvable / non autorisé).
+  Future<LhAiConversation?> aiGetConversation(String id) async {
+    final data = await get('/ai/conversations/$id');
+    return LhAiConversation.fromJson(data);
+  }
+
+  Future<void> aiDeleteConversation(String id) async {
+    await delete('/ai/conversations/$id');
+  }
+
+  /// Envoie une demande et renvoie la réponse structurée HELM AI.
+  Future<LhAiAnswer> aiSendMessage(String conversationId, String message) async {
+    final data = await post('/ai/conversations/$conversationId/messages',
+        body: {'message': message});
+    return LhAiAnswer.fromJson(data);
+  }
+
   /// Libère les ressources (contrôleur d'événements de session).
   void dispose() {
     _sessionExpired.close();
   }
+}
+
+// ══════════════════════════ MODÈLES HELM AI (D17) ══════════════════════════
+
+/// Disponibilité de l'assistant (AVAILABLE / OFFLINE — D17.3 §17.4).
+class LhAiStatus {
+  const LhAiStatus(
+      {required this.available, this.model, required this.capabilities});
+  final bool available;
+  final String? model;
+  final List<String> capabilities;
+
+  factory LhAiStatus.fromJson(Map<String, dynamic> json) => LhAiStatus(
+        available: json['available'] == true,
+        model: json['model'] as String?,
+        capabilities: (json['capabilities'] as List? ?? [])
+            .map((c) => c as String)
+            .toList(),
+      );
+}
+
+class LhAiConversationSummary {
+  const LhAiConversationSummary(
+      {required this.id, this.title, required this.updatedAt});
+  final String id;
+  final String? title;
+  final DateTime updatedAt;
+
+  factory LhAiConversationSummary.fromJson(Map<String, dynamic> json) =>
+      LhAiConversationSummary(
+        id: json['id'] as String,
+        title: json['title'] as String?,
+        updatedAt: json['updatedAt'] == null
+            ? DateTime.now()
+            : DateTime.parse(json['updatedAt'] as String),
+      );
+}
+
+/// Message d'une conversation (rôle utilisateur ou assistant).
+class LhAiMessage {
+  const LhAiMessage(
+      {required this.role,
+      required this.content,
+      this.answerType,
+      this.structured});
+  final String role; // USER | ASSISTANT
+  final String content;
+  final String? answerType;
+  final Map<String, dynamic>? structured;
+
+  factory LhAiMessage.fromJson(Map<String, dynamic> json) => LhAiMessage(
+        role: json['role'] as String? ?? 'USER',
+        content: json['content'] as String? ?? '',
+        answerType: json['answerType'] as String?,
+        structured: json['structured'] == null
+            ? null
+            : Map<String, dynamic>.from(json['structured'] as Map),
+      );
+}
+
+class LhAiConversation {
+  const LhAiConversation(
+      {required this.id, this.title, required this.messages});
+  final String id;
+  final String? title;
+  final List<LhAiMessage> messages;
+
+  factory LhAiConversation.fromJson(Map<String, dynamic> json) =>
+      LhAiConversation(
+        id: json['id'] as String,
+        title: json['title'] as String?,
+        messages: (json['messages'] as List? ?? [])
+            .map((m) => LhAiMessage.fromJson(Map<String, dynamic>.from(m as Map)))
+            .toList(),
+      );
+}
+
+/// Fait vérifié cité par HELM AI (valeur réellement lue dans les modules).
+class LhAiFact {
+  const LhAiFact({required this.key, required this.value});
+  final String key;
+  final String value;
+
+  factory LhAiFact.fromJson(Map<String, dynamic> json) => LhAiFact(
+        key: json['key'] as String? ?? '',
+        value: '${json['value'] ?? ''}',
+      );
+}
+
+/// Action proposée par HELM AI — JAMAIS exécutée sans confirmation
+/// explicite de l'utilisateur (cycle D17.2 §6).
+class LhAiProposedAction {
+  const LhAiProposedAction(
+      {required this.actionType,
+      required this.title,
+      this.dueDate,
+      this.priority = 'NORMAL'});
+  final String actionType; // CREATE_TASK (phase 1)
+  final String title;
+  final String? dueDate;
+  final String priority;
+
+  factory LhAiProposedAction.fromJson(Map<String, dynamic> json) =>
+      LhAiProposedAction(
+        actionType: json['actionType'] as String? ?? 'CREATE_TASK',
+        title: json['title'] as String? ?? '',
+        dueDate: json['dueDate'] as String?,
+        priority: json['priority'] as String? ?? 'NORMAL',
+      );
+}
+
+/// Réponse structurée HELM AI (contrat D17.4 §4.2) : réponse, faits
+/// vérifiés, hypothèses, incertitudes et actions proposées.
+class LhAiAnswer {
+  const LhAiAnswer({
+    required this.answer,
+    this.answerType = 'INFORMATION',
+    this.facts = const [],
+    this.assumptions = const [],
+    this.uncertainties = const [],
+    this.proposedActions = const [],
+    this.latencyMs,
+  });
+  final String answer;
+  final String answerType;
+  final List<LhAiFact> facts;
+  final List<String> assumptions;
+  final List<String> uncertainties;
+  final List<LhAiProposedAction> proposedActions;
+  final int? latencyMs;
+
+  factory LhAiAnswer.fromJson(Map<String, dynamic> json) => LhAiAnswer(
+        answer: json['answer'] as String? ?? '',
+        answerType: json['answerType'] as String? ?? 'INFORMATION',
+        facts: (json['facts'] as List? ?? [])
+            .map((f) => LhAiFact.fromJson(Map<String, dynamic>.from(f as Map)))
+            .toList(),
+        assumptions: (json['assumptions'] as List? ?? [])
+            .map((a) => a as String)
+            .toList(),
+        uncertainties: (json['uncertainties'] as List? ?? [])
+            .map((u) => u as String)
+            .toList(),
+        proposedActions: (json['proposedActions'] as List? ?? [])
+            .map((a) =>
+                LhAiProposedAction.fromJson(Map<String, dynamic>.from(a as Map)))
+            .toList(),
+        latencyMs: (json['latencyMs'] as num?)?.toInt(),
+      );
 }
 
 // ══════════════════════════ PROVIDERS RIVERPOD ══════════════════════════

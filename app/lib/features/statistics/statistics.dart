@@ -556,14 +556,14 @@ class _ProjectEvolutionTile extends ConsumerWidget {
 
 /// Palette de répartition (or, émeraude, bleu, ambre, violet, rouge…).
 const List<Color> _palette = [
-  Color(0xFFFFD700),
-  Color(0xFF10A878),
-  Color(0xFF5B8DD9),
-  Color(0xFFE8720C),
-  Color(0xFF8A6DD9),
-  Color(0xFFE05B5B),
-  Color(0xFF5BB8D9),
-  Color(0xFFC9A227),
-  Color(0xFF087F5B),
-  Color(0xFF8A8A8A),
+  Color(0xFFFFB400), // or solaire
+  Color(0xFF0B3D91), // navy royal
+  Color(0xFF3B82F6), // bleu électrique
+  Color(0xFF22C55E), // vert succès
+  Color(0xFFFF7A00), // orange énergie
+  Color(0xFF8B5CF6), // violet
+  Color(0xFF38BDF8), // ciel
+  Color(0xFF14B8A6), // teal
+  Color(0xFFEC4899), // rose
+  Color(0xFF64748B), // gris ardoise
 ];

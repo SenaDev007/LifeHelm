@@ -2,10 +2,12 @@ import 'package:flutter/material.dart';
 
 import 'tokens.dart';
 
-/// Thèmes LifeHelm — clair (ivoire), sombre (noir premium) et système (CDC §4.3).
-/// La palette de marque est commune ; sa distribution varie pour la lisibilité :
-/// — sombre : or pur (#FFD700) en accents principaux ;
-/// — clair : or profond (#C9A227) + émeraude profonde pour garantir le contraste.
+/// Thèmes LifeHelm — palette officielle 2026 (Navy Royal + Or solaire).
+/// Interface claire par défaut : fond ivoire #FAFBFF, cartes blanches,
+/// titres Navy Royal, actions prioritaires Or solaire (texte bleu nuit),
+/// interactions Bleu électrique, réussite Vert succès, rappels Orange énergie.
+/// — clair : Navy Royal #0B3D91 en boutons principaux, or en accents ;
+/// — sombre : Bleu nuit #0F172A en fond, or solaire en accents principaux.
 class LHTheme {
   static TextTheme _textTheme(Brightness b) {
     final base = (b == Brightness.dark ? Typography.whiteCupertino : Typography.blackCupertino)
@@ -31,40 +33,40 @@ class LHTheme {
 
   static ThemeData dark() {
     final scheme = ColorScheme.dark(
-      primary: LHColors.or,
-      onPrimary: LHColors.noir,
-      secondary: LHColors.emeraudeClair,
-      onSecondary: LHColors.noir,
-      tertiary: LHColors.emeraude,
-      onTertiary: Colors.white,
+      primary: LHColors.or, // or solaire — accents principaux sur bleu nuit
+      onPrimary: LHColors.navyInk, // texte bleu nuit sur or (contraste)
+      secondary: LHColors.electriqueClair,
+      onSecondary: LHColors.navyInk,
+      tertiary: LHColors.vertSucces,
+      onTertiary: LHColors.navyInk,
       surface: LHColors.noirSurface,
       onSurface: LHColors.texteClair,
       surfaceContainerHighest: LHColors.noirElevated,
       onSurfaceVariant: LHColors.texteSecondaire,
-      error: LHColors.erreur,
-      onError: Colors.white,
+      error: const Color(0xFFF87171),
+      onError: LHColors.navyInk,
       outline: LHColors.bordureSombre,
-      outlineVariant: const Color(0xFF262626),
+      outlineVariant: const Color(0xFF22304A),
     );
-    return _base(Brightness.dark, scheme, LHColors.noir);
+    return _base(Brightness.dark, scheme, LHColors.navyInk);
   }
 
   static ThemeData light() {
     final scheme = ColorScheme.light(
-      primary: LHColors.orDeep,
-      onPrimary: LHColors.texteSombre,
-      secondary: LHColors.emeraude,
+      primary: LHColors.navy, // Navy Royal — boutons principaux, titres
+      onPrimary: Colors.white,
+      secondary: LHColors.electrique, // interactions et informations
       onSecondary: Colors.white,
-      tertiary: LHColors.orDeep,
-      onTertiary: LHColors.texteSombre,
-      surface: LHColors.ivoireCard,
+      tertiary: LHColors.or, // or solaire — action prioritaire
+      onTertiary: LHColors.navyInk, // texte bleu nuit sur or (règle contraste)
+      surface: LHColors.ivoireCard, // cartes blanc pur
       onSurface: LHColors.texteSombre,
       surfaceContainerHighest: LHColors.ivoireElevated,
       onSurfaceVariant: LHColors.texteSecondaireClair,
-      error: const Color(0xFFC0392B),
+      error: const Color(0xFFDC2626),
       onError: Colors.white,
-      outline: LHColors.bordureClaire,
-      outlineVariant: const Color(0xFFEDEAE0),
+      outline: LHColors.nuage, // bordures gris nuage
+      outlineVariant: const Color(0xFFEDF1F7),
     );
     return _base(Brightness.light, scheme, LHColors.ivoire);
   }
@@ -79,11 +81,12 @@ class LHTheme {
       textTheme: _textTheme(b),
       appBarTheme: AppBarTheme(
         backgroundColor: scaffold,
-        foregroundColor: scheme.onSurface,
+        foregroundColor: isDark ? LHColors.texteClair : LHColors.navy,
         elevation: 0,
         scrolledUnderElevation: 0.5,
         centerTitle: false,
-        titleTextStyle: _textTheme(b).titleLarge,
+        titleTextStyle: _textTheme(b).titleLarge?.copyWith(
+            color: isDark ? LHColors.texteClair : LHColors.navy),
       ),
       cardTheme: CardThemeData(
         color: scheme.surface,
@@ -96,8 +99,8 @@ class LHTheme {
       ),
       dividerTheme: DividerThemeData(color: scheme.outlineVariant, thickness: 1, space: 1),
       navigationBarTheme: NavigationBarThemeData(
-        backgroundColor: isDark ? LHColors.noir : LHColors.ivoire,
-        indicatorColor: isDark ? LHColors.orSurface : const Color(0xFFFBF2CE),
+        backgroundColor: isDark ? LHColors.navyInk : Colors.white,
+        indicatorColor: isDark ? LHColors.orSurface : LHColors.orTint,
         height: 68,
         labelTextStyle: WidgetStatePropertyAll(
           TextStyle(fontFamily: LHFonts.texte, fontSize: 11.5, fontWeight: FontWeight.w600,
@@ -106,13 +109,13 @@ class LHTheme {
         iconTheme: WidgetStateProperty.resolveWith((s) => IconThemeData(
               size: 26,
               color: s.contains(WidgetState.selected)
-                  ? (isDark ? LHColors.or : LHColors.orDeep)
-                  : scheme.onSurfaceVariant,
+                  ? (isDark ? LHColors.or : LHColors.or) // actif : or solaire
+                  : (isDark ? LHColors.texteSecondaire : LHColors.ardoise), // inactif : gris ardoise
             )),
       ),
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
-          backgroundColor: scheme.primary,
+          backgroundColor: scheme.primary, // bouton principal : navy (clair) / or (sombre)
           foregroundColor: scheme.onPrimary,
           textStyle: TextStyle(fontFamily: LHFonts.texte, fontWeight: FontWeight.w700, fontSize: 15),
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
@@ -129,7 +132,7 @@ class LHTheme {
       ),
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
-          foregroundColor: isDark ? LHColors.or : LHColors.orDeep,
+          foregroundColor: isDark ? LHColors.or : LHColors.electrique, // liens et actions secondaires
           textStyle: TextStyle(fontFamily: LHFonts.texte, fontWeight: FontWeight.w600),
         ),
       ),
@@ -148,25 +151,25 @@ class LHTheme {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(LHRadius.md),
-          borderSide: BorderSide(color: isDark ? LHColors.or : LHColors.orDeep, width: 1.5),
+          borderSide: BorderSide(color: isDark ? LHColors.or : LHColors.electrique, width: 1.5),
         ),
       ),
       chipTheme: ChipThemeData(
         backgroundColor: isDark ? LHColors.noirElevated : LHColors.ivoireElevated,
-        selectedColor: isDark ? LHColors.orSurface : const Color(0xFFFBF2CE),
+        selectedColor: isDark ? LHColors.orSurface : LHColors.orTint,
         labelStyle: TextStyle(fontFamily: LHFonts.texte, fontSize: 13, color: scheme.onSurface),
         side: BorderSide(color: scheme.outline),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(LHRadius.full)),
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       ),
       floatingActionButtonTheme: FloatingActionButtonThemeData(
-        backgroundColor: isDark ? LHColors.or : LHColors.emeraude,
-        foregroundColor: isDark ? LHColors.noir : Colors.white,
+        backgroundColor: LHColors.or, // action prioritaire : or solaire
+        foregroundColor: LHColors.navyInk, // texte/îcone bleu nuit sur or
         elevation: 3,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(LHRadius.lg)),
       ),
       snackBarTheme: SnackBarThemeData(
-        backgroundColor: isDark ? LHColors.noirElevated : LHColors.texteSombre,
+        backgroundColor: isDark ? LHColors.noirElevated : LHColors.navy,
         contentTextStyle: TextStyle(color: isDark ? LHColors.texteClair : Colors.white,
             fontFamily: LHFonts.texte),
         behavior: SnackBarBehavior.floating,
@@ -181,23 +184,23 @@ class LHTheme {
         showDragHandle: true,
       ),
       tabBarTheme: TabBarThemeData(
-        labelColor: isDark ? LHColors.or : LHColors.orDeep,
+        labelColor: isDark ? LHColors.or : LHColors.navy,
         unselectedLabelColor: scheme.onSurfaceVariant,
-        indicatorColor: isDark ? LHColors.or : LHColors.orDeep,
+        indicatorColor: LHColors.or, // sélection active : or solaire
         labelStyle: TextStyle(fontFamily: LHFonts.titres, fontWeight: FontWeight.w700),
         unselectedLabelStyle: TextStyle(fontFamily: LHFonts.titres, fontWeight: FontWeight.w600),
       ),
       switchTheme: SwitchThemeData(
         thumbColor: WidgetStateProperty.resolveWith((s) => s.contains(WidgetState.selected)
-            ? (isDark ? LHColors.noir : Colors.white)
+            ? (isDark ? LHColors.navyInk : Colors.white)
             : Colors.white),
         trackColor: WidgetStateProperty.resolveWith((s) => s.contains(WidgetState.selected)
-            ? (isDark ? LHColors.or : LHColors.emeraude)
+            ? (isDark ? LHColors.or : LHColors.electrique) // interaction : bleu électrique
             : scheme.outline),
       ),
       progressIndicatorTheme: ProgressIndicatorThemeData(
-        color: isDark ? LHColors.or : LHColors.orDeep,
-        linearTrackColor: isDark ? LHColors.noirElevated : LHColors.ivoireElevated,
+        color: isDark ? LHColors.or : LHColors.electrique, // barres de progression
+        linearTrackColor: isDark ? LHColors.noirElevated : LHColors.nuage,
       ),
     );
   }

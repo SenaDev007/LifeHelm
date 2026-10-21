@@ -25,7 +25,7 @@ class CguScreen extends StatelessWidget {
           const SizedBox(height: LHSpacing.sm),
           Text(
             'Application LifeHelm — Life Management System\n'
-            'Édité par YEYO TECH\n'
+            'Édité par YEHI OR Tech\n'
             'Dernière mise à jour : octobre 2026',
             style: theme.textTheme.bodySmall?.copyWith(
                 color: theme.colorScheme.onSurfaceVariant, height: 1.6),
@@ -51,10 +51,10 @@ class CguScreen extends StatelessWidget {
                 ],
               ),
             ),
-          SectionHeader('Contact', overline: 'YEYO TECH'),
+          SectionHeader('Contact', overline: 'YEHI OR Tech'),
           Text(
             'Pour toute question relative aux présentes conditions : '
-            'support@yeyotech.com. Nous nous engageons à répondre à toute '
+            'support@yehiortech.com. Nous nous engageons à répondre à toute '
             'sollicitation dans un délai raisonnable et à vous accompagner '
             'dans l\'exercice de vos droits.',
             style:
@@ -73,7 +73,7 @@ const List<(String, List<String>)> _articles = [
     [
       'Les présentes Conditions Générales d\'Utilisation (ci-après « les CGU ») '
       'encadrent l\'accès et l\'utilisation de l\'application mobile LifeHelm '
-      '(ci-après « l\'Application »), éditée par YEYO TECH (ci-après « l\'Éditeur »). '
+      '(ci-après « l\'Application »), éditée par YEHI OR Tech (ci-après « l\'Éditeur »). '
       'LifeHelm est un système de gestion de vie personnel et professionnel : '
       'tâches, agenda, finances, budgets, prêts et emprunts, notes, projets, '
       'habitudes, bien-être, carrière, contacts et messagerie.',

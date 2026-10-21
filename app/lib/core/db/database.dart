@@ -194,7 +194,7 @@ class AppDatabase extends _$AppDatabase {
   Future<Space> createSpace({
     required String type,
     required String name,
-    String colorHex = '#FFD700',
+    String colorHex = '#FFB400',
     bool isDefault = false,
   }) async {
     final space = Space(
@@ -383,11 +383,11 @@ class AppDatabase extends _$AppDatabase {
     if (await isOnboarded()) return;
 
     final personal = await createSpace(
-        type: 'PERSONAL', name: 'Personnel', colorHex: '#FFD700', isDefault: true);
+        type: 'PERSONAL', name: 'Personnel', colorHex: '#FFB400', isDefault: true);
     final family = await createSpace(
-        type: 'FAMILY', name: 'Famille', colorHex: '#10A878');
+        type: 'FAMILY', name: 'Famille', colorHex: '#22C55E');
     final pro = await createSpace(
-        type: 'PROFESSIONAL', name: 'Professionnel', colorHex: '#5B8DD9');
+        type: 'PROFESSIONAL', name: 'Professionnel', colorHex: '#3B82F6');
 
     await seedSpaceFoundations(this, personal.id,
         ownerName: ownerName,
@@ -401,7 +401,7 @@ class AppDatabase extends _$AppDatabase {
     // taxonomie exhaustive amorcée ci-dessus avec les fondations.
     await setSetting('dataVersion', '2');
     await setSetting('taxonomyVersion', '$taxonomyVersion');
-    await setSetting('themeMode', 'dark');
+    await setSetting('themeMode', 'light'); // interface claire Navy Royal + Or solaire
     await setSetting('upcomingWindowDays', '7');
     await setSetting('budgetAlertThreshold', '0.8');
     await setSetting('quietHoursEnabled', 'false');

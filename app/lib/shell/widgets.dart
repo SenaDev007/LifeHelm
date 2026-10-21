@@ -96,6 +96,12 @@ class LhAppBar extends ConsumerWidget implements PreferredSizeWidget {
             ),
       actions: showActions
           ? [
+              // HELM AI — accès à l'assistant depuis tous les modules (D17).
+              IconButton(
+                tooltip: 'HELM AI — Assistant',
+                icon: const Icon(Icons.auto_awesome_rounded),
+                onPressed: () => context.push('/assistant'),
+              ),
               IconButton(
                 tooltip: 'Recherche globale',
                 icon: const Icon(Icons.search),
@@ -146,7 +152,7 @@ class _BellButton extends ConsumerWidget {
 }
 
 /// Logo officiel LifeHelm, plein cadre (aucun médaillon carré).
-/// — thème sombre  : variante OR (#FFD700) pour un contraste maximal ;
+/// — thème sombre  : variante OR (#FFB400) pour un contraste maximal ;
 /// — thème clair   : glyphe original sombre & or.
 /// Sources : assets/brand/logo-lifehelm(-or).png (kit de marque app/LifeHelm).
 class HelmMark extends StatelessWidget {

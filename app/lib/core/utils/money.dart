@@ -161,13 +161,13 @@ class Money {
 Color accountTypeColor(String type, BuildContext context) {
   switch (type) {
     case 'CASH':
-      return const Color(0xFF10A878);
+      return const Color(0xFF22C55E);
     case 'BANK':
-      return const Color(0xFF5B8DD9);
+      return const Color(0xFF3B82F6);
     case 'MOBILE_MONEY':
-      return const Color(0xFFE8720C);
+      return const Color(0xFFFF7A00);
     case 'SAVING':
-      return const Color(0xFFFFD700);
+      return const Color(0xFFFFB400);
     default:
       return const Color(0xFF8A8A8A);
   }

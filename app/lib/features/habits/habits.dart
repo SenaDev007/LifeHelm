@@ -17,8 +17,8 @@ import '../../shell/widgets.dart' show LhAppBar;
 
 /// Palette proposée pour les habitudes (8 couleurs).
 const habitPalette = [
-  '#10A878', '#FFD700', '#5B8DD9', '#E8720C',
-  '#E05B5B', '#8A6DD9', '#E8A13D', '#5BB8D9',
+  '#22C55E', '#FFB400', '#3B82F6', '#FF7A00',
+  '#E05B5B', '#8B5CF6', '#E8A13D', '#5BB8D9',
 ];
 
 /// Bleu clair « jour de repos » (distinct de la palette d'états — D08).

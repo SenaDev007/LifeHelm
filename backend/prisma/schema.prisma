@@ -51,6 +51,7 @@ model User {
   sessions   Session[]
   resources  Resource[]
   appliedOps AppliedOp[]
+  aiConversations AiConversation[]
 }
 
 model Session {
@@ -118,4 +119,40 @@ model AppliedOp {
   createdAt   DateTime @default(now())
 
   @@index([userId, createdAt])
+}
+
+// ═══════════════════ D17 — HELM AI (Phase 1 : assistant conversationnel) ═══════════════════
+// Conversations et messages de l'assistant. Les données métier RESTENT dans
+// Resource (source de vérité) : HELM AI ne duplique jamais les soldes ni les
+// statuts — elle les relit à la source à chaque demande (D17 §17.3).
+
+model AiConversation {
+  id         String   @id @default(uuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  entryPoint String   @default("CENTRAL_ASSISTANT") // CENTRAL_ASSISTANT | MODULE_CONTEXTUAL | DAILY_BRIEFING
+  moduleContext String? // module d'origine (accès contextuel), jamais une preuve d'autorisation
+  title      String?
+  status     String   @default("ACTIVE") // ACTIVE | ARCHIVED
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  messages   AiMessage[]
+
+  @@index([userId, updatedAt])
+}
+
+model AiMessage {
+  id             String   @id @default(uuid())
+  conversationId String
+  conversation   AiConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  role           String // USER | ASSISTANT
+  content        String
+  structured     Json?    // réponse structurée validée (answerType, facts, sources, proposedActions…)
+  answerType     String?  // INFORMATION | ANALYSIS | RECOMMENDATION | CLARIFICATION | REFUSAL | TEMPORARY_UNAVAILABLE
+  modelKey       String?  // identifiant interne du modèle (jamais un secret)
+  latencyMs      Int?
+  createdAt      DateTime @default(now())
+
+  @@index([conversationId, createdAt])
 }

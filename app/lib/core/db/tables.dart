@@ -13,7 +13,7 @@ class Spaces extends Table {
   TextColumn get id => text()();
   TextColumn get type => text()(); // PERSONAL | FAMILY | PROFESSIONAL
   TextColumn get name => text()();
-  TextColumn get colorHex => text().withDefault(const Constant('#FFD700'))();
+  TextColumn get colorHex => text().withDefault(const Constant('#FFB400'))();
   BoolColumn get isDefault => boolean().withDefault(const Constant(false))();
   DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
   @override
@@ -49,7 +49,7 @@ class TaskLists extends Table {
   TextColumn get id => text()();
   TextColumn get spaceId => text()();
   TextColumn get name => text()();
-  TextColumn get colorHex => text().withDefault(const Constant('#FFD700'))();
+  TextColumn get colorHex => text().withDefault(const Constant('#FFB400'))();
   @override
   Set<Column> get primaryKey => {id};
 }
@@ -105,7 +105,7 @@ class Calendars extends Table {
   TextColumn get id => text()();
   TextColumn get spaceId => text()();
   TextColumn get name => text()();
-  TextColumn get colorHex => text().withDefault(const Constant('#5B8DD9'))();
+  TextColumn get colorHex => text().withDefault(const Constant('#3B82F6'))();
   BoolColumn get isVisible => boolean().withDefault(const Constant(true))();
   @override
   Set<Column> get primaryKey => {id};
@@ -518,7 +518,7 @@ class Habits extends Table {
   TextColumn get trackingType => text().withDefault(const Constant('BINARY'))(); // BINARY | QUANTITY
   TextColumn get unit => text().nullable()();
   RealColumn get targetValue => real().nullable()();
-  TextColumn get colorHex => text().withDefault(const Constant('#10A878'))();
+  TextColumn get colorHex => text().withDefault(const Constant('#22C55E'))();
   DateTimeColumn get archivedAt => dateTime().nullable()();
   DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
   @override
@@ -777,7 +777,7 @@ class ConversationMembers extends Table {
   TextColumn get conversationId => text()();
   TextColumn get displayName => text()();
   TextColumn get role => text().withDefault(const Constant('MEMBER'))(); // OWNER | MEMBER
-  TextColumn get colorHex => text().withDefault(const Constant('#5B8DD9'))();
+  TextColumn get colorHex => text().withDefault(const Constant('#3B82F6'))();
   @override
   Set<Column> get primaryKey => {id};
 }

@@ -20,6 +20,7 @@ import 'features/search/search.dart';
 import 'features/statistics/statistics.dart';
 import 'features/tasks/tasks.dart';
 import 'features/wellbeing/wellbeing.dart';
+import 'features/ai/assistant.dart';
 import 'features/career/career.dart';
 import 'features/finance/loans.dart';
 import 'main.dart' show bootState;
@@ -298,6 +299,14 @@ final router = GoRouter(
     GoRoute(
       path: '/search',
       builder: (context, state) => const SearchScreen(),
+    ),
+
+    // ── HELM AI — assistant central (D17, plein écran) ──
+    GoRoute(
+      path: '/assistant',
+      builder: (context, state) => AiAssistantScreen(
+        moduleContext: state.uri.queryParameters['module'],
+      ),
     ),
 
     // ── Paramètres, espaces, sync ──

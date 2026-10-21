@@ -47,7 +47,7 @@ int _minutes(String hhmm) {
   return int.parse(parts[0]) * 60 + (parts.length > 1 ? int.parse(parts[1]) : 0);
 }
 
-Color hexToColor(String hex, {Color fallback = const Color(0xFF5B8DD9)}) {
+Color hexToColor(String hex, {Color fallback = const Color(0xFF3B82F6)}) {
   final h = hex.replaceAll('#', '');
   if (h.length != 6) return fallback;
   final v = int.tryParse('FF$h', radix: 16);
@@ -600,11 +600,11 @@ class _CalendarManagerSheet extends ConsumerWidget {
   final String spaceId;
 
   static const _presetColors = [
-    '#FFD700', // or
-    '#5B8DD9', // bleu
-    '#10A878', // émeraude
-    '#E8720C', // orange
-    '#8A6DD9', // violet
+    '#FFB400', // or
+    '#3B82F6', // bleu
+    '#22C55E', // émeraude
+    '#FF7A00', // orange
+    '#8B5CF6', // violet
   ];
 
   Future<void> _createDialog(BuildContext context, WidgetRef ref) async {
@@ -791,7 +791,7 @@ class _EventTile extends ConsumerWidget {
             .where((c) => c.id == e.calendarId)
             .firstOrNull
             ?.colorHex ??
-        '#5B8DD9';
+        '#3B82F6';
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),

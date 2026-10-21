@@ -144,6 +144,43 @@ class MoreScreen extends ConsumerWidget {
             ]),
           ),
         ),
+        // HELM AI — assistant intelligent transversal (D17).
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+          child: LHCard(
+            onTap: () => context.push('/assistant'),
+            accent: LHColors.navy,
+            child: Row(children: [
+              Container(
+                padding: const EdgeInsets.all(9),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                      colors: [LHColors.navy, LHColors.electrique]),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(Icons.auto_awesome_rounded,
+                    color: Colors.white, size: 20),
+              ),
+              const SizedBox(width: LHSpacing.md),
+              Expanded(
+                child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('HELM AI',
+                          style: theme.textTheme.titleSmall
+                              ?.copyWith(fontWeight: FontWeight.w800)),
+                      Text(
+                        'Assistant intelligent — finances, priorités, agenda, projets',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant),
+                      ),
+                    ]),
+              ),
+              const Icon(Icons.chevron_right_rounded,
+                  color: LHColors.neutre),
+            ]),
+          ),
+        ),
         SectionHeader('Modules', overline: 'Toute votre vie'),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -487,7 +524,7 @@ class SettingsScreen extends ConsumerWidget {
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16),
           child: LhSegmented<String>(
-            value: settings['themeMode'] ?? 'dark',
+            value: settings['themeMode'] ?? 'light',
             items: const {
               'light': 'Clair',
               'dark': 'Sombre',
@@ -504,7 +541,7 @@ class SettingsScreen extends ConsumerWidget {
                 size: 16,
                 color: theme.colorScheme.onSurfaceVariant),
             const SizedBox(width: 6),
-            Text('Le thème sombre met l\'or en valeur.',
+            Text('Interface claire Navy Royal & Or solaire.',
                 style: theme.textTheme.bodySmall?.copyWith(
                     color: theme.colorScheme.onSurfaceVariant)),
             const SizedBox(width: 6),
@@ -633,7 +670,7 @@ class SettingsScreen extends ConsumerWidget {
           padding: const EdgeInsets.symmetric(horizontal: 20),
           child: Text(
             'LifeHelm v0.2.0 — Life Management System.\n'
-            'Édité par YEYO TECH. Implémentation Flutter offline-first des '
+            'Édité par YEHI OR Tech. Implémentation Flutter offline-first des '
             'Dossiers 01 à 14 du cahier des charges, synchronisée par un '
             'backend NestJS/PostgreSQL.',
             style: theme.textTheme.bodySmall?.copyWith(
@@ -643,7 +680,7 @@ class SettingsScreen extends ConsumerWidget {
         ListTile(
           leading: const Icon(Icons.description_outlined),
           title: const Text('Conditions Générales d\'Utilisation'),
-          subtitle: const Text('CGU LifeHelm — YEYO TECH'),
+          subtitle: const Text('CGU LifeHelm — YEHI OR Tech'),
           trailing: const Icon(Icons.chevron_right_rounded,
               color: LHColors.neutre),
           onTap: () => context.push('/cgu'),

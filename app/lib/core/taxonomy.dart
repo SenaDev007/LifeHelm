@@ -28,7 +28,7 @@ const List<TaxoNode> taxonomyIncome = [
   TaxoNode(
       'inc-salariaux',
       'Revenus salariaux',
-      '#10A878',
+      '#22C55E',
       Icons.work_outline,
       [
         'Salaire de base',
@@ -44,7 +44,7 @@ const List<TaxoNode> taxonomyIncome = [
   TaxoNode(
       'inc-independants',
       'Revenus indépendants',
-      '#FFD700',
+      '#FFB400',
       Icons.storefront_outlined,
       [
         'Honoraires et consultations',
@@ -63,7 +63,7 @@ const List<TaxoNode> taxonomyIncome = [
   TaxoNode(
       'inc-patrimoine',
       'Revenus de patrimoine et placement',
-      '#5B8DD9',
+      '#3B82F6',
       Icons.account_balance_outlined,
       [
         'Loyers perçus',
@@ -79,7 +79,7 @@ const List<TaxoNode> taxonomyIncome = [
   TaxoNode(
       'inc-prestations',
       'Prestations sociales et transferts',
-      '#E8720C',
+      '#FF7A00',
       Icons.volunteer_activism_outlined,
       [
         'Bourses d\'études',
@@ -97,7 +97,7 @@ const List<TaxoNode> taxonomyIncome = [
   TaxoNode(
       'inc-exceptionnels',
       'Revenus exceptionnels et autres recettes',
-      '#8A6DD9',
+      '#8B5CF6',
       Icons.auto_awesome_outlined,
       [
         'Cession de biens (voiture, terrain)',
@@ -119,7 +119,7 @@ const List<TaxoNode> taxonomyExpense = [
   TaxoNode(
       'exp-alimentation',
       'Alimentation et nutrition',
-      '#10A878',
+      '#22C55E',
       Icons.shopping_basket_outlined,
       [
         'Marché et épicerie',
@@ -134,7 +134,7 @@ const List<TaxoNode> taxonomyExpense = [
   TaxoNode(
       'exp-logement',
       'Logement et habitat',
-      '#FFD700',
+      '#FFB400',
       Icons.home_outlined,
       [
         'Loyer',
@@ -162,7 +162,7 @@ const List<TaxoNode> taxonomyExpense = [
   TaxoNode(
       'exp-transport',
       'Transport et mobilité',
-      '#5B8DD9',
+      '#3B82F6',
       Icons.directions_bus_outlined,
       [
         'Carburant',
@@ -177,7 +177,7 @@ const List<TaxoNode> taxonomyExpense = [
   TaxoNode(
       'exp-telecom',
       'Télécom et numérique',
-      '#E8720C',
+      '#FF7A00',
       Icons.phone_android_outlined,
       [
         'Crédit téléphone (recharge)',
@@ -208,7 +208,7 @@ const List<TaxoNode> taxonomyExpense = [
   TaxoNode(
       'exp-education',
       'Éducation et formation',
-      '#8A6DD9',
+      '#8B5CF6',
       Icons.school_outlined,
       [
         'Frais de scolarité (écolage)',
@@ -222,7 +222,7 @@ const List<TaxoNode> taxonomyExpense = [
   TaxoNode(
       'exp-famille',
       'Famille et social',
-      '#10A878',
+      '#22C55E',
       Icons.family_restroom,
       [
         'Cadeaux (fêtes, mariages)',
@@ -267,7 +267,7 @@ const List<TaxoNode> taxonomyExpense = [
   TaxoNode(
       'exp-solidarite',
       'Engagement solidaire et dons',
-      '#E8720C',
+      '#FF7A00',
       Icons.volunteer_activism_outlined,
       [
         'Dons aux associations',
@@ -293,7 +293,7 @@ const List<TaxoNode> taxonomyExpense = [
   TaxoNode(
       'exp-developpement',
       'Développement personnel',
-      '#8A6DD9',
+      '#8B5CF6',
       Icons.self_improvement_outlined,
       [
         'Livres et culture',
@@ -306,7 +306,7 @@ const List<TaxoNode> taxonomyExpense = [
   TaxoNode(
       'exp-confort',
       'Confort personnel',
-      '#FFD700',
+      '#FFB400',
       Icons.diamond_outlined,
       [
         'Vêtements de qualité',
@@ -318,7 +318,7 @@ const List<TaxoNode> taxonomyExpense = [
   TaxoNode(
       'exp-activite',
       'Activité et profession',
-      '#5B8DD9',
+      '#3B82F6',
       Icons.business_center_outlined,
       [
         'Loyers professionnels',
@@ -350,7 +350,7 @@ const List<TaxoNode> taxonomyBudget = [
   TaxoNode(
       'bud-essentiels',
       'Besoins essentiels',
-      '#10A878',
+      '#22C55E',
       Icons.checkroom_outlined,
       [
         'Alimentation et courses',
@@ -374,7 +374,7 @@ const List<TaxoNode> taxonomyBudget = [
   TaxoNode(
       'bud-confort',
       'Confort personnel',
-      '#FFD700',
+      '#FFB400',
       Icons.diamond_outlined,
       [
         'Vêtements et accessoires',
@@ -407,7 +407,7 @@ const List<TaxoNode> taxonomyBudget = [
   TaxoNode(
       'bud-solidaire',
       'Engagement solidaire',
-      '#E8720C',
+      '#FF7A00',
       Icons.diversity_3_outlined,
       [
         'Dons religieux',
@@ -418,7 +418,7 @@ const List<TaxoNode> taxonomyBudget = [
   TaxoNode(
       'bud-dons',
       'Dons et générosité',
-      '#FFD700',
+      '#FFB400',
       Icons.redeem_outlined,
       [
         'Cadeaux famille',
@@ -429,7 +429,7 @@ const List<TaxoNode> taxonomyBudget = [
   TaxoNode(
       'bud-activite',
       'Activité et projets professionnels',
-      '#5B8DD9',
+      '#3B82F6',
       Icons.business_center_outlined,
       [
         'Frais de fonctionnement',
@@ -440,7 +440,7 @@ const List<TaxoNode> taxonomyBudget = [
   TaxoNode(
       'bud-developpement',
       'Développement personnel',
-      '#8A6DD9',
+      '#8B5CF6',
       Icons.trending_up_outlined,
       [
         'Formations et cours',
@@ -451,7 +451,7 @@ const List<TaxoNode> taxonomyBudget = [
   TaxoNode(
       'bud-famille-education',
       'Famille et éducation',
-      '#10A878',
+      '#22C55E',
       Icons.school_outlined,
       [
         'Écolage et scolarité',
@@ -473,7 +473,7 @@ const List<TaxoNode> taxonomyBudget = [
   TaxoNode(
       'bud-ceremonies',
       'Cérémonies et événements',
-      '#8A6DD9',
+      '#8B5CF6',
       Icons.celebration_outlined,
       [
         'Mariages',

@@ -133,9 +133,9 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
     );
   }
 
-  // ══════════════════════ PAGE 1 — BIENVENUE YEYO TECH ══════════════════════
+  // ══════════════════════ PAGE 1 — BIENVENUE YEHI OR Tech ══════════════════════
 
-  /// Accueil : message de bienvenue de YEYO TECH, création de compte ou
+  /// Accueil : message de bienvenue de YEHI OR Tech, création de compte ou
   /// connexion en un geste — ou découverte locale en toute discrétion.
   Widget _page1(BuildContext context) {
     final theme = Theme.of(context);
@@ -180,7 +180,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
                 color: theme.colorScheme.onSurfaceVariant,
                 fontWeight: FontWeight.w500)),
         const SizedBox(height: LHSpacing.md),
-        // Message de bienvenue signé YEYO TECH.
+        // Message de bienvenue signé YEHI OR Tech.
         Container(
           padding: const EdgeInsets.all(LHSpacing.lg),
           decoration: BoxDecoration(
@@ -196,7 +196,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
                     color: or)),
             const SizedBox(height: LHSpacing.sm),
             Text(
-              '« Bienvenue ! Toute l\'équipe de YEYO TECH vous remercie de '
+              '« Bienvenue ! Toute l\'équipe de YEHI OR Tech vous remercie de '
               'choisir LifeHelm. Nous avons conçu cette application pour que '
               'vous pilotiez vos journées, vos finances et vos projets avec '
               'élégance — où que vous soyez, même sans réseau. Bonne '
@@ -206,7 +206,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
                   theme.textTheme.bodyMedium?.copyWith(height: 1.55),
             ),
             const SizedBox(height: LHSpacing.sm),
-            Text('— YEYO TECH',
+            Text('— YEHI OR Tech',
                 style: theme.textTheme.labelMedium
                     ?.copyWith(fontWeight: FontWeight.w800, color: or)),
           ]),

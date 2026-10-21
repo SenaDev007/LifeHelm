@@ -63,12 +63,12 @@ final spacesProvider = StreamProvider<List<Space>>(
 final themeModeProvider = Provider<ThemeMode>((ref) {
   final settings = ref.watch(settingsProvider).valueOrNull ?? const {};
   switch (settings['themeMode']) {
-    case 'light':
-      return ThemeMode.light;
+    case 'dark':
+      return ThemeMode.dark;
     case 'system':
       return ThemeMode.system;
     default:
-      return ThemeMode.dark;
+      return ThemeMode.light; // interface claire Navy Royal + Or solaire
   }
 });
 

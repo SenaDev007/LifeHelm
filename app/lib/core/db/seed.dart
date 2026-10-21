@@ -23,16 +23,16 @@ Future<void> seedSpaceFoundations(AppDatabase db, String spaceId,
   for (final name in listNames) {
     final listId = _uuid.v4();
     await db.into(db.taskLists).insert(TaskList(
-        id: listId, spaceId: spaceId, name: name, colorHex: '#FFD700'));
+        id: listId, spaceId: spaceId, name: name, colorHex: '#FFB400'));
     db.logOp('TaskList', listId, 'CREATE', {'name': name});
   }
 
   // Calendriers par défaut.
   final calNames = [
-    ('Principal', '#5B8DD9'),
-    ('Perso', '#10A878'),
-    if (space?.type == 'PROFESSIONAL') ('Rendez-vous clients', '#E8720C'),
-    if (space?.type == 'FAMILY') ('Famille', '#FFD700'),
+    ('Principal', '#3B82F6'),
+    ('Perso', '#22C55E'),
+    if (space?.type == 'PROFESSIONAL') ('Rendez-vous clients', '#FF7A00'),
+    if (space?.type == 'FAMILY') ('Famille', '#FFB400'),
   ];
   for (final (name, color) in calNames) {
     final calId = _uuid.v4();
