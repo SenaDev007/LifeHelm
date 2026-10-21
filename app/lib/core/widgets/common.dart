@@ -26,8 +26,8 @@ class LHCard extends StatelessWidget {
       color: theme.colorScheme.surface,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(LHRadius.lg),
-        side: BorderSide(
-            color: theme.colorScheme.outline.withValues(alpha: 0.7)),
+        side:
+            BorderSide(color: theme.colorScheme.outline.withValues(alpha: 0.7)),
       ),
       child: InkWell(
         onTap: onTap,
@@ -63,21 +63,29 @@ class LHCard extends StatelessWidget {
 
 /// En-tête de section : surline dorée + titre Manrope.
 class SectionHeader extends StatelessWidget {
-  const SectionHeader(this.title, {super.key, this.action, this.overline});
+  const SectionHeader(this.title,
+      {super.key, this.action, this.overline, this.inset = 0});
 
   final String title;
   final String? overline;
   final Widget? action;
 
+  /// Marge horizontale additionnelle. Les en-têtes posés directement dans
+  /// une liste SANS padding doivent passer [LHSpacing.screen] pour ne pas
+  /// coller au bord de l'écran ; ceux imbriqués dans une carte (déjà paddée)
+  /// gardent la valeur par défaut 0.
+  final double inset;
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Padding(
-      padding: const EdgeInsets.only(
-          left: 2, right: 2, top: LHSpacing.xl, bottom: LHSpacing.md),
+      padding:
+          EdgeInsets.fromLTRB(2 + inset, LHSpacing.xl, 2 + inset, LHSpacing.md),
       child: Row(children: [
         Expanded(
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          child:
+              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             if (overline != null)
               Text(overline!.toUpperCase(),
                   style: TextStyle(
@@ -116,8 +124,8 @@ class LHIllustration extends StatelessWidget {
       decoration: BoxDecoration(
         color: LHColors.noir,
         borderRadius: BorderRadius.circular(LHRadius.xl),
-        border: Border.all(
-            color: theme.colorScheme.outline.withValues(alpha: 0.7)),
+        border:
+            Border.all(color: theme.colorScheme.outline.withValues(alpha: 0.7)),
       ),
       child: Image.asset(
         asset,
@@ -155,35 +163,50 @@ class EmptyState extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(LHSpacing.xxl),
-        child: Column(mainAxisSize: MainAxisSize.min, children: [
-          if (illustration != null) ...[
-            LHIllustration(asset: illustration!, height: 190),
-            const SizedBox(height: LHSpacing.lg),
-          ],
-          Icon(icon, size: 44,
-              color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.6)),
-          const SizedBox(height: LHSpacing.md),
-          Text(message,
+    final body = Padding(
+      padding: const EdgeInsets.all(LHSpacing.xxl),
+      child: Column(mainAxisSize: MainAxisSize.min, children: [
+        if (illustration != null) ...[
+          LHIllustration(asset: illustration!, height: 190),
+          const SizedBox(height: LHSpacing.lg),
+        ],
+        Icon(icon,
+            size: 44,
+            color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.6)),
+        const SizedBox(height: LHSpacing.md),
+        Text(message,
+            textAlign: TextAlign.center,
+            style: theme.textTheme.titleSmall
+                ?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+        if (hint != null) ...[
+          const SizedBox(height: LHSpacing.xs),
+          Text(hint!,
               textAlign: TextAlign.center,
-              style: theme.textTheme.titleSmall?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant)),
-          if (hint != null) ...[
-            const SizedBox(height: LHSpacing.xs),
-            Text(hint!,
-                textAlign: TextAlign.center,
-                style: theme.textTheme.bodySmall
-                    ?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
-          ],
-          if (action != null) ...[
-            const SizedBox(height: LHSpacing.lg),
-            action!,
-          ],
-        ]),
-      ),
+              style: theme.textTheme.bodySmall
+                  ?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+        ],
+        if (action != null) ...[
+          const SizedBox(height: LHSpacing.lg),
+          action!,
+        ],
+      ]),
     );
+    // Anti-débordement : quand l'espace disponible est borné et trop petit
+    // (petits écrans, zones résiduelles sous une grille), le contenu défile
+    // au lieu de déborder (bande jaune et noire « bottom overflow »).
+    // Contrainte non bornée (enfant de liste) : rendu centré classique.
+    return LayoutBuilder(builder: (context, constraints) {
+      final h = constraints.maxHeight;
+      if (h.isFinite) {
+        return SingleChildScrollView(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(minHeight: h),
+            child: Center(child: body),
+          ),
+        );
+      }
+      return Center(child: body);
+    });
   }
 }
 
@@ -194,15 +217,20 @@ class _Dot extends StatelessWidget {
   final Color color;
   final double size;
   @override
-  Widget build(BuildContext context) =>
-      Container(width: size, height: size, decoration:
-          BoxDecoration(color: color, shape: BoxShape.circle));
+  Widget build(BuildContext context) => Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(color: color, shape: BoxShape.circle));
 }
 
 /// Puce de statut colorée (tâches, projets, objectifs, événements…).
 class StatusChip extends StatelessWidget {
-  const StatusChip({super.key, required this.label, required this.color,
-      this.small = false, this.outlined = false});
+  const StatusChip(
+      {super.key,
+      required this.label,
+      required this.color,
+      this.small = false,
+      this.outlined = false});
 
   final String label;
   final Color color;
@@ -224,7 +252,9 @@ class StatusChip extends StatelessWidget {
         _Dot(color, size: small ? 6 : 7),
         const SizedBox(width: 6),
         Text(label,
-            style: (small ? theme.textTheme.labelSmall : theme.textTheme.labelMedium)
+            style: (small
+                    ? theme.textTheme.labelSmall
+                    : theme.textTheme.labelMedium)
                 ?.copyWith(color: color, fontWeight: FontWeight.w600)),
       ]),
     );
@@ -233,7 +263,8 @@ class StatusChip extends StatelessWidget {
 
 /// Pastille de compte (avatar initiales).
 class InitialsAvatar extends StatelessWidget {
-  const InitialsAvatar({super.key, required this.name, this.color, this.size = 40});
+  const InitialsAvatar(
+      {super.key, required this.name, this.color, this.size = 40});
 
   final String name;
   final Color? color;
@@ -272,8 +303,13 @@ class InitialsAvatar extends StatelessWidget {
 
 /// Anneau de progression (or sur piste sombre).
 class ProgressRing extends StatelessWidget {
-  const ProgressRing({super.key, required this.progress, this.size = 44,
-      this.stroke = 4, this.color, this.child});
+  const ProgressRing(
+      {super.key,
+      required this.progress,
+      this.size = 44,
+      this.stroke = 4,
+      this.color,
+      this.child});
 
   final double progress; // 0..1
   final double size;
@@ -297,8 +333,7 @@ class ProgressRing extends StatelessWidget {
             value: progress.clamp(0.0, 1.0),
             strokeWidth: stroke,
             color: c,
-            backgroundColor:
-                theme.colorScheme.outline.withValues(alpha: 0.5),
+            backgroundColor: theme.colorScheme.outline.withValues(alpha: 0.5),
             strokeCap: StrokeCap.round,
           ),
         ),
@@ -328,7 +363,9 @@ class BudgetBar extends StatelessWidget {
       child: SizedBox(
         height: 7,
         child: Stack(children: [
-          Container(color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.4)),
+          Container(
+              color:
+                  Theme.of(context).colorScheme.outline.withValues(alpha: 0.4)),
           FractionallySizedBox(
             widthFactor: clamped,
             child: Container(color: c),
@@ -341,8 +378,12 @@ class BudgetBar extends StatelessWidget {
 
 /// Titre « statistique » : valeur large + libellé.
 class StatTile extends StatelessWidget {
-  const StatTile({super.key, required this.label, required this.value,
-      this.color, this.icon});
+  const StatTile(
+      {super.key,
+      required this.label,
+      required this.value,
+      this.color,
+      this.icon});
 
   final String label;
   final String value;
@@ -355,14 +396,16 @@ class StatTile extends StatelessWidget {
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       Row(children: [
         if (icon != null) ...[
-          Icon(icon, size: 15, color: color ?? theme.colorScheme.onSurfaceVariant),
+          Icon(icon,
+              size: 15, color: color ?? theme.colorScheme.onSurfaceVariant),
           const SizedBox(width: 5),
         ],
-        Expanded(child: Text(label,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: theme.textTheme.labelMedium
-                ?.copyWith(color: theme.colorScheme.onSurfaceVariant))),
+        Expanded(
+            child: Text(label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.labelMedium
+                    ?.copyWith(color: theme.colorScheme.onSurfaceVariant))),
       ]),
       const SizedBox(height: 3),
       Text(value,
@@ -398,7 +441,10 @@ class LabeledField extends StatelessWidget {
 
 /// Sélecteur de segments style segments iOS/Android harmonisés.
 class LhSegmented<T> extends StatelessWidget {
-  const LhSegmented({super.key, required this.value, required this.items,
+  const LhSegmented(
+      {super.key,
+      required this.value,
+      required this.items,
       required this.onChanged});
 
   final T value;
@@ -464,7 +510,9 @@ Future<bool> lhConfirm(
       title: Text(title),
       content: Text(message),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Annuler')),
+        TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Annuler')),
         FilledButton(
           style: destructive
               ? FilledButton.styleFrom(backgroundColor: LHColors.erreur)

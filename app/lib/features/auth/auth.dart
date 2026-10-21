@@ -117,7 +117,8 @@ class _ErrorBanner extends StatelessWidget {
 /// snackbar de bienvenue + synchronisation initiale. À appeler depuis un
 /// State (le snackbar utilise le contexte de l'État, garde `mounted`).
 extension AuthSuccessState on ConsumerState {
-  Future<void> _persistSessionAndWelcome(WidgetRef ref, LhAuthResult result) async {
+  Future<void> _persistSessionAndWelcome(
+      WidgetRef ref, LhAuthResult result) async {
     await ref.read(tokenStoreProvider).save(result.toSession());
     if (!mounted) return;
     ScaffoldMessenger.of(context)
@@ -164,7 +165,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   Future<void> _submit() async {
     final identifier = _identifier.text.trim();
     if (identifier.isEmpty || _password.text.isEmpty) {
-      setState(() => _error = 'Renseignez votre identifiant et votre mot de passe.');
+      setState(
+          () => _error = 'Renseignez votre identifiant et votre mot de passe.');
       return;
     }
     setState(() {
@@ -191,7 +193,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       setState(() {
         if (e.statusCode == 428 || e.code == 'TOTP_REQUIRED') {
           _totpRequired = true;
-          _error = 'Double authentification active — saisissez le code à 6 chiffres.';
+          _error =
+              'Double authentification active — saisissez le code à 6 chiffres.';
         } else {
           _error = apiErrorText(e);
         }
@@ -235,10 +238,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               Container(
                 padding: const EdgeInsets.all(LHSpacing.md),
                 decoration: BoxDecoration(
-                  color: LHColors.emeraudeClair.withValues(alpha: 0.10),
-                  borderRadius: BorderRadius.circular(LHRadius.md),
-                  border: Border.all(
-                      color: LHColors.emeraudeClair.withValues(alpha: 0.4))),
+                    color: LHColors.emeraudeClair.withValues(alpha: 0.10),
+                    borderRadius: BorderRadius.circular(LHRadius.md),
+                    border: Border.all(
+                        color: LHColors.emeraudeClair.withValues(alpha: 0.4))),
                 child: Row(children: [
                   const Icon(Icons.logout,
                       size: 18, color: LHColors.emeraudeClair),
@@ -266,8 +269,18 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 keyboardType: TextInputType.emailAddress,
                 autofillHints: const [AutofillHints.username],
                 decoration: const InputDecoration(
-                    hintText: 'awa@exemple.tg ou +228 90 12 34 56',
+                    hintText: 'awa@exemple.com ou 01 97 12 34 56',
                     prefixIcon: Icon(Icons.alternate_email)),
+              ),
+            ),
+            const SizedBox(height: LHSpacing.xs),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                'Téléphone : numéro local (01 97…) ou avec indicatif (+229…) — '
+                'les deux fonctionnent.',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant),
               ),
             ),
             const SizedBox(height: LHSpacing.md),
@@ -284,8 +297,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   suffixIcon: IconButton(
                     tooltip: _obscure ? 'Afficher' : 'Masquer',
                     onPressed: () => setState(() => _obscure = !_obscure),
-                    icon: Icon(
-                        _obscure ? Icons.visibility_outlined : Icons.visibility_off_outlined),
+                    icon: Icon(_obscure
+                        ? Icons.visibility_outlined
+                        : Icons.visibility_off_outlined),
                   ),
                 ),
               ),
@@ -411,20 +425,16 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     super.dispose();
   }
 
-  String? get _fullPhone {
-    final raw = _phone.text.trim().replaceAll(RegExp(r'[\s\-().]'), '');
-    if (raw.isEmpty) return null;
-    return '$_country.dial$raw';
-  }
+  String? get _fullPhone => normalizePhoneInput(_phone.text, _country);
 
   String? _stepError() {
     switch (_step) {
       case 0:
         if (_firstName.text.trim().isEmpty) return 'Le prénom est obligatoire.';
       case 1:
-        final raw = _phone.text.trim().replaceAll(RegExp(r'[\s\-().]'), '');
-        if (raw.isNotEmpty && raw.length < 8) {
-          return 'Numéro trop court — vérifiez votre saisie.';
+        if (!isPlausiblePhoneInput(_phone.text)) {
+          return 'Numéro invalide — chiffres uniquement. L\'indicatif (${_country.dial}) '
+              'est déjà sélectionné : tapez par ex. 01 97 12 34 56.';
         }
       case 2:
         final e = _email.text.trim();
@@ -538,9 +548,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                     margin: const EdgeInsets.symmetric(horizontal: 3),
                     height: 4,
                     decoration: BoxDecoration(
-                      color: i <= _step
-                          ? or
-                          : theme.colorScheme.outline,
+                      color: i <= _step ? or : theme.colorScheme.outline,
                       borderRadius: BorderRadius.circular(4),
                     ),
                   ),
@@ -572,11 +580,9 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                       padding: const EdgeInsets.all(LHSpacing.md),
                       decoration: BoxDecoration(
                         color: LHColors.erreur.withValues(alpha: 0.10),
-                        borderRadius:
-                            BorderRadius.circular(LHRadius.md),
+                        borderRadius: BorderRadius.circular(LHRadius.md),
                         border: Border.all(
-                            color:
-                                LHColors.erreur.withValues(alpha: 0.5)),
+                            color: LHColors.erreur.withValues(alpha: 0.5)),
                       ),
                       child: Row(children: [
                         const Icon(Icons.error_outline,
@@ -597,8 +603,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                         ? const SizedBox(
                             width: 20,
                             height: 20,
-                            child:
-                                CircularProgressIndicator(strokeWidth: 2))
+                            child: CircularProgressIndicator(strokeWidth: 2))
                         : Text(_step == _stepsCount - 1
                             ? 'Créer mon compte'
                             : 'Continuer'),
@@ -670,7 +675,9 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                 controller: _phone,
                 keyboardType: TextInputType.phone,
                 decoration: InputDecoration(
-                  hintText: 'Ex. : 97 12 34 56',
+                  hintText: _country.iso == 'BJ'
+                      ? 'Ex. : 01 97 12 34 56'
+                      : 'Ex. : numéro sans indicatif',
                   prefixText: '${_country.dial} ',
                   prefixIcon: const Icon(Icons.phone_outlined),
                 ),
@@ -678,9 +685,11 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
             ),
             const SizedBox(height: LHSpacing.sm),
             Text(
+              'Sans l\'indicatif (${_country.dial} déjà inclus) — 10 chiffres '
+              'au Bénin (ex. 01 97 12 34 56) ou 8 pour l\'ancien format. '
               'Facultatif si vous renseignez un e-mail à l\'étape suivante.',
-              style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant),
+              style: theme.textTheme.bodySmall
+                  ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
             ),
           ],
         );
@@ -706,8 +715,8 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
           Text(
             'Touchez le chevron pour parcourir les ${allProfessions.length} '
             'métiers du référentiel — ou écrivez librement la vôtre.',
-            style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant),
+            style: theme.textTheme.bodySmall
+                ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
           ),
         ]);
       case 4:
@@ -773,8 +782,8 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
           ),
           const SizedBox(height: LHSpacing.md),
           OutlinedButton.icon(
-            onPressed: () => Navigator.of(context)
-                .push(MaterialPageRoute<void>(builder: (_) => const CguScreen())),
+            onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(builder: (_) => const CguScreen())),
             icon: const Icon(Icons.description_outlined, size: 18),
             label: const Text('Lire les Conditions Générales'),
           ),
@@ -847,7 +856,8 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
       setState(() {
         if (devToken != null && devToken.isNotEmpty) {
           _devToken = devToken;
-          _info = 'Serveur de démonstration — code de réinitialisation ci-dessous.';
+          _info =
+              'Serveur de démonstration — code de réinitialisation ci-dessous.';
         } else {
           _info =
               'Si un compte existe, un lien de réinitialisation a été envoyé.';
@@ -882,9 +892,9 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
           await ref.read(apiClientProvider).securityQuestionsOf(identifier);
       if (!mounted) return;
       if (qs == null || qs.isEmpty) {
-        setState(() => _error =
-            'Ce compte n\'a pas défini de questions de sécurité. '
-            'Utilisez le lien de réinitialisation.');
+        setState(() =>
+            _error = 'Ce compte n\'a pas défini de questions de sécurité. '
+                'Utilisez le lien de réinitialisation.');
       } else {
         setState(() => _questions = qs);
       }
@@ -983,8 +993,9 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
               label: 'Courriel ou téléphone du compte',
               child: TextField(
                 controller: _identifier,
-                onSubmitted: (_) =>
-                    _mode == _RecoveryMode.link ? _submitLink() : _loadQuestions(),
+                onSubmitted: (_) => _mode == _RecoveryMode.link
+                    ? _submitLink()
+                    : _loadQuestions(),
                 decoration: const InputDecoration(
                     hintText: 'awa@exemple.com',
                     prefixIcon: Icon(Icons.alternate_email)),
@@ -1009,8 +1020,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
                           children: [
                             Text('Code (démo) :',
                                 style: theme.textTheme.labelSmall?.copyWith(
-                                    color:
-                                        theme.colorScheme.onSurfaceVariant)),
+                                    color: theme.colorScheme.onSurfaceVariant)),
                             const SizedBox(height: 2),
                             SelectableText(_devToken!,
                                 style: const TextStyle(
@@ -1022,8 +1032,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
                       tooltip: 'Copier le code',
                       icon: const Icon(Icons.copy_rounded, size: 20),
                       onPressed: () {
-                        Clipboard.setData(
-                            ClipboardData(text: _devToken!));
+                        Clipboard.setData(ClipboardData(text: _devToken!));
                         lhToast(context, 'Code copié.');
                       },
                     ),
@@ -1081,8 +1090,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
                         ? const SizedBox(
                             width: 20,
                             height: 20,
-                            child:
-                                CircularProgressIndicator(strokeWidth: 2))
+                            child: CircularProgressIndicator(strokeWidth: 2))
                         : const Text('Vérifier mes réponses'),
                   )
                 else
@@ -1145,7 +1153,8 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
       return;
     }
     if (_password.text.length < 8) {
-      setState(() => _error = 'Le mot de passe doit contenir au moins 8 caractères.');
+      setState(() =>
+          _error = 'Le mot de passe doit contenir au moins 8 caractères.');
       return;
     }
     if (_password.text != _confirm.text) {
@@ -1162,8 +1171,8 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
             newPassword: _password.text,
           );
       if (!mounted) return;
-      setState(() => _info =
-          'Mot de passe modifié — vous pouvez vous connecter.');
+      setState(
+          () => _info = 'Mot de passe modifié — vous pouvez vous connecter.');
     } on LhApiException catch (e) {
       setState(() => _error = apiErrorText(e));
     } on LhNetworkException catch (e) {
@@ -1179,7 +1188,8 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
   Widget build(BuildContext context) {
     return _AuthScaffold(
       title: 'Nouveau mot de passe',
-      subtitle: 'Collez le code reçu puis choisissez votre nouveau mot de passe.',
+      subtitle:
+          'Collez le code reçu puis choisissez votre nouveau mot de passe.',
       child: LHCard(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1196,8 +1206,10 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
                       color: LHColors.emeraudeClair.withValues(alpha: 0.5)),
                 ),
                 child: Text(_info!,
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: LHColors.emeraudeClair)),
+                    style: Theme.of(context)
+                        .textTheme
+                        .bodySmall
+                        ?.copyWith(color: LHColors.emeraudeClair)),
               ),
             LabeledField(
               label: 'Code de réinitialisation',
@@ -1252,8 +1264,7 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
             const SizedBox(height: LHSpacing.md),
             TextButton(
               onPressed: () => Navigator.of(context).pushAndRemoveUntil(
-                MaterialPageRoute<void>(
-                    builder: (_) => const LoginScreen()),
+                MaterialPageRoute<void>(builder: (_) => const LoginScreen()),
                 (route) => route.isFirst,
               ),
               child: const Text('Aller à la connexion'),

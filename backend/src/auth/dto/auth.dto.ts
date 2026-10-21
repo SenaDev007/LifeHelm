@@ -8,7 +8,7 @@ export class RegisterDto {
   email?: string;
 
   @IsOptional()
-  @Matches(/^\+?[0-9\s-]{8,16}$/, { message: 'Numéro de téléphone invalide.' })
+  @Matches(/^\+?[0-9\s\-().]{6,20}$/, { message: 'Numéro de téléphone invalide.' })
   phone?: string;
 
   @IsString()
@@ -129,7 +129,7 @@ export class UpdateProfileDto {
   lastName?: string;
 
   @IsOptional()
-  @Matches(/^\+?[0-9\s-]{8,16}$/, { message: 'Numéro de téléphone invalide.' })
+  @Matches(/^\+?[0-9\s\-().]{6,20}$/, { message: 'Numéro de téléphone invalide.' })
   phone?: string;
 
   @IsOptional()

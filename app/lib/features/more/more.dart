@@ -15,8 +15,8 @@ import '../../main.dart' show bootState;
 // ═══════════════════════════ ÉCRAN : PLUS ═══════════════════════════
 
 class _ModuleEntry {
-  const _ModuleEntry(this.route, this.label, this.subtitle, this.icon,
-      this.moduleKey);
+  const _ModuleEntry(
+      this.route, this.label, this.subtitle, this.icon, this.moduleKey);
   final String route;
   final String label;
   final String subtitle;
@@ -25,12 +25,14 @@ class _ModuleEntry {
 }
 
 const _modules = [
-  _ModuleEntry('/statistics', 'Statistiques',
+  _ModuleEntry(
+      '/statistics',
+      'Statistiques',
       'Recettes, dépenses, budgets, projets',
-      Icons.insights_outlined, 'finance'),
+      Icons.insights_outlined,
+      'finance'),
   _ModuleEntry('/loans', 'Prêts & emprunts',
-      'Accordés, reçus et remboursements',
-      Icons.handshake_outlined, 'finance'),
+      'Accordés, reçus et remboursements', Icons.handshake_outlined, 'finance'),
   _ModuleEntry('/notes', 'Notes', 'Éditeur riche, dossiers, versions',
       Icons.edit_note_rounded, 'notes'),
   _ModuleEntry('/projects', 'Projets', 'Étapes, jalons, progression',
@@ -51,8 +53,8 @@ const _modules = [
       Icons.chat_bubble_outline_rounded, 'messages'),
   _ModuleEntry('/notifications', 'Notifications', 'Centre d\'alertes',
       Icons.notifications_none_rounded, 'tasks'),
-  _ModuleEntry('/search', 'Recherche', 'Tous vos contenus',
-      Icons.search, 'notes'),
+  _ModuleEntry(
+      '/search', 'Recherche', 'Tous vos contenus', Icons.search, 'notes'),
 ];
 
 /// Onglet « Plus » — accès aux modules secondaires (CDC §4.5).
@@ -176,8 +178,7 @@ class MoreScreen extends ConsumerWidget {
                       ),
                     ]),
               ),
-              const Icon(Icons.chevron_right_rounded,
-                  color: LHColors.neutre),
+              const Icon(Icons.chevron_right_rounded, color: LHColors.neutre),
             ]),
           ),
         ),
@@ -194,12 +195,12 @@ class MoreScreen extends ConsumerWidget {
                     style: theme.textTheme.titleSmall
                         ?.copyWith(fontWeight: FontWeight.w700)),
               ),
-              const Icon(Icons.chevron_right_rounded,
-                  color: LHColors.neutre),
+              const Icon(Icons.chevron_right_rounded, color: LHColors.neutre),
             ]),
           ),
         ),
-        SectionHeader('Modules', overline: 'Toute votre vie'),
+        SectionHeader('Modules',
+            inset: LHSpacing.screen, overline: 'Toute votre vie'),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16),
           child: GridView.count(
@@ -219,29 +220,30 @@ class MoreScreen extends ConsumerWidget {
             ],
           ),
         ),
-        SectionHeader('Application', overline: 'Réglages'),
+        SectionHeader('Application',
+            inset: LHSpacing.screen, overline: 'Réglages'),
         ListTile(
           leading: const Icon(Icons.settings_outlined),
           title: const Text('Paramètres'),
           subtitle: const Text('Thème, cockpit, budgets, confidentialité'),
-          trailing: const Icon(Icons.chevron_right_rounded,
-              color: LHColors.neutre),
+          trailing:
+              const Icon(Icons.chevron_right_rounded, color: LHColors.neutre),
           onTap: () => context.push('/settings'),
         ),
         ListTile(
           leading: const Icon(Icons.group_outlined),
           title: const Text('Espaces'),
           subtitle: const Text('Personnel, famille, professionnel'),
-          trailing: const Icon(Icons.chevron_right_rounded,
-              color: LHColors.neutre),
+          trailing:
+              const Icon(Icons.chevron_right_rounded, color: LHColors.neutre),
           onTap: () => context.push('/spaces'),
         ),
         ListTile(
           leading: const Icon(Icons.cloud_sync_outlined),
           title: const Text('File de synchronisation'),
           subtitle: Text(_syncWording(syncState, pendingOps)),
-          trailing: const Icon(Icons.chevron_right_rounded,
-              color: LHColors.neutre),
+          trailing:
+              const Icon(Icons.chevron_right_rounded, color: LHColors.neutre),
           onTap: () => context.push('/sync'),
         ),
       ]),
@@ -296,8 +298,7 @@ class _ModuleCard extends StatelessWidget {
             children: [
               Row(children: [
                 Icon(entry.icon,
-                    size: 22,
-                    color: isDark ? LHColors.or : LHColors.orDeep),
+                    size: 22, color: isDark ? LHColors.or : LHColors.orDeep),
                 const Spacer(),
                 if (badge != null)
                   Container(
@@ -320,8 +321,7 @@ class _ModuleCard extends StatelessWidget {
               Text(
                 entry.subtitle,
                 style: theme.textTheme.bodySmall?.copyWith(
-                    fontSize: 11,
-                    color: theme.colorScheme.onSurfaceVariant),
+                    fontSize: 11, color: theme.colorScheme.onSurfaceVariant),
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
               ),
@@ -391,13 +391,12 @@ class _AccountSection extends ConsumerWidget {
                         style: theme.textTheme.titleSmall),
                     Text(
                       'Retrouvez vos espaces sur vos autres appareils',
-                      style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.colorScheme.onSurfaceVariant),
+                      style: theme.textTheme.bodySmall
+                          ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
                     ),
                   ]),
             ),
-            const Icon(Icons.chevron_right_rounded,
-                color: LHColors.neutre),
+            const Icon(Icons.chevron_right_rounded, color: LHColors.neutre),
           ]),
         ),
       );
@@ -408,7 +407,7 @@ class _AccountSection extends ConsumerWidget {
     final (badge, badgeColor) = _statusBadge(syncState);
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       SectionHeader('Compte & synchronisation',
-          overline: 'Sauvegarde multi-appareils'),
+          inset: LHSpacing.screen, overline: 'Sauvegarde multi-appareils'),
       Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16),
         child: LHCard(
@@ -432,8 +431,8 @@ class _AccountSection extends ConsumerWidget {
                     const SizedBox(height: 2),
                     Text(
                       user.email ?? user.phone ?? 'Compte LifeHelm',
-                      style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.colorScheme.onSurfaceVariant),
+                      style: theme.textTheme.bodySmall
+                          ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
                     ),
                   ]),
             ),
@@ -445,39 +444,38 @@ class _AccountSection extends ConsumerWidget {
         dense: true,
         leading: const Icon(Icons.person_outline),
         title: const Text('Mon profil'),
-        trailing: const Icon(Icons.chevron_right_rounded,
-            color: LHColors.neutre),
+        trailing:
+            const Icon(Icons.chevron_right_rounded, color: LHColors.neutre),
         onTap: () => context.push('/account'),
       ),
       ListTile(
         dense: true,
         leading: const Icon(Icons.devices_outlined),
         title: const Text('Sessions & appareils'),
-        trailing: const Icon(Icons.chevron_right_rounded,
-            color: LHColors.neutre),
+        trailing:
+            const Icon(Icons.chevron_right_rounded, color: LHColors.neutre),
         onTap: () => context.push('/sessions'),
       ),
       ListTile(
         dense: true,
         leading: const Icon(Icons.shield_outlined),
         title: const Text('Sécurité & 2FA'),
-        trailing: const Icon(Icons.chevron_right_rounded,
-            color: LHColors.neutre),
+        trailing:
+            const Icon(Icons.chevron_right_rounded, color: LHColors.neutre),
         onTap: () => context.push('/security'),
       ),
       ListTile(
         dense: true,
         leading: const Icon(Icons.cloud_sync_outlined),
         title: const Text('Synchronisation'),
-        trailing: const Icon(Icons.chevron_right_rounded,
-            color: LHColors.neutre),
+        trailing:
+            const Icon(Icons.chevron_right_rounded, color: LHColors.neutre),
         onTap: () => context.push('/sync'),
       ),
       ListTile(
         dense: true,
         leading: const Icon(Icons.logout, color: LHColors.erreur),
-        title: Text('Se déconnecter',
-            style: TextStyle(color: LHColors.erreur)),
+        title: Text('Se déconnecter', style: TextStyle(color: LHColors.erreur)),
         onTap: () => _logout(context, ref),
       ),
     ]);
@@ -536,7 +534,7 @@ class SettingsScreen extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(title: const Text('Paramètres')),
       body: ListView(padding: const EdgeInsets.only(bottom: 32), children: [
-        SectionHeader('Apparence', overline: 'Thèmes'),
+        SectionHeader('Apparence', inset: LHSpacing.screen, overline: 'Thèmes'),
         // Thème : clair / sombre / système (CDC §4.3) — sélecteur maison
         // équilibré, sans widget Material expérimental.
         Padding(
@@ -556,19 +554,18 @@ class SettingsScreen extends ConsumerWidget {
           padding: const EdgeInsets.symmetric(horizontal: 20),
           child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
             Icon(Icons.light_mode_outlined,
-                size: 16,
-                color: theme.colorScheme.onSurfaceVariant),
+                size: 16, color: theme.colorScheme.onSurfaceVariant),
             const SizedBox(width: 6),
             Text('Interface claire Navy Royal & Or solaire.',
-                style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant)),
+                style: theme.textTheme.bodySmall
+                    ?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
             const SizedBox(width: 6),
             Icon(Icons.dark_mode_outlined,
-                size: 16,
-                color: theme.colorScheme.onSurfaceVariant),
+                size: 16, color: theme.colorScheme.onSurfaceVariant),
           ]),
         ),
-        SectionHeader('Cockpit', overline: 'Personnalisation'),
+        SectionHeader('Cockpit',
+            inset: LHSpacing.screen, overline: 'Personnalisation'),
         ListTile(
           title: const Text('Fenêtre des échéances'),
           subtitle: Text(
@@ -591,7 +588,7 @@ class SettingsScreen extends ConsumerWidget {
           value: (settings['showFinanceSummary'] ?? 'true') == 'true',
           onChanged: (v) => db.setSetting('showFinanceSummary', '$v'),
         ),
-        SectionHeader('Finances', overline: 'Alertes'),
+        SectionHeader('Finances', inset: LHSpacing.screen, overline: 'Alertes'),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 20),
           child: Column(
@@ -615,31 +612,31 @@ class SettingsScreen extends ConsumerWidget {
               SliderTheme(
                 data: SliderTheme.of(context).copyWith(
                   trackHeight: 3,
-                  overlayShape: const RoundSliderOverlayShape(
-                      overlayRadius: 18),
+                  overlayShape:
+                      const RoundSliderOverlayShape(overlayRadius: 18),
                 ),
                 child: Slider(
-                  value:
-                      double.tryParse(settings['budgetAlertThreshold'] ?? '0.8') ??
-                          0.8,
+                  value: double.tryParse(
+                          settings['budgetAlertThreshold'] ?? '0.8') ??
+                      0.8,
                   min: 0.5,
                   max: 1.0,
                   divisions: 10,
                   label:
                       '${(((double.tryParse(settings['budgetAlertThreshold'] ?? '0.8') ?? 0.8) * 100).round())} %',
-                  onChanged: (v) =>
-                      db.setSetting('budgetAlertThreshold', '$v'),
+                  onChanged: (v) => db.setSetting('budgetAlertThreshold', '$v'),
                 ),
               ),
               Text(
                 'Alerte à ${((double.tryParse(settings['budgetAlertThreshold'] ?? '0.8') ?? 0.8) * 100).round()} % de l\'enveloppe consommée.',
-                style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant),
+                style: theme.textTheme.bodySmall
+                    ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
               ),
             ],
           ),
         ),
-        SectionHeader('Confidentialité & données', overline: 'Vos droits'),
+        SectionHeader('Confidentialité & données',
+            inset: LHSpacing.screen, overline: 'Vos droits'),
         ListTile(
           leading: const Icon(Icons.lock_outline),
           title: const Text('Données locales'),
@@ -651,8 +648,8 @@ class SettingsScreen extends ConsumerWidget {
           title: const Text('File de synchronisation'),
           subtitle: Text(
               '${ref.watch(pendingOpCountProvider).valueOrNull ?? 0} opérations en attente'),
-          trailing: const Icon(Icons.chevron_right_rounded,
-              color: LHColors.neutre),
+          trailing:
+              const Icon(Icons.chevron_right_rounded, color: LHColors.neutre),
           onTap: () => context.push('/sync'),
         ),
         ListTile(
@@ -664,7 +661,8 @@ class SettingsScreen extends ConsumerWidget {
               'Supprime tout le contenu de l\'appareil (espaces, jetons, réglages) puis relance l\'accueil.'),
           onTap: () => _wipeLocalData(context, ref),
         ),
-        SectionHeader('Avancé', overline: 'Connexion au serveur'),
+        SectionHeader('Avancé',
+            inset: LHSpacing.screen, overline: 'Connexion au serveur'),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 20),
           child: LabeledField(
@@ -683,7 +681,8 @@ class SettingsScreen extends ConsumerWidget {
                 height: 1.5, color: theme.colorScheme.onSurfaceVariant),
           ),
         ),
-        SectionHeader('À propos', overline: 'LifeHelm'),
+        SectionHeader('À propos',
+            inset: LHSpacing.screen, overline: 'LifeHelm'),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 20),
           child: Text(
@@ -699,8 +698,8 @@ class SettingsScreen extends ConsumerWidget {
           leading: const Icon(Icons.description_outlined),
           title: const Text('Conditions Générales d\'Utilisation'),
           subtitle: const Text('CGU LifeHelm — YEHI OR Tech'),
-          trailing: const Icon(Icons.chevron_right_rounded,
-              color: LHColors.neutre),
+          trailing:
+              const Icon(Icons.chevron_right_rounded, color: LHColors.neutre),
           onTap: () => context.push('/cgu'),
         ),
       ]),
@@ -832,8 +831,7 @@ class SpacesScreen extends ConsumerWidget {
                 ListTile(
                   leading: InitialsAvatar(
                       name: s.name, color: spaceColor(s.type), size: 44),
-                  title: Text(s.name,
-                      style: theme.textTheme.titleMedium),
+                  title: Text(s.name, style: theme.textTheme.titleMedium),
                   subtitle: Text(spaceTypeLabel(s.type)),
                   trailing: s.id == activeId
                       ? const StatusChip(
@@ -884,8 +882,7 @@ class _MembersList extends ConsumerWidget {
             ListTile(
               dense: true,
               leading: InitialsAvatar(name: m.displayName, size: 30),
-              title: Text(m.displayName,
-                  style: theme.textTheme.bodyMedium),
+              title: Text(m.displayName, style: theme.textTheme.bodyMedium),
               trailing: Text(
                 switch (m.role) {
                   'OWNER' => 'Propriétaire',
@@ -909,9 +906,8 @@ class _MembersList extends ConsumerWidget {
   }
 }
 
-final membersProvider =
-    StreamProvider.family<List<dbm.SpaceMember>, String>(
-        (ref, spaceId) => ref.watch(dbProvider).watchMembers(spaceId));
+final membersProvider = StreamProvider.family<List<dbm.SpaceMember>, String>(
+    (ref, spaceId) => ref.watch(dbProvider).watchMembers(spaceId));
 
 // ═══════════════════════════ ÉCRAN : MON PROFIL ═══════════════════════════
 // → L'écran profil complet (photo, coordonnées, questions de sécurité,
@@ -964,8 +960,7 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen> {
     final ok = await lhConfirm(
       context,
       title: 'Révoquer cette session ?',
-      message:
-          'L\'appareil « ${s.deviceName} » sera déconnecté du compte.',
+      message: 'L\'appareil « ${s.deviceName} » sera déconnecté du compte.',
       confirmLabel: 'Révoquer',
       destructive: true,
     );
@@ -1073,8 +1068,7 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen> {
                           onPressed: _revokeAll,
                           icon: const Icon(Icons.phonelink_erase_outlined,
                               size: 18),
-                          label:
-                              const Text('Déconnecter tous les appareils'),
+                          label: const Text('Déconnecter tous les appareils'),
                         ),
                       ),
                     ],
@@ -1297,8 +1291,7 @@ class _SecurityScreenState extends ConsumerState<SecurityScreen> {
                           children: [
                             Text('Secret (base32)',
                                 style: theme.textTheme.labelMedium?.copyWith(
-                                    color:
-                                        theme.colorScheme.onSurfaceVariant)),
+                                    color: theme.colorScheme.onSurfaceVariant)),
                             const SizedBox(height: 4),
                             SelectableText(
                               _setup!.secret,
@@ -1310,8 +1303,7 @@ class _SecurityScreenState extends ConsumerState<SecurityScreen> {
                             const SizedBox(height: LHSpacing.md),
                             Text('URI otpauth',
                                 style: theme.textTheme.labelMedium?.copyWith(
-                                    color:
-                                        theme.colorScheme.onSurfaceVariant)),
+                                    color: theme.colorScheme.onSurfaceVariant)),
                             const SizedBox(height: 4),
                             SelectableText(
                               _setup!.otpauthUrl,
@@ -1323,8 +1315,8 @@ class _SecurityScreenState extends ConsumerState<SecurityScreen> {
                               alignment: Alignment.centerLeft,
                               child: TextButton.icon(
                                 onPressed: () {
-                                  Clipboard.setData(ClipboardData(
-                                      text: _setup!.secret));
+                                  Clipboard.setData(
+                                      ClipboardData(text: _setup!.secret));
                                   lhToast(context, 'Secret copié.');
                                 },
                                 icon: const Icon(Icons.copy_rounded, size: 16),
@@ -1353,8 +1345,7 @@ class _SecurityScreenState extends ConsumerState<SecurityScreen> {
                           ? const SizedBox(
                               width: 20,
                               height: 20,
-                              child: CircularProgressIndicator(
-                                  strokeWidth: 2))
+                              child: CircularProgressIndicator(strokeWidth: 2))
                           : const Text('Confirmer l\'activation'),
                     ),
                   ]),
@@ -1386,8 +1377,7 @@ class _SecurityScreenState extends ConsumerState<SecurityScreen> {
                           ? const SizedBox(
                               width: 18,
                               height: 18,
-                              child: CircularProgressIndicator(
-                                  strokeWidth: 2))
+                              child: CircularProgressIndicator(strokeWidth: 2))
                           : const Icon(Icons.shield_outlined, size: 18),
                       label: const Text('Désactiver la 2FA'),
                     ),
@@ -1462,10 +1452,11 @@ class _SyncScreenState extends ConsumerState<SyncScreen> {
     }
 
     final state = stateAsync.valueOrNull;
-    final running = state?.running ??
-        ref.watch(syncNowProvider(_trigger)).isLoading;
+    final running =
+        state?.running ?? ref.watch(syncNowProvider(_trigger)).isLoading;
     final conflicts = conflictsAsync.valueOrNull ?? const <dbm.SyncOperation>[];
-    final rejections = rejectionsAsync.valueOrNull ?? const <dbm.SyncOperation>[];
+    final rejections =
+        rejectionsAsync.valueOrNull ?? const <dbm.SyncOperation>[];
 
     return Scaffold(
       appBar: AppBar(title: const Text('Synchronisation')),
@@ -1509,8 +1500,7 @@ class _SyncScreenState extends ConsumerState<SyncScreen> {
                                 ? 'Jamais synchronisé'
                                 : 'Dernière synchronisation ${fmt.timeAgo(state!.lastSyncAt!)}',
                             style: theme.textTheme.bodySmall?.copyWith(
-                                color:
-                                    theme.colorScheme.onSurfaceVariant),
+                                color: theme.colorScheme.onSurfaceVariant),
                           ),
                         ]),
                   ),
@@ -1557,7 +1547,8 @@ class _SyncScreenState extends ConsumerState<SyncScreen> {
                   child: _CountTile(
                 label: 'Rejets',
                 value: '${state?.rejected ?? rejections.length}',
-                color: rejections.isNotEmpty ? LHColors.erreur : LHColors.neutre,
+                color:
+                    rejections.isNotEmpty ? LHColors.erreur : LHColors.neutre,
               )),
             ]),
           ),
@@ -1578,7 +1569,7 @@ class _SyncScreenState extends ConsumerState<SyncScreen> {
           // ── CONFLITS ──
           if (conflicts.isNotEmpty) ...[
             SectionHeader('Conflits à résoudre',
-                overline: 'Divergence serveur'),
+                inset: LHSpacing.screen, overline: 'Divergence serveur'),
             for (final op in conflicts)
               Padding(
                 padding:
@@ -1621,8 +1612,7 @@ class _SyncScreenState extends ConsumerState<SyncScreen> {
                                       'Votre version sera renvoyée au serveur.');
                                 }
                               },
-                              icon: const Icon(Icons.upload_rounded,
-                                  size: 16),
+                              icon: const Icon(Icons.upload_rounded, size: 16),
                               label: const Text('Garder ma version'),
                             ),
                           ),
@@ -1640,8 +1630,8 @@ class _SyncScreenState extends ConsumerState<SyncScreen> {
                                         ? 'Version serveur appliquée.'
                                         : 'Version serveur introuvable — réessayez plus tard.');
                               },
-                              icon: const Icon(Icons.download_rounded,
-                                  size: 16),
+                              icon:
+                                  const Icon(Icons.download_rounded, size: 16),
                               label: const Text('Version serveur'),
                             ),
                           ),
@@ -1652,18 +1642,19 @@ class _SyncScreenState extends ConsumerState<SyncScreen> {
           ],
           // ── REJETS ──
           if (rejections.isNotEmpty) ...[
-            SectionHeader('Rejets du serveur', overline: 'Non appliqué'),
+            SectionHeader('Rejets du serveur',
+                inset: LHSpacing.screen, overline: 'Non appliqué'),
             for (final op in rejections)
               ListTile(
                 dense: true,
-                leading: Icon(_opIcon(op.op),
-                    size: 20, color: LHColors.erreur),
+                leading: Icon(_opIcon(op.op), size: 20, color: LHColors.erreur),
                 title: Text('${_resourceLabel(op.resourceType)} · ${op.op}'),
                 subtitle: Text(op.lastError ?? 'Rejetée par le serveur'),
               ),
           ],
           // ── HISTORIQUE ──
-          SectionHeader('Maintenance', overline: 'Historique local'),
+          SectionHeader('Maintenance',
+              inset: LHSpacing.screen, overline: 'Historique local'),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: OutlinedButton.icon(

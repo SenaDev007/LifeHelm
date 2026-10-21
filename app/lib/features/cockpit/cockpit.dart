@@ -248,8 +248,7 @@ class _TodaySection extends ConsumerWidget {
           Text(label,
               textAlign: TextAlign.center,
               style: theme.textTheme.bodySmall?.copyWith(
-                  fontSize: 11,
-                  color: theme.colorScheme.onSurfaceVariant)),
+                  fontSize: 11, color: theme.colorScheme.onSurfaceVariant)),
         ]),
       ),
     );
@@ -266,11 +265,16 @@ class _QuickActions extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       child: Row(children: [
-        _qa(context, Icons.add_task_rounded, 'Tâche', LHColors.or, () => context.push('/task/new')),
-        _qa(context, Icons.north_east_rounded, 'Dépense', LHColors.erreur, () => context.push('/transaction/new?type=expense')),
-        _qa(context, Icons.south_west_rounded, 'Revenu', LHColors.emeraudeClair, () => context.push('/transaction/new?type=income')),
-        _qa(context, Icons.event_rounded, 'Événement', LHColors.info, () => context.push('/event/new')),
-        _qa(context, Icons.edit_note_rounded, 'Note', LHColors.navy, () => context.push('/notes')),
+        _qa(context, Icons.add_task_rounded, 'Tâche', LHColors.or,
+            () => context.push('/task/new')),
+        _qa(context, Icons.north_east_rounded, 'Dépense', LHColors.erreur,
+            () => context.push('/transaction/new?type=expense')),
+        _qa(context, Icons.south_west_rounded, 'Revenu', LHColors.emeraudeClair,
+            () => context.push('/transaction/new?type=income')),
+        _qa(context, Icons.event_rounded, 'Événement', LHColors.info,
+            () => context.push('/event/new')),
+        _qa(context, Icons.edit_note_rounded, 'Note', LHColors.navy,
+            () => context.push('/notes')),
       ]),
     );
   }
@@ -315,13 +319,16 @@ class _PrioritiesSection extends ConsumerWidget {
         .where((t) =>
             t.parentId == null &&
             t.archivedAt == null &&
-            (t.status == 'TODO' || t.status == 'IN_PROGRESS' || t.status == 'WAITING'))
+            (t.status == 'TODO' ||
+                t.status == 'IN_PROGRESS' ||
+                t.status == 'WAITING'))
         .toList()
       ..sort((a, b) => hybridScore(b, todayKey, prefs.upcomingWindowDays)
           .compareTo(hybridScore(a, todayKey, prefs.upcomingWindowDays)));
 
     return Column(children: [
       SectionHeader('Priorités',
+          inset: LHSpacing.screen,
           overline: 'Classement hybride',
           action: TextButton(
               onPressed: () => context.push('/activities'),
@@ -333,7 +340,8 @@ class _PrioritiesSection extends ConsumerWidget {
             child: Row(children: [
               Icon(Icons.celebration_outlined, color: LHColors.emeraudeClair),
               SizedBox(width: 12),
-              Expanded(child: Text('Rien d\'urgent — profitez de votre journée.')),
+              Expanded(
+                  child: Text('Rien d\'urgent — profitez de votre journée.')),
             ]),
           ),
         )
@@ -414,6 +422,7 @@ class _AgendaSection extends ConsumerWidget {
 
     return Column(children: [
       SectionHeader('Agenda proche',
+          inset: LHSpacing.screen,
           overline: '${prefs.upcomingWindowDays} prochains jours',
           action: TextButton(
               onPressed: () => context.push('/agenda'),
@@ -481,8 +490,7 @@ class _FinanceSection extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
-    final balances =
-        ref.watch(fin.balancesProvider(spaceId)).valueOrNull ?? [];
+    final balances = ref.watch(fin.balancesProvider(spaceId)).valueOrNull ?? [];
     final budgetStats =
         ref.watch(fin.budgetStatsProvider(spaceId)).valueOrNull ?? [];
     final dues = ref.watch(fin.duesProvider(spaceId)).valueOrNull ?? [];
@@ -495,11 +503,12 @@ class _FinanceSection extends ConsumerWidget {
           : b.current * (Currency.tauxVersXof[b.currency.code] ?? 1).round();
     }
     final alertBudgets = budgetStats.where((s) => s.ratio >= 0.8).length;
-    final lateDues = dues.where((d) =>
-        d.status == 'OPEN' && d.dueDate.compareTo(todayKey) < 0);
+    final lateDues = dues
+        .where((d) => d.status == 'OPEN' && d.dueDate.compareTo(todayKey) < 0);
 
     return Column(children: [
       SectionHeader('Finances',
+          inset: LHSpacing.screen,
           overline: 'Vue consolidée',
           action: TextButton(
               onPressed: () => context.push('/finance'),
@@ -508,57 +517,56 @@ class _FinanceSection extends ConsumerWidget {
         padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
         child: LHCard(
           onTap: () => context.push('/finance'),
-          child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
+          child:
+              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Row(children: [
+              const Icon(Icons.savings_outlined, color: LHColors.or, size: 20),
+              const SizedBox(width: 10),
+              Expanded(
+                  child: Text('Patrimoine',
+                      style: theme.textTheme.labelMedium?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant))),
+              Text(
+                Money(totalXof, Currency.xof).format(),
+                style: theme.textTheme.titleMedium
+                    ?.copyWith(fontWeight: FontWeight.w800),
+              ),
+            ]),
+            if (alertBudgets > 0 || lateDues.isNotEmpty) ...[
+              const SizedBox(height: 10),
+              if (alertBudgets > 0)
                 Row(children: [
-                  const Icon(Icons.savings_outlined, color: LHColors.or, size: 20),
-                  const SizedBox(width: 10),
+                  const Icon(Icons.warning_amber_rounded,
+                      size: 16, color: LHColors.alerte),
+                  const SizedBox(width: 8),
                   Expanded(
-                      child: Text('Patrimoine',
-                          style: theme.textTheme.labelMedium?.copyWith(
-                              color: theme.colorScheme.onSurfaceVariant))),
-                  Text(
-                    Money(totalXof, Currency.xof).format(),
-                    style: theme.textTheme.titleMedium
-                        ?.copyWith(fontWeight: FontWeight.w800),
-                  ),
+                      child: Text(
+                          '$alertBudgets budget${alertBudgets > 1 ? 's' : ''} au-delà du seuil d\'alerte',
+                          style: theme.textTheme.bodySmall
+                              ?.copyWith(color: LHColors.alerte))),
                 ]),
-                if (alertBudgets > 0 || lateDues.isNotEmpty) ...[
-                  const SizedBox(height: 10),
-                  if (alertBudgets > 0)
-                    Row(children: [
-                      const Icon(Icons.warning_amber_rounded,
-                          size: 16, color: LHColors.alerte),
-                      const SizedBox(width: 8),
-                      Expanded(
-                          child: Text(
-                              '$alertBudgets budget${alertBudgets > 1 ? 's' : ''} au-delà du seuil d\'alerte',
-                              style: theme.textTheme.bodySmall
-                                  ?.copyWith(color: LHColors.alerte))),
-                    ]),
-                  for (final d in lateDues.take(2))
-                    Padding(
-                      padding: const EdgeInsets.only(top: 4),
-                      child: Row(children: [
-                        const Icon(Icons.event_busy,
-                            size: 16, color: LHColors.erreur),
-                        const SizedBox(width: 8),
-                        Expanded(
-                            child: Text(
-                                '${d.label} — en retard (${Money(d.expectedAmount, Currency.byCode(d.currency)).format(withCode: false)})',
-                                style: theme.textTheme.bodySmall
-                                    ?.copyWith(color: LHColors.erreur))),
-                      ]),
-                    ),
-                ] else
-                  Padding(
-                    padding: const EdgeInsets.only(top: 8),
-                    child: Text('Budgets sous contrôle, aucune échéance en retard.',
-                        style: theme.textTheme.bodySmall?.copyWith(
-                            color: LHColors.emeraudeClair)),
-                  ),
-              ]),
+              for (final d in lateDues.take(2))
+                Padding(
+                  padding: const EdgeInsets.only(top: 4),
+                  child: Row(children: [
+                    const Icon(Icons.event_busy,
+                        size: 16, color: LHColors.erreur),
+                    const SizedBox(width: 8),
+                    Expanded(
+                        child: Text(
+                            '${d.label} — en retard (${Money(d.expectedAmount, Currency.byCode(d.currency)).format(withCode: false)})',
+                            style: theme.textTheme.bodySmall
+                                ?.copyWith(color: LHColors.erreur))),
+                  ]),
+                ),
+            ] else
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Text('Budgets sous contrôle, aucune échéance en retard.',
+                    style: theme.textTheme.bodySmall
+                        ?.copyWith(color: LHColors.emeraudeClair)),
+              ),
+          ]),
         ),
       ),
     ]);
@@ -578,6 +586,7 @@ class _GoalsSection extends ConsumerWidget {
 
     return Column(children: [
       SectionHeader('Objectifs',
+          inset: LHSpacing.screen,
           overline: 'Cap sur l\'essentiel',
           action: TextButton(
               onPressed: () => context.push('/goals'),
@@ -590,8 +599,8 @@ class _GoalsSection extends ConsumerWidget {
               Icon(Icons.flag_outlined, color: LHColors.neutre),
               SizedBox(width: 12),
               Expanded(
-                  child:
-                      Text('Définissez un objectif pour donner du cap à vos efforts.')),
+                  child: Text(
+                      'Définissez un objectif pour donner du cap à vos efforts.')),
             ]),
           ),
         )
@@ -659,10 +668,12 @@ class _AlertsSection extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final spaceId = ref.watch(activeSpaceIdProvider);
-    final alerts = ref.watch(importantAlertsProvider(spaceId)).valueOrNull ?? [];
+    final alerts =
+        ref.watch(importantAlertsProvider(spaceId)).valueOrNull ?? [];
 
     return Column(children: [
       SectionHeader('Alertes',
+          inset: LHSpacing.screen,
           overline: 'Nécessite votre attention',
           action: TextButton(
               onPressed: () => context.push('/notifications'),
@@ -695,8 +706,7 @@ class _AlertsSection extends ConsumerWidget {
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
                             style: theme.textTheme.bodySmall?.copyWith(
-                                color:
-                                    theme.colorScheme.onSurfaceVariant)),
+                                color: theme.colorScheme.onSurfaceVariant)),
                       ]),
                 ),
               ]),
@@ -724,8 +734,7 @@ final importantAlertsProvider =
             n.archivedAt.isNull() &
             n.priority.isIn(['IMPORTANT', 'CRITICAL']))
         ..orderBy([
-          (n) =>
-              OrderingTerm(expression: n.createdAt, mode: OrderingMode.desc)
+          (n) => OrderingTerm(expression: n.createdAt, mode: OrderingMode.desc)
         ]))
       .watch();
 });

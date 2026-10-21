@@ -77,16 +77,60 @@ export class AuthService {
     };
   }
 
-  /** Identifiant : courriel si contient @, sinon téléphone (normalisé). */
-  private normalizeIdentifier(identifier: string): { email?: string; phone?: string } {
-    const trimmed = identifier.trim();
-    if (trimmed.includes('@')) return { email: trimmed.toLowerCase() };
-    const phone = trimmed.replace(/[\s-]/g, '');
-    return { phone };
+  /** Normalise un téléphone : ne conserve que les chiffres, précédés de
+   *  « + ». Le préfixe international « 00 » éventuel est converti. */
+  private normalizePhone(phone: string): string {
+    let digits = phone.replace(/[^0-9]/g, '');
+    if (digits.startsWith('00')) digits = digits.slice(2);
+    if (!digits) return phone.trim();
+    return `+${digits}`;
   }
 
-  private normalizePhone(phone: string): string {
-    return phone.replace(/[\s-]/g, '');
+  /** Chiffres significatifs d'un identifiant téléphonique saisi (le « + »
+   *  et le « 00 » éventuels sont neutralisés par normalizePhone/findUserCandidates). */
+  private phoneDigits(input: string): string {
+    let digits = input.replace(/[^0-9]/g, '');
+    if (digits.startsWith('00')) digits = digits.slice(2);
+    return digits;
+  }
+
+  /** Résout un identifiant (courriel OU téléphone) en candidats utilisateurs.
+   *
+   *  Téléphone — deux stratégies, dans l'ordre :
+   *   1. correspondance exacte du numéro stocké (« +2290197… ») ;
+   *   2. correspondance par suffixe : le numéro LOCAL saisi sans indicatif
+   *      (ex. « 01 97 12 34 56 » au Bénin — 10 chiffres, ou « 97 12 34 56 »
+   *      ancien format à 8 chiffres) retrouve le compte enregistré sous
+   *      « +2290197… » / « +22997… », car le numéro stocké se TERMINE par
+   *      les chiffres tapés.
+   *
+   *  Plusieurs candidats (suffixe partagé entre deux pays) sont renvoyés :
+   *  l'appelant départage par mot de passe (login) ou prend le premier. */
+  private async findUserCandidates(identifier: string) {
+    const trimmed = identifier.trim();
+    if (trimmed.includes('@')) {
+      const byEmail = await this.prisma.user.findUnique({
+        where: { email: trimmed.toLowerCase() },
+      });
+      return byEmail ? [byEmail] : [];
+    }
+    const digits = this.phoneDigits(trimmed);
+    if (digits.length < 6) return [];
+
+    // 1) Numéro complet saisi avec indicatif (+229… ou 229…).
+    const exact = await this.prisma.user.findMany({
+      where: { OR: [{ phone: `+${digits}` }, { phone: digits }] },
+      take: 5,
+    });
+    if (exact.length > 0) return exact;
+
+    // 2) Numéro local sans indicatif — recherche par suffixe (min. 8 chiffres
+    //    pour éviter les faux positifs).
+    if (digits.length < 8) return [];
+    return this.prisma.user.findMany({
+      where: { phone: { endsWith: digits } },
+      take: 5,
+    });
   }
 
   /** Crée une session (famille neuve) et le couple access/refresh. */
@@ -157,6 +201,14 @@ export class AuthService {
   async register(dto: RegisterDto, meta: { userAgent?: string; ip?: string }) {
     const email = dto.email?.trim().toLowerCase() || null;
     const phone = dto.phone ? this.normalizePhone(dto.phone) : null;
+
+    // Cohérence E.164 souple : 8 à 15 chiffres après l'indicatif.
+    if (phone && !/^\+\d{8,15}$/.test(phone)) {
+      throw new HttpException(
+        { code: 'INVALID_PHONE', message: 'Numéro de téléphone invalide — 8 à 15 chiffres attendus après l\'indicatif.' },
+        HttpStatus.BAD_REQUEST,
+      );
+    }
 
     if (!email && !phone) {
       throw new HttpException(
@@ -230,19 +282,18 @@ export class AuthService {
   // ─────────────────────────── Connexion ───────────────────────────
 
   async login(dto: LoginDto, meta: { userAgent?: string; ip?: string }) {
-    const { email, phone } = this.normalizeIdentifier(dto.identifier);
-    const user = await this.prisma.user.findFirst({
-      where: email ? { email } : { phone },
-    });
-    if (!user) {
-      throw new HttpException(
-        { code: 'INVALID_CREDENTIALS', message: 'Identifiants incorrects.' },
-        HttpStatus.UNAUTHORIZED,
-      );
+    // Candidats : le téléphone peut être saisi en format local (sans
+    // indicatif) — ex. « 01 97 12 34 56 » pour un compte « +2290197… ».
+    // Le mot de passe départage d'éventuels suffixes partagés.
+    const candidates = await this.findUserCandidates(dto.identifier);
+    let user = null;
+    for (const candidate of candidates) {
+      if (await bcrypt.compare(dto.password, candidate.passwordHash)) {
+        user = candidate;
+        break;
+      }
     }
-
-    const valid = await bcrypt.compare(dto.password, user.passwordHash);
-    if (!valid) {
+    if (!user) {
       throw new HttpException(
         { code: 'INVALID_CREDENTIALS', message: 'Identifiants incorrects.' },
         HttpStatus.UNAUTHORIZED,
@@ -293,6 +344,12 @@ export class AuthService {
     // Unicité du téléphone si modifié.
     if (dto.phone !== undefined) {
       const phone = dto.phone ? this.normalizePhone(dto.phone) : null;
+      if (phone && !/^\+\d{8,15}$/.test(phone)) {
+        throw new HttpException(
+          { code: 'INVALID_PHONE', message: 'Numéro de téléphone invalide — 8 à 15 chiffres attendus après l\'indicatif.' },
+          HttpStatus.BAD_REQUEST,
+        );
+      }
       if (phone && phone !== user.phone) {
         const clash = await this.prisma.user.findUnique({ where: { phone } });
         if (clash) {
@@ -363,10 +420,7 @@ export class AuthService {
 
   /** Questions publiques d'un compte (sans les réponses). */
   async securityQuestionsOf(identifier: string) {
-    const { email, phone } = this.normalizeIdentifier(identifier);
-    const user = await this.prisma.user.findFirst({
-      where: email ? { email } : { phone },
-    });
+    const [user] = await this.findUserCandidates(identifier);
     if (!user?.securityQuestions || !Array.isArray(user.securityQuestions)) {
       return { questions: null };
     }
@@ -382,10 +436,7 @@ export class AuthService {
     identifier: string,
     answers: Record<string, string>,
   ) {
-    const { email, phone } = this.normalizeIdentifier(identifier);
-    const user = await this.prisma.user.findFirst({
-      where: email ? { email } : { phone },
-    });
+    const [user] = await this.findUserCandidates(identifier);
     if (
       !user?.securityQuestions ||
       !Array.isArray(user.securityQuestions)
@@ -543,8 +594,7 @@ export class AuthService {
   }
 
   async forgotPassword(identifier: string) {
-    const { email, phone } = this.normalizeIdentifier(identifier);
-    const user = await this.prisma.user.findFirst({ where: email ? { email } : { phone } });
+    const [user] = await this.findUserCandidates(identifier);
 
     // Anti-énumération : réponse identique que le compte existe ou non (202).
     if (!user) return { ...(isDev ? { devResetToken: null } : {}) };

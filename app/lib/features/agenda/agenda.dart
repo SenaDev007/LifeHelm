@@ -44,7 +44,8 @@ Color eventStatusColor(String s) {
 
 int _minutes(String hhmm) {
   final parts = hhmm.split(':');
-  return int.parse(parts[0]) * 60 + (parts.length > 1 ? int.parse(parts[1]) : 0);
+  return int.parse(parts[0]) * 60 +
+      (parts.length > 1 ? int.parse(parts[1]) : 0);
 }
 
 Color hexToColor(String hex, {Color fallback = const Color(0xFF3B82F6)}) {
@@ -126,17 +127,21 @@ bool _matchesRule(RecurrenceRule rule, DateTime seriesStart, DateTime d) {
     case 'DAILY':
       return fmt.daysBetween(seriesStart, d) % rule.interval == 0;
     case 'WEEKLY':
-      final days = fmt.daysBetween(fmt.startOfWeek(seriesStart), fmt.startOfWeek(d)) ~/ 7;
+      final days =
+          fmt.daysBetween(fmt.startOfWeek(seriesStart), fmt.startOfWeek(d)) ~/
+              7;
       if (days % rule.interval != 0) return false;
       if (rule.byWeekday == null) return d.weekday == seriesStart.weekday;
       final wd = (jsonDecode(rule.byWeekday!) as List).cast<int>();
       return wd.contains(d.weekday);
     case 'MONTHLY':
       if (d.day != seriesStart.day) return false;
-      var months = (d.year - seriesStart.year) * 12 + (d.month - seriesStart.month);
+      var months =
+          (d.year - seriesStart.year) * 12 + (d.month - seriesStart.month);
       return months % rule.interval == 0;
     case 'YEARLY':
-      if (d.day != seriesStart.day || d.month != seriesStart.month) return false;
+      if (d.day != seriesStart.day || d.month != seriesStart.month)
+        return false;
       return (d.year - seriesStart.year) % rule.interval == 0;
     default:
       return false;
@@ -165,7 +170,8 @@ extension AgendaQueries on AppDatabase {
 
   Stream<List<EventException>> watchExceptionsForSpace(String spaceId) {
     final query = select(eventExceptions).join([
-      innerJoin(calendarEvents, calendarEvents.id.equalsExp(eventExceptions.eventId))
+      innerJoin(
+          calendarEvents, calendarEvents.id.equalsExp(eventExceptions.eventId))
     ])
       ..where(calendarEvents.spaceId.equals(spaceId));
     return query
@@ -174,8 +180,9 @@ extension AgendaQueries on AppDatabase {
   }
 
   Stream<Map<String, RecurrenceRule>> watchRuleMap() {
-    return (select(recurrenceRules)).watch().map(
-        (list) => {for (final r in list) r.id: r});
+    return (select(recurrenceRules))
+        .watch()
+        .map((list) => {for (final r in list) r.id: r});
   }
 
   Future<CalendarEvent?> getEvent(String id) =>
@@ -222,14 +229,15 @@ extension AgendaQueries on AppDatabase {
   }
 
   Future<void> setEventStatus(String id, String status) async {
-    await (update(calendarEvents)..where((x) => x.id.equals(id)))
-        .write(CalendarEventsCompanion(
+    await (update(calendarEvents)..where((x) => x.id.equals(id))).write(
+        CalendarEventsCompanion(
             status: Value(status), updatedAt: Value(DateTime.now())));
     logOp('CalendarEvent', id, 'UPDATE', {'status': status});
   }
 
   Future<void> deleteEvent(CalendarEvent e) async {
-    await (delete(eventParticipants)..where((p) => p.eventId.equals(e.id))).go();
+    await (delete(eventParticipants)..where((p) => p.eventId.equals(e.id)))
+        .go();
     final exceptions = await (select(eventExceptions)
           ..where((x) => x.eventId.equals(e.id)))
         .get();
@@ -241,7 +249,8 @@ extension AgendaQueries on AppDatabase {
     logOp('CalendarEvent', e.id, 'DELETE', {'title': e.title});
   }
 
-  Future<void> addParticipant(String eventId, String name, String status) async {
+  Future<void> addParticipant(
+      String eventId, String name, String status) async {
     await into(eventParticipants).insert(EventParticipant(
         id: '${eventId}_$name', eventId: eventId, name: name, status: status));
   }
@@ -270,8 +279,8 @@ final eventsProvider = StreamProvider.family<List<CalendarEvent>, String>(
     (ref, spaceId) => ref.watch(dbProvider).watchEvents(spaceId));
 
 final eventExceptionsProvider =
-    StreamProvider.family<List<EventException>, String>(
-        (ref, spaceId) => ref.watch(dbProvider).watchExceptionsForSpace(spaceId));
+    StreamProvider.family<List<EventException>, String>((ref, spaceId) =>
+        ref.watch(dbProvider).watchExceptionsForSpace(spaceId));
 
 final ruleMapProvider = StreamProvider<Map<String, RecurrenceRule>>(
     (ref) => ref.watch(dbProvider).watchRuleMap());
@@ -282,8 +291,9 @@ final eventProvider = StreamProvider.family<CalendarEvent?, String>((ref, id) {
       .watchSingleOrNull();
 });
 
-final participantsProvider = StreamProvider.family<List<EventParticipant>, String>(
-    (ref, id) => ref.watch(dbProvider).watchParticipants(id));
+final participantsProvider =
+    StreamProvider.family<List<EventParticipant>, String>(
+        (ref, id) => ref.watch(dbProvider).watchParticipants(id));
 
 // ═══════════════════════════ ÉCRAN : AGENDA ═══════════════════════════
 
@@ -384,8 +394,10 @@ class _AgendaScreenState extends ConsumerState<AgendaScreen> {
         final s = fmt.startOfWeek(_selected);
         return (s, fmt.addDays(s, 6));
       case _AgendaView.month:
-        return (DateTime(_month.year, _month.month, 1),
-            DateTime(_month.year, _month.month + 1, 0));
+        return (
+          DateTime(_month.year, _month.month, 1),
+          DateTime(_month.year, _month.month + 1, 0)
+        );
     }
   }
 
@@ -404,21 +416,29 @@ class _AgendaScreenState extends ConsumerState<AgendaScreen> {
   }
 
   Widget _dayList(List<AgendaEntry> entries, DateTime day) {
-    final dayEntries = entries.where((e) => fmt.isSameDay(e.date, day)).toList();
+    final dayEntries =
+        entries.where((e) => fmt.isSameDay(e.date, day)).toList();
     final overlaps = _findOverlaps(dayEntries);
     if (dayEntries.isEmpty) {
-      return EmptyState(
-        illustration: 'assets/illustrations/agenda.png',
-        icon: Icons.event_available,
-        message: 'Rien de prévu ${fmt.isSameDay(day, fmt.today()) ? "aujourd'hui" : 'ce jour-là'}',
-        hint: 'Profitez-en — ou planifiez quelque chose.',
+      // Dégagement du bouton flottant « Nouvel événement » : l'état vide
+      // ne doit jamais être recouvert ni déborder (bande jaune/noire).
+      return Padding(
+        padding: const EdgeInsets.only(bottom: 88),
+        child: EmptyState(
+          illustration: 'assets/illustrations/agenda.png',
+          icon: Icons.event_available,
+          message:
+              'Rien de prévu ${fmt.isSameDay(day, fmt.today()) ? "aujourd'hui" : 'ce jour-là'}',
+          hint: 'Profitez-en — ou planifiez quelque chose.',
+        ),
       );
     }
     return ListView.builder(
-      padding: const EdgeInsets.only(bottom: 96, top: 8),
+      padding: const EdgeInsets.only(bottom: 108, top: 8),
       itemCount: dayEntries.length,
       itemBuilder: (context, i) => _EventTile(
-          entry: dayEntries[i], hasOverlap: overlaps.contains(dayEntries[i].key)),
+          entry: dayEntries[i],
+          hasOverlap: overlaps.contains(dayEntries[i].key)),
     );
   }
 
@@ -426,48 +446,52 @@ class _AgendaScreenState extends ConsumerState<AgendaScreen> {
     final start = fmt.startOfWeek(_selected);
     final days = List.generate(7, (i) => fmt.addDays(start, i));
     return Column(children: [
-      SizedBox(
-        height: 68,
-        child: Row(children: [
-          for (final d in days)
-            Expanded(
-              child: GestureDetector(
-                onTap: () => setState(() {
-                  _selected = d;
-                  _view = _AgendaView.day;
-                }),
-                child: Container(
-                  margin: const EdgeInsets.symmetric(horizontal: 3, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: fmt.isSameDay(d, fmt.today())
-                        ? LHColors.or.withValues(alpha: 0.15)
-                        : null,
-                    borderRadius: BorderRadius.circular(LHRadius.md),
-                    border: fmt.isSameDay(d, _selected)
-                        ? Border.all(color: LHColors.or)
-                        : null,
-                  ),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(fmt.weekdaysFr[d.weekday - 1],
-                          style: const TextStyle(fontSize: 11)),
-                      Text('${d.day}',
-                          style: const TextStyle(
-                              fontWeight: FontWeight.w700, fontSize: 16)),
-                    ],
+      // Marge d'écran : le bandeau des jours ne colle pas au bord.
+      Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        child: SizedBox(
+          height: 68,
+          child: Row(children: [
+            for (final d in days)
+              Expanded(
+                child: GestureDetector(
+                  onTap: () => setState(() {
+                    _selected = d;
+                    _view = _AgendaView.day;
+                  }),
+                  child: Container(
+                    margin:
+                        const EdgeInsets.symmetric(horizontal: 3, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: fmt.isSameDay(d, fmt.today())
+                          ? LHColors.or.withValues(alpha: 0.15)
+                          : null,
+                      borderRadius: BorderRadius.circular(LHRadius.md),
+                      border: fmt.isSameDay(d, _selected)
+                          ? Border.all(color: LHColors.or)
+                          : null,
+                    ),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(fmt.weekdaysFr[d.weekday - 1],
+                            style: const TextStyle(fontSize: 11)),
+                        Text('${d.day}',
+                            style: const TextStyle(
+                                fontWeight: FontWeight.w700, fontSize: 16)),
+                      ],
+                    ),
                   ),
                 ),
               ),
-            ),
-        ]),
+          ]),
+        ),
       ),
       Expanded(
         child: ListView(
-          padding: const EdgeInsets.only(bottom: 96),
+          padding: const EdgeInsets.only(bottom: 108),
           children: [
-            for (final d in days)
-              ..._daySection(entries, d),
+            for (final d in days) ..._daySection(entries, d),
           ],
         ),
       ),
@@ -493,85 +517,109 @@ class _AgendaScreenState extends ConsumerState<AgendaScreen> {
   Widget _monthView(List<AgendaEntry> entries) {
     final theme = Theme.of(context);
     final cells = fmt.monthGrid(_month);
-    return Column(children: [
-      Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-        IconButton(
-            onPressed: () =>
-                setState(() => _month = DateTime(_month.year, _month.month - 1, 1)),
-            icon: const Icon(Icons.chevron_left)),
-        TextButton(
-          onPressed: () => setState(() {
-            _month = fmt.today();
-            _selected = fmt.today();
-          }),
-          child: Text(fmt.formatMonthYear(_month),
-              style:
-                  const TextStyle(fontWeight: FontWeight.w800, fontSize: 15)),
-        ),
-        IconButton(
-            onPressed: () =>
-                setState(() => _month = DateTime(_month.year, _month.month + 1, 1)),
-            icon: const Icon(Icons.chevron_right)),
-      ]),
-      Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12),
-        child: Row(children: [
-          for (final w in fmt.weekdaysFr)
-            Expanded(
-                child: Center(
-                    child: Text(w,
-                        style: theme.textTheme.labelSmall?.copyWith(
-                            color: theme.colorScheme.onSurfaceVariant)))),
+    final dayEntries =
+        entries.where((e) => fmt.isSameDay(e.date, _selected)).toList();
+    // Vue entièrement défilable : sur petits écrans, l'empilement fixe
+    // (navigation + grille 300 px + état vide illustré) débordait (bande
+    // jaune et noire « bottom overflow »). Tout défile désormais d'un bloc.
+    return ListView(
+      padding: const EdgeInsets.only(bottom: 108),
+      children: [
+        Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+          IconButton(
+              onPressed: () => setState(
+                  () => _month = DateTime(_month.year, _month.month - 1, 1)),
+              icon: const Icon(Icons.chevron_left)),
+          TextButton(
+            onPressed: () => setState(() {
+              _month = fmt.today();
+              _selected = fmt.today();
+            }),
+            child: Text(fmt.formatMonthYear(_month),
+                style:
+                    const TextStyle(fontWeight: FontWeight.w800, fontSize: 15)),
+          ),
+          IconButton(
+              onPressed: () => setState(
+                  () => _month = DateTime(_month.year, _month.month + 1, 1)),
+              icon: const Icon(Icons.chevron_right)),
         ]),
-      ),
-      SizedBox(
-        height: 300,
-        child: GridView.count(
-          crossAxisCount: 7,
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-          children: [
-            for (final d in cells)
-              GestureDetector(
-                onTap: () => setState(() => _selected = d),
-                child: Container(
-                  margin: const EdgeInsets.all(2),
-                  decoration: BoxDecoration(
-                    color: fmt.isSameDay(d, _selected)
-                        ? LHColors.or.withValues(alpha: 0.18)
-                        : null,
-                    shape: BoxShape.circle,
-                  ),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text('${d.day}',
-                          style: TextStyle(
-                              fontSize: 13,
-                              fontWeight: fmt.isSameDay(d, fmt.today())
-                                  ? FontWeight.w800
-                                  : FontWeight.w500,
-                              color: d.month != _month.month
-                                  ? theme.colorScheme.onSurfaceVariant
-                                  : null)),
-                      if (entries.any((e) => fmt.isSameDay(e.date, d)))
-                        Container(
-                          width: 4,
-                          height: 4,
-                          margin: const EdgeInsets.only(top: 1),
-                          decoration: const BoxDecoration(
-                              color: LHColors.or, shape: BoxShape.circle),
-                        ),
-                    ],
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          child: Row(children: [
+            for (final w in fmt.weekdaysFr)
+              Expanded(
+                  child: Center(
+                      child: Text(w,
+                          style: theme.textTheme.labelSmall?.copyWith(
+                              color: theme.colorScheme.onSurfaceVariant)))),
+          ]),
+        ),
+        SizedBox(
+          height: 300,
+          child: GridView.count(
+            crossAxisCount: 7,
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+            children: [
+              for (final d in cells)
+                GestureDetector(
+                  onTap: () => setState(() => _selected = d),
+                  child: Container(
+                    margin: const EdgeInsets.all(2),
+                    decoration: BoxDecoration(
+                      color: fmt.isSameDay(d, _selected)
+                          ? LHColors.or.withValues(alpha: 0.18)
+                          : null,
+                      shape: BoxShape.circle,
+                    ),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text('${d.day}',
+                            style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: fmt.isSameDay(d, fmt.today())
+                                    ? FontWeight.w800
+                                    : FontWeight.w500,
+                                color: d.month != _month.month
+                                    ? theme.colorScheme.onSurfaceVariant
+                                    : null)),
+                        if (entries.any((e) => fmt.isSameDay(e.date, d)))
+                          Container(
+                            width: 4,
+                            height: 4,
+                            margin: const EdgeInsets.only(top: 1),
+                            decoration: const BoxDecoration(
+                                color: LHColors.or, shape: BoxShape.circle),
+                          ),
+                      ],
+                    ),
                   ),
                 ),
-              ),
-          ],
+            ],
+          ),
         ),
-      ),
-      Expanded(child: _dayList(entries, _selected)),
-    ]);
+        const SizedBox(height: LHSpacing.sm),
+        if (dayEntries.isEmpty)
+          // État vide compact (sans illustration) : la vue Mois n'a plus la
+          // place de l'image 190 px sous la grille — l'état illustré reste
+          // en vue Jour, où tout l'écran est disponible.
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 4, 20, 24),
+            child: EmptyState(
+              icon: Icons.event_available,
+              message:
+                  'Rien de prévu ${fmt.isSameDay(_selected, fmt.today()) ? "aujourd'hui" : 'ce jour-là'}',
+              hint:
+                  'Touchez « Nouvel événement » pour planifier quelque chose.',
+            ),
+          )
+        else
+          ..._daySection(entries, _selected),
+      ],
+    );
   }
 
   Set<String> _findOverlaps(List<AgendaEntry> day) {
@@ -652,7 +700,8 @@ class _CalendarManagerSheet extends ConsumerWidget {
         ]),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(ctx), child: const Text('Annuler')),
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Annuler')),
           FilledButton(
             onPressed: () async {
               final name = nameCtrl.text.trim();
@@ -691,7 +740,8 @@ class _CalendarManagerSheet extends ConsumerWidget {
         ),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(ctx), child: const Text('Annuler')),
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Annuler')),
           FilledButton(
             onPressed: () async {
               final name = nameCtrl.text.trim();
@@ -727,8 +777,7 @@ class _CalendarManagerSheet extends ConsumerWidget {
           padding: const EdgeInsets.fromLTRB(20, 12, 20, 4),
           child: Row(children: [
             Expanded(
-              child: Text('Calendriers',
-                  style: theme.textTheme.titleMedium),
+              child: Text('Calendriers', style: theme.textTheme.titleMedium),
             ),
             IconButton(
               tooltip: 'Nouveau calendrier',
@@ -758,10 +807,12 @@ class _CalendarManagerSheet extends ConsumerWidget {
               ),
             ),
             title: Text(c.name),
-            subtitle: Text(c.isVisible ? 'Visible — appuyez pour renommer'
-                : 'Masqué — appuyez pour renommer',
-                style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant)),
+            subtitle: Text(
+                c.isVisible
+                    ? 'Visible — appuyez pour renommer'
+                    : 'Masqué — appuyez pour renommer',
+                style: theme.textTheme.bodySmall
+                    ?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
             trailing: Switch(
               value: c.isVisible,
               onChanged: (v) => db.setCalendarVisibility(c.id, v),
@@ -787,11 +838,9 @@ class _EventTile extends ConsumerWidget {
     final spaceId = ref.watch(activeSpaceIdProvider);
     final calendars =
         ref.watch(calendarsProvider(spaceId)).valueOrNull ?? <Calendar>[];
-    final color = calendars
-            .where((c) => c.id == e.calendarId)
-            .firstOrNull
-            ?.colorHex ??
-        '#3B82F6';
+    final color =
+        calendars.where((c) => c.id == e.calendarId).firstOrNull?.colorHex ??
+            '#3B82F6';
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
@@ -818,32 +867,31 @@ class _EventTile extends ConsumerWidget {
             ),
           const SizedBox(width: 6),
           Expanded(
-            child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(e.title,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: theme.textTheme.titleSmall?.copyWith(
-                          decoration: e.status == 'CANCELLED'
-                              ? TextDecoration.lineThrough
-                              : null)),
-                  const SizedBox(height: 2),
-                  Wrap(spacing: 6, runSpacing: 3, children: [
-                    if (e.location != null)
-                      _meta(theme, Icons.place_outlined, e.location!),
-                    if (e.recurrenceRuleId != null)
-                      _meta(theme, Icons.repeat, 'Récurrent'),
-                    if (hasOverlap)
-                      _meta(theme, Icons.warning_amber_rounded, 'Chevauchement',
-                          color: LHColors.alerte),
-                    if (e.status != 'SCHEDULED')
-                      StatusChip(
-                          label: eventStatusLabel(e.status),
-                          color: eventStatusColor(e.status),
-                          small: true),
-                  ]),
-                ]),
+            child:
+                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(e.title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.titleSmall?.copyWith(
+                      decoration: e.status == 'CANCELLED'
+                          ? TextDecoration.lineThrough
+                          : null)),
+              const SizedBox(height: 2),
+              Wrap(spacing: 6, runSpacing: 3, children: [
+                if (e.location != null)
+                  _meta(theme, Icons.place_outlined, e.location!),
+                if (e.recurrenceRuleId != null)
+                  _meta(theme, Icons.repeat, 'Récurrent'),
+                if (hasOverlap)
+                  _meta(theme, Icons.warning_amber_rounded, 'Chevauchement',
+                      color: LHColors.alerte),
+                if (e.status != 'SCHEDULED')
+                  StatusChip(
+                      label: eventStatusLabel(e.status),
+                      color: eventStatusColor(e.status),
+                      small: true),
+              ]),
+            ]),
           ),
         ]),
       ),
@@ -926,7 +974,8 @@ class _EventEditScreenState extends ConsumerState<EventEditScreen> {
           if (rule != null) {
             _recurrenceFreq = rule.freq;
             if (rule.byWeekday != null) {
-              _recurrenceDays = (jsonDecode(rule.byWeekday!) as List).cast<int>();
+              _recurrenceDays =
+                  (jsonDecode(rule.byWeekday!) as List).cast<int>();
             }
           }
         }
@@ -973,7 +1022,8 @@ class _EventEditScreenState extends ConsumerState<EventEditScreen> {
   }
 
   Future<void> _pickTime({required bool isStart}) async {
-    final initial = fmt.parseKey(_startDate)
+    final initial = fmt
+        .parseKey(_startDate)
         .add(Duration(minutes: _minutes(isStart ? _startTime : _endTime)));
     final picked = await showTimePicker(
         context: context, initialTime: TimeOfDay.fromDateTime(initial));
@@ -1047,12 +1097,11 @@ class _EventEditScreenState extends ConsumerState<EventEditScreen> {
       if (!_participants.containsKey(p.name)) await db.removeParticipant(p.id);
     }
     for (final entry in _participants.entries) {
-      final existingStatus = current
-          .where((p) => p.name == entry.key)
-          .firstOrNull
-          ?.status;
+      final existingStatus =
+          current.where((p) => p.name == entry.key).firstOrNull?.status;
       if (existingStatus != entry.value) {
-        if (existingStatus != null) await db.removeParticipant('${id}_${entry.key}');
+        if (existingStatus != null)
+          await db.removeParticipant('${id}_${entry.key}');
         await db.addParticipant(id, entry.key, entry.value);
       }
     }
@@ -1075,13 +1124,13 @@ class _EventEditScreenState extends ConsumerState<EventEditScreen> {
       appBar: AppBar(
         title: Text(isNew ? 'Nouvel événement' : 'Modifier l\'événement'),
         actions: [
-          TextButton(
-              onPressed: _save, child: const Text('Enregistrer')),
+          TextButton(onPressed: _save, child: const Text('Enregistrer')),
         ],
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(LHSpacing.screen),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        child:
+            Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
           TextField(
             controller: _title,
             textCapitalization: TextCapitalization.sentences,
@@ -1128,7 +1177,8 @@ class _EventEditScreenState extends ConsumerState<EventEditScreen> {
                 child: _dateTile(
                     _allDay
                         ? fmt.humanDate(fmt.addDays(fmt.parseKey(_endDate), -1))
-                        : fmt.humanDate(fmt.parseKey(_endDate.isEmpty ? _startDate : _endDate)),
+                        : fmt.humanDate(fmt.parseKey(
+                            _endDate.isEmpty ? _startDate : _endDate)),
                     () => _pickDate(true)),
               ),
             ),
@@ -1224,69 +1274,68 @@ class _EventEditScreenState extends ConsumerState<EventEditScreen> {
           const SizedBox(height: LHSpacing.lg),
           LabeledField(
             label: 'Participants & invitations',
-            child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  for (final name in _participants.keys)
-                    ListTile(
-                      dense: true,
-                      contentPadding: EdgeInsets.zero,
-                      leading: InitialsAvatar(name: name, size: 32),
-                      title: Text(name),
-                      trailing: Row(mainAxisSize: MainAxisSize.min, children: [
-                        DropdownButton<String>(
-                          value: _participants[name],
-                          underline: const SizedBox(),
-                          items: const [
-                            DropdownMenuItem(
-                                value: 'INVITED', child: Text('Invité')),
-                            DropdownMenuItem(
-                                value: 'ACCEPTED', child: Text('Accepté')),
-                            DropdownMenuItem(
-                                value: 'DECLINED', child: Text('Décliné')),
-                            DropdownMenuItem(
-                                value: 'TENTATIVE', child: Text('Incertain')),
-                          ],
-                          onChanged: (v) =>
-                              setState(() => _participants[name] = v ?? 'INVITED'),
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.close, size: 18),
-                          onPressed: () =>
-                              setState(() => _participants.remove(name)),
-                        ),
-                      ]),
-                    ),
-                  Row(children: [
-                    Expanded(
-                      child: TextField(
-                        controller: _participantCtrl,
-                        decoration: const InputDecoration(
-                            hintText: 'Nom du participant…'),
-                        onSubmitted: (v) {
-                          final n = v.trim();
-                          if (n.isNotEmpty) {
-                            setState(() {
-                              _participants[n] = 'INVITED';
-                              _participantCtrl.clear();
-                            });
-                          }
-                        },
-                      ),
+            child:
+                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              for (final name in _participants.keys)
+                ListTile(
+                  dense: true,
+                  contentPadding: EdgeInsets.zero,
+                  leading: InitialsAvatar(name: name, size: 32),
+                  title: Text(name),
+                  trailing: Row(mainAxisSize: MainAxisSize.min, children: [
+                    DropdownButton<String>(
+                      value: _participants[name],
+                      underline: const SizedBox(),
+                      items: const [
+                        DropdownMenuItem(
+                            value: 'INVITED', child: Text('Invité')),
+                        DropdownMenuItem(
+                            value: 'ACCEPTED', child: Text('Accepté')),
+                        DropdownMenuItem(
+                            value: 'DECLINED', child: Text('Décliné')),
+                        DropdownMenuItem(
+                            value: 'TENTATIVE', child: Text('Incertain')),
+                      ],
+                      onChanged: (v) =>
+                          setState(() => _participants[name] = v ?? 'INVITED'),
                     ),
                     IconButton(
-                        onPressed: () {
-                          final n = _participantCtrl.text.trim();
-                          if (n.isNotEmpty) {
-                            setState(() {
-                              _participants[n] = 'INVITED';
-                              _participantCtrl.clear();
-                            });
-                          }
-                        },
-                        icon: const Icon(Icons.person_add_alt)),
+                      icon: const Icon(Icons.close, size: 18),
+                      onPressed: () =>
+                          setState(() => _participants.remove(name)),
+                    ),
                   ]),
-                ]),
+                ),
+              Row(children: [
+                Expanded(
+                  child: TextField(
+                    controller: _participantCtrl,
+                    decoration:
+                        const InputDecoration(hintText: 'Nom du participant…'),
+                    onSubmitted: (v) {
+                      final n = v.trim();
+                      if (n.isNotEmpty) {
+                        setState(() {
+                          _participants[n] = 'INVITED';
+                          _participantCtrl.clear();
+                        });
+                      }
+                    },
+                  ),
+                ),
+                IconButton(
+                    onPressed: () {
+                      final n = _participantCtrl.text.trim();
+                      if (n.isNotEmpty) {
+                        setState(() {
+                          _participants[n] = 'INVITED';
+                          _participantCtrl.clear();
+                        });
+                      }
+                    },
+                    icon: const Icon(Icons.person_add_alt)),
+              ]),
+            ]),
           ),
           const SizedBox(height: LHSpacing.lg),
           LabeledField(
@@ -1335,7 +1384,8 @@ class _EventEditScreenState extends ConsumerState<EventEditScreen> {
             );
             if (picked != null) {
               await db.rescheduleEvent(e, fmt.dateKey(picked), e.startTime);
-              if (mounted) lhToast(context, 'Événement reporté (historique conservé).');
+              if (mounted)
+                lhToast(context, 'Événement reporté (historique conservé).');
             }
           },
         ),

@@ -63,28 +63,28 @@ extension NotificationQueries on dbm.AppDatabase {
               (n.snoozedUntil.isNull() |
                   n.snoozedUntil.isSmallerThanValue(DateTime.now())))
           ..orderBy([
-            (n) => OrderingTerm(
-                expression: n.priority, mode: OrderingMode.desc),
-            (n) => OrderingTerm(
-                expression: n.createdAt, mode: OrderingMode.desc),
+            (n) =>
+                OrderingTerm(expression: n.priority, mode: OrderingMode.desc),
+            (n) =>
+                OrderingTerm(expression: n.createdAt, mode: OrderingMode.desc),
           ]))
         .watch();
   }
 
   Stream<List<dbm.Notification>> watchArchived(String spaceId) {
     return (select(notifications)
-          ..where((n) =>
-              n.spaceId.equals(spaceId) & n.archivedAt.isNotNull())
+          ..where((n) => n.spaceId.equals(spaceId) & n.archivedAt.isNotNull())
           ..orderBy([
-            (n) => OrderingTerm(
-                expression: n.archivedAt, mode: OrderingMode.desc)
+            (n) =>
+                OrderingTerm(expression: n.archivedAt, mode: OrderingMode.desc)
           ]))
         .watch();
   }
 
   Future<void> markRead(String id, {bool read = true}) async {
     await (update(notifications)..where((n) => n.id.equals(id))).write(
-        dbm.NotificationsCompanion(readAt: Value(read ? DateTime.now() : null)));
+        dbm.NotificationsCompanion(
+            readAt: Value(read ? DateTime.now() : null)));
   }
 
   Future<void> markAllRead(String spaceId) async {
@@ -100,7 +100,8 @@ extension NotificationQueries on dbm.AppDatabase {
     await (update(notifications)..where((n) => n.id.equals(id))).write(
         dbm.NotificationsCompanion(
             snoozedUntil: Value(DateTime.now().add(duration))));
-    logOp('Notification', id, 'UPDATE', {'snoozedFor': '${duration.inMinutes}m'});
+    logOp(
+        'Notification', id, 'UPDATE', {'snoozedFor': '${duration.inMinutes}m'});
   }
 
   Future<void> archive(String id, {bool archived = true}) async {
@@ -122,7 +123,8 @@ extension NotificationQueries on dbm.AppDatabase {
         (int.tryParse(s.split(':')[0]) ?? 0) * 60 +
         (int.tryParse(s.split(':')[1]) ?? 0);
     final s = parse(start), e = parse(end);
-    final inRange = s <= e ? (minutes >= s && minutes < e) : (minutes >= s || minutes < e);
+    final inRange =
+        s <= e ? (minutes >= s && minutes < e) : (minutes >= s || minutes < e);
     return (inRange, '$start – $end');
   }
 }
@@ -176,13 +178,11 @@ class NotificationsScreen extends ConsumerWidget {
           if (inQuiet)
             Container(
               margin: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               decoration: BoxDecoration(
                 color: LHColors.info.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(LHRadius.md),
-                border:
-                    Border.all(color: LHColors.info.withValues(alpha: 0.3)),
+                border: Border.all(color: LHColors.info.withValues(alpha: 0.3)),
               ),
               child: Row(children: [
                 const Icon(Icons.bedtime_outlined,
@@ -191,17 +191,14 @@ class NotificationsScreen extends ConsumerWidget {
                 Expanded(
                   child: Text(
                     'Plage silencieuse active ($quietRange) — les alertes non critiques seront regroupées. Les critiques passent toujours.',
-                    style: theme.textTheme.bodySmall
-                        ?.copyWith(height: 1.3),
+                    style: theme.textTheme.bodySmall?.copyWith(height: 1.3),
                   ),
                 ),
               ]),
             ),
           TabBar(
             tabs: [
-              Tab(
-                  text:
-                      'Actives (${active.valueOrNull?.length ?? 0})'),
+              Tab(text: 'Actives (${active.valueOrNull?.length ?? 0})'),
               Tab(text: 'Archivées (${archived.valueOrNull?.length ?? 0})'),
             ],
           ),
@@ -216,17 +213,16 @@ class NotificationsScreen extends ConsumerWidget {
     );
   }
 
-  Widget _list(BuildContext context, WidgetRef ref,
-      List<dbm.Notification> items,
+  Widget _list(
+      BuildContext context, WidgetRef ref, List<dbm.Notification> items,
       {required bool active}) {
     // Onglet actif : les alertes intelligentes HELM AI (serveur, Phase 3)
     // figurent en tête, avant les notifications locales des modules.
     final leading = active ? const [AiAlertsSection()] : const <Widget>[];
     if (items.isEmpty && leading.isEmpty) {
       return EmptyState(
-        icon: active
-            ? Icons.notifications_none_rounded
-            : Icons.archive_outlined,
+        icon:
+            active ? Icons.notifications_none_rounded : Icons.archive_outlined,
         message: active
             ? 'Aucune notification active'
             : 'Aucune notification archivée',
@@ -238,15 +234,17 @@ class NotificationsScreen extends ConsumerWidget {
     if (items.isEmpty) {
       return ListView(
           padding: const EdgeInsets.only(bottom: 24, top: 8),
-          children: [...leading, if (active) _emptyActive(theme: Theme.of(context))]);
+          children: [
+            ...leading,
+            if (active) _emptyActive(theme: Theme.of(context))
+          ]);
     }
     return ListView.builder(
       padding: const EdgeInsets.only(bottom: 24, top: 8),
       itemCount: leading.length + items.length,
       itemBuilder: (context, i) => i < leading.length
           ? leading[i]
-          : _NotifTile(
-              n: items[i - leading.length], activeList: active),
+          : _NotifTile(n: items[i - leading.length], activeList: active),
     );
   }
 
@@ -326,8 +324,7 @@ class _NotifTile extends ConsumerWidget {
               Container(
                 width: 9,
                 height: 9,
-                decoration:
-                    BoxDecoration(color: color, shape: BoxShape.circle),
+                decoration: BoxDecoration(color: color, shape: BoxShape.circle),
               ),
           ]),
           const SizedBox(height: 8),
@@ -338,7 +335,8 @@ class _NotifTile extends ConsumerWidget {
             Wrap(spacing: 6, runSpacing: 4, children: [
               if (unread)
                 ActionChip(
-                  label: const Text('Marquer lu', style: TextStyle(fontSize: 12)),
+                  label:
+                      const Text('Marquer lu', style: TextStyle(fontSize: 12)),
                   onPressed: () => db.markRead(n.id),
                 ),
               ChoiceChip(
@@ -351,8 +349,7 @@ class _NotifTile extends ConsumerWidget {
                 onPressed: () => db.snooze(n.id, const Duration(hours: 16)),
               ),
               ActionChip(
-                label:
-                    const Text('Archiver', style: TextStyle(fontSize: 12)),
+                label: const Text('Archiver', style: TextStyle(fontSize: 12)),
                 onPressed: () => db.archive(n.id),
               ),
             ]),
@@ -393,7 +390,8 @@ class _NotificationPrefsScreenState
     return Scaffold(
       appBar: AppBar(title: const Text('Préférences de notifications')),
       body: ListView(padding: const EdgeInsets.only(bottom: 32), children: [
-        SectionHeader('Plage silencieuse', overline: 'Tranquillité'),
+        SectionHeader('Plage silencieuse',
+            inset: LHSpacing.screen, overline: 'Tranquillité'),
         SwitchListTile(
           secondary: const Icon(Icons.bedtime_outlined),
           title: const Text('Activer la plage silencieuse'),
@@ -423,7 +421,8 @@ class _NotificationPrefsScreenState
               ),
             ]),
           ),
-        SectionHeader('Par catégorie', overline: 'Filtres'),
+        SectionHeader('Par catégorie',
+            inset: LHSpacing.screen, overline: 'Filtres'),
         prefsAsync.when(
           loading: () => const Center(child: CircularProgressIndicator()),
           error: (e, _) => Text('$e'),
@@ -440,8 +439,8 @@ class _NotificationPrefsScreenState
                           ..where((x) => x.id.equals(p.id)))
                         .write(dbm.NotificationPrefsCompanion(
                             inAppEnabled: Value(v)));
-                    db.logOp('NotificationPref', p.category, 'UPDATE',
-                        {'inApp': v});
+                    db.logOp(
+                        'NotificationPref', p.category, 'UPDATE', {'inApp': v});
                   },
                 ),
             ],
@@ -483,8 +482,8 @@ class _NotificationPrefsScreenState
   }
 }
 
-final notifPrefsListProvider = StreamProvider<List<dbm.NotificationPref>>(
-    (ref) {
+final notifPrefsListProvider =
+    StreamProvider<List<dbm.NotificationPref>>((ref) {
   final db = ref.watch(dbProvider);
   return (db.select(db.notificationPrefs)
         ..orderBy([(p) => OrderingTerm(expression: p.category)]))

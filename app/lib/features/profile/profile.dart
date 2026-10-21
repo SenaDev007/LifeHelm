@@ -58,7 +58,8 @@ class ProfileScreen extends ConsumerWidget {
         children: [
           const SizedBox(height: LHSpacing.lg),
           _ProfileHeader(user: user),
-          SectionHeader('Identité & coordonnées', overline: 'Vos informations'),
+          SectionHeader('Identité & coordonnées',
+              inset: LHSpacing.screen, overline: 'Vos informations'),
           _InfoTile(
             icon: Icons.badge_outlined,
             label: 'Prénom',
@@ -96,20 +97,21 @@ class ProfileScreen extends ConsumerWidget {
             label: 'Profession',
             value: user.profession ?? 'Non renseignée',
           ),
-          SectionHeader('Gestion du compte', overline: 'Actions'),
+          SectionHeader('Gestion du compte',
+              inset: LHSpacing.screen, overline: 'Actions'),
           ListTile(
             leading: const Icon(Icons.edit_outlined),
             title: const Text('Modifier mon profil'),
             subtitle: const Text('Prénom, nom, téléphone, profession, pays'),
-            trailing: const Icon(Icons.chevron_right_rounded,
-                color: LHColors.neutre),
+            trailing:
+                const Icon(Icons.chevron_right_rounded, color: LHColors.neutre),
             onTap: () => _editProfileSheet(context, ref, user),
           ),
           ListTile(
             leading: const Icon(Icons.password_outlined),
             title: const Text('Changer mon mot de passe'),
-            trailing: const Icon(Icons.chevron_right_rounded,
-                color: LHColors.neutre),
+            trailing:
+                const Icon(Icons.chevron_right_rounded, color: LHColors.neutre),
             onTap: () => _changePasswordSheet(context, ref),
           ),
           ListTile(
@@ -117,32 +119,33 @@ class ProfileScreen extends ConsumerWidget {
             title: const Text('Questions de sécurité'),
             subtitle: const Text(
                 'Récupérez vos données en cas d\'oubli du mot de passe'),
-            trailing: const Icon(Icons.chevron_right_rounded,
-                color: LHColors.neutre),
+            trailing:
+                const Icon(Icons.chevron_right_rounded, color: LHColors.neutre),
             onTap: () => _securityQuestionsSheet(context, ref),
           ),
           ListTile(
             leading: const Icon(Icons.devices_outlined),
             title: const Text('Sessions & appareils'),
-            trailing: const Icon(Icons.chevron_right_rounded,
-                color: LHColors.neutre),
+            trailing:
+                const Icon(Icons.chevron_right_rounded, color: LHColors.neutre),
             onTap: () => context.push('/sessions'),
           ),
           ListTile(
             leading: const Icon(Icons.shield_outlined),
             title: const Text('Sécurité & double authentification'),
-            trailing: const Icon(Icons.chevron_right_rounded,
-                color: LHColors.neutre),
+            trailing:
+                const Icon(Icons.chevron_right_rounded, color: LHColors.neutre),
             onTap: () => context.push('/security'),
           ),
           ListTile(
             leading: const Icon(Icons.cloud_sync_outlined),
             title: const Text('Synchronisation'),
-            trailing: const Icon(Icons.chevron_right_rounded,
-                color: LHColors.neutre),
+            trailing:
+                const Icon(Icons.chevron_right_rounded, color: LHColors.neutre),
             onTap: () => context.push('/sync'),
           ),
-          SectionHeader('Zone sensible', overline: 'À manier avec précaution'),
+          SectionHeader('Zone sensible',
+              inset: LHSpacing.screen, overline: 'À manier avec précaution'),
           ListTile(
             leading: const Icon(Icons.logout, color: LHColors.erreur),
             title: const Text('Se déconnecter',
@@ -173,8 +176,7 @@ class ProfileScreen extends ConsumerWidget {
     final ok = await lhConfirm(
       context,
       title: 'Se déconnecter ?',
-      message:
-          'Vos données restent sur cet appareil — seule la sauvegarde en '
+      message: 'Vos données restent sur cet appareil — seule la sauvegarde en '
           'ligne est interrompue.',
       confirmLabel: 'Se déconnecter',
     );
@@ -203,8 +205,7 @@ class ProfileScreen extends ConsumerWidget {
     );
   }
 
-  Future<void> _changePasswordSheet(
-      BuildContext context, WidgetRef ref) async {
+  Future<void> _changePasswordSheet(BuildContext context, WidgetRef ref) async {
     await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
@@ -221,8 +222,7 @@ class ProfileScreen extends ConsumerWidget {
     );
   }
 
-  Future<void> _deleteAccountSheet(
-      BuildContext context, WidgetRef ref) async {
+  Future<void> _deleteAccountSheet(BuildContext context, WidgetRef ref) async {
     await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
@@ -258,8 +258,9 @@ class _ProfileHeader extends ConsumerWidget {
       await picked.saveTo(dest.path);
       stored = dest.path;
     }
-    await ref.read(dbProvider).saveLocalProfile(
-        UserProfileCompanion(avatarPath: Value(stored)));
+    await ref
+        .read(dbProvider)
+        .saveLocalProfile(UserProfileCompanion(avatarPath: Value(stored)));
     if (context.mounted) lhToast(context, 'Photo de profil mise à jour.');
   }
 
@@ -311,14 +312,14 @@ class _ProfileHeader extends ConsumerWidget {
         const SizedBox(height: 2),
         Text(
           user.profession ?? 'Profession non renseignée',
-          style: theme.textTheme.bodySmall?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant),
+          style: theme.textTheme.bodySmall
+              ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
         ),
         const SizedBox(height: 2),
         Text(
           'Membre depuis ${fmt.formatMonthYear(user.createdAt)}',
-          style: theme.textTheme.bodySmall?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant),
+          style: theme.textTheme.bodySmall
+              ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
         ),
       ]),
     );
@@ -327,12 +328,14 @@ class _ProfileHeader extends ConsumerWidget {
   Widget _avatarWidget(String? path, String fallbackName) {
     if (path != null && path.isNotEmpty) {
       if (path.startsWith('data:')) {
-        return Image.network(path, fit: BoxFit.cover,
+        return Image.network(path,
+            fit: BoxFit.cover,
             errorBuilder: (_, __, ___) =>
                 InitialsAvatar(name: fallbackName, size: 112));
       }
       if (!kIsWeb) {
-        return Image.file(File(path), fit: BoxFit.cover,
+        return Image.file(File(path),
+            fit: BoxFit.cover,
             errorBuilder: (_, __, ___) =>
                 InitialsAvatar(name: fallbackName, size: 112));
       }
@@ -394,8 +397,7 @@ class _EditProfileSheetState extends ConsumerState<_EditProfileSheet> {
   late final _phone = TextEditingController(text: widget.user.phone ?? '');
   late final _profession =
       TextEditingController(text: widget.user.profession ?? '');
-  late CountryInfo _country =
-      countryByIso(widget.user.country);
+  late CountryInfo _country = countryByIso(widget.user.country);
 
   bool _saving = false;
   String? _error;
@@ -415,9 +417,10 @@ class _EditProfileSheetState extends ConsumerState<_EditProfileSheet> {
       setState(() => _error = 'Le prénom ne peut pas être vide.');
       return;
     }
-    final phone = _phone.text.trim().replaceAll(RegExp(r'[\s\-().]'), '');
-    if (phone.isNotEmpty && phone.length < 8) {
-      setState(() => _error = 'Numéro de téléphone trop court.');
+    final phoneInput = _phone.text.trim();
+    if (!isPlausiblePhoneInput(phoneInput)) {
+      setState(() => _error =
+          'Numéro invalide — chiffres uniquement (l\'indicatif est déjà sélectionné).');
       return;
     }
     setState(() {
@@ -425,8 +428,7 @@ class _EditProfileSheetState extends ConsumerState<_EditProfileSheet> {
       _error = null;
     });
     try {
-      final fullPhone =
-          phone.isEmpty ? null : '${_country.dial}${phone.replaceFirst('+', '')}';
+      final fullPhone = normalizePhoneInput(phoneInput, _country);
       final updated = await ref.read(apiClientProvider).updateProfile(
             firstName: first,
             lastName: _lastName.text.trim(),
@@ -525,10 +527,22 @@ class _EditProfileSheetState extends ConsumerState<_EditProfileSheet> {
                 controller: _phone,
                 keyboardType: TextInputType.phone,
                 decoration: InputDecoration(
-                  hintText: 'Ex. : 97 12 34 56',
+                  hintText: _country.iso == 'BJ'
+                      ? 'Ex. : 01 97 12 34 56'
+                      : 'Ex. : numéro sans indicatif',
                   prefixText: '${_country.dial} ',
                   prefixIcon: const Icon(Icons.phone_outlined),
                 ),
+              ),
+            ),
+            const SizedBox(height: LHSpacing.xs),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                'Sans l\'indicatif (${_country.dial} déjà inclus) — 10 chiffres '
+                'au Bénin, 8 pour l\'ancien format.',
+                style: theme.textTheme.bodySmall
+                    ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
               ),
             ),
             const SizedBox(height: LHSpacing.md),
@@ -582,8 +596,8 @@ class _ChangePasswordSheetState extends ConsumerState<_ChangePasswordSheet> {
 
   Future<void> _submit() async {
     if (_new.text.length < 8) {
-      setState(() =>
-          _error = 'Le nouveau mot de passe doit contenir au moins 8 caractères.');
+      setState(() => _error =
+          'Le nouveau mot de passe doit contenir au moins 8 caractères.');
       return;
     }
     if (_new.text != _confirm.text) {
@@ -669,8 +683,8 @@ class _ChangePasswordSheetState extends ConsumerState<_ChangePasswordSheet> {
               child: TextField(
                 controller: _new,
                 obscureText: _obscure,
-                decoration: const InputDecoration(
-                    prefixIcon: Icon(Icons.lock_outline)),
+                decoration:
+                    const InputDecoration(prefixIcon: Icon(Icons.lock_outline)),
               ),
             ),
             const SizedBox(height: LHSpacing.md),
@@ -680,8 +694,8 @@ class _ChangePasswordSheetState extends ConsumerState<_ChangePasswordSheet> {
                 controller: _confirm,
                 obscureText: _obscure,
                 onSubmitted: (_) => _submit(),
-                decoration: const InputDecoration(
-                    prefixIcon: Icon(Icons.lock_outline)),
+                decoration:
+                    const InputDecoration(prefixIcon: Icon(Icons.lock_outline)),
               ),
             ),
             const SizedBox(height: LHSpacing.lg),
@@ -992,9 +1006,8 @@ class _DeleteAccountSheetState extends ConsumerState<_DeleteAccountSheet> {
             const SizedBox(height: LHSpacing.md),
             Text('Supprimer définitivement mon compte',
                 textAlign: TextAlign.center,
-                style: theme.textTheme.headlineSmall
-                    ?.copyWith(fontWeight: FontWeight.w800,
-                        color: LHColors.erreur)),
+                style: theme.textTheme.headlineSmall?.copyWith(
+                    fontWeight: FontWeight.w800, color: LHColors.erreur)),
             const SizedBox(height: LHSpacing.sm),
             Text(
               'Votre compte, vos sessions et toutes vos données synchronisées '
@@ -1052,8 +1065,7 @@ class _DeleteAccountSheetState extends ConsumerState<_DeleteAccountSheet> {
             ),
             const SizedBox(height: LHSpacing.lg),
             FilledButton(
-              style: FilledButton.styleFrom(
-                  backgroundColor: LHColors.erreur),
+              style: FilledButton.styleFrom(backgroundColor: LHColors.erreur),
               onPressed: _busy ? null : _delete,
               child: _busy
                   ? const SizedBox(

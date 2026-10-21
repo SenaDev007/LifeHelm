@@ -34,8 +34,7 @@ class _StatisticsScreenState extends ConsumerState<StatisticsScreen> {
     final spaceId = ref.watch(activeSpaceIdProvider);
     final txs = ref.watch(transactionsProvider(spaceId)).valueOrNull ??
         const <FinancialTransaction>[];
-    final categories =
-        ref.watch(categoriesProvider(spaceId)).valueOrNull ?? [];
+    final categories = ref.watch(categoriesProvider(spaceId)).valueOrNull ?? [];
     final budgetStats =
         ref.watch(budgetStatsProvider(spaceId)).valueOrNull ?? [];
 
@@ -98,8 +97,20 @@ class _StatisticsScreenState extends ConsumerState<StatisticsScreen> {
         if (s.budget.periodStart == monthKey) mb += s.envelope;
       }
       points.add(MonthlyPoint(
-          ['janv', 'févr', 'mars', 'avr', 'mai', 'juin', 'juil', 'août',
-              'sept', 'oct', 'nov', 'déc'][m.month - 1],
+          [
+            'janv',
+            'févr',
+            'mars',
+            'avr',
+            'mai',
+            'juin',
+            'juil',
+            'août',
+            'sept',
+            'oct',
+            'nov',
+            'déc'
+          ][m.month - 1],
           income: mi.toDouble(),
           expense: me.toDouble(),
           budget: mb > 0 ? mb.toDouble() : null));
@@ -153,12 +164,12 @@ class _StatisticsScreenState extends ConsumerState<StatisticsScreen> {
       totalEnvelope += s.envelope;
       totalSpentBudget += s.spent;
     }
-    final budgetUse = totalEnvelope > 0
-        ? totalSpentBudget / totalEnvelope * 100
-        : 0.0;
+    final budgetUse =
+        totalEnvelope > 0 ? totalSpentBudget / totalEnvelope * 100 : 0.0;
 
     final theme = Theme.of(context);
-    final or = theme.brightness == Brightness.dark ? LHColors.or : LHColors.orDeep;
+    final or =
+        theme.brightness == Brightness.dark ? LHColors.or : LHColors.orDeep;
 
     return Scaffold(
       appBar: AppBar(title: const Text('Statistiques')),
@@ -174,7 +185,8 @@ class _StatisticsScreenState extends ConsumerState<StatisticsScreen> {
               onChanged: (v) => setState(() => _months = v),
             ),
           ),
-          SectionHeader('Vue d\'ensemble', overline: 'Période de $_months mois'),
+          SectionHeader('Vue d\'ensemble',
+              inset: LHSpacing.screen, overline: 'Période de $_months mois'),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: LHSpacing.screen),
             child: LHCard(
@@ -205,9 +217,8 @@ class _StatisticsScreenState extends ConsumerState<StatisticsScreen> {
                     child: StatTile(
                       label: 'Solde net',
                       value: Money(net, Currency.xof).format(withCode: false),
-                      color: net >= 0
-                          ? LHColors.emeraudeClair
-                          : LHColors.erreur,
+                      color:
+                          net >= 0 ? LHColors.emeraudeClair : LHColors.erreur,
                       icon: Icons.account_balance_wallet_outlined,
                     ),
                   ),
@@ -223,14 +234,14 @@ class _StatisticsScreenState extends ConsumerState<StatisticsScreen> {
                 const SizedBox(height: LHSpacing.sm),
                 Text(
                   'Dépense moyenne : ${Money(avgExpense.round(), Currency.xof).format(withCode: false)} / mois',
-                  style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant),
+                  style: theme.textTheme.bodySmall
+                      ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
                 ),
               ]),
             ),
           ),
           SectionHeader('Évolution mensuelle',
-              overline: 'Recettes vs dépenses'),
+              inset: LHSpacing.screen, overline: 'Recettes vs dépenses'),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: LHSpacing.screen),
             child: LHCard(
@@ -248,15 +259,16 @@ class _StatisticsScreenState extends ConsumerState<StatisticsScreen> {
               ]),
             ),
           ),
-          SectionHeader('Répartition des dépenses', overline: 'Par catégorie'),
+          SectionHeader('Répartition des dépenses',
+              inset: LHSpacing.screen, overline: 'Par catégorie'),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: LHSpacing.screen),
             child: LHCard(
               child: expenseSlices.isEmpty
                   ? Text(
                       'Aucune dépense sur la période.',
-                      style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.colorScheme.onSurfaceVariant),
+                      style: theme.textTheme.bodySmall
+                          ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
                     )
                   : Column(children: [
                       LhDonutChart(
@@ -270,9 +282,7 @@ class _StatisticsScreenState extends ConsumerState<StatisticsScreen> {
                           label: s.label,
                           value: Money(s.value.round(), Currency.xof)
                               .format(withCode: false),
-                          ratio: totalExpense > 0
-                              ? s.value / totalExpense
-                              : 0,
+                          ratio: totalExpense > 0 ? s.value / totalExpense : 0,
                           color: s.color,
                           trailing:
                               '${(s.value / (totalExpense == 0 ? 1 : totalExpense) * 100).round()} %',
@@ -280,7 +290,8 @@ class _StatisticsScreenState extends ConsumerState<StatisticsScreen> {
                     ]),
             ),
           ),
-          SectionHeader('Top sous-catégories', overline: 'Dépenses détaillées'),
+          SectionHeader('Top sous-catégories',
+              inset: LHSpacing.screen, overline: 'Dépenses détaillées'),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: LHSpacing.screen),
             child: LHCard(
@@ -288,8 +299,8 @@ class _StatisticsScreenState extends ConsumerState<StatisticsScreen> {
                   ? Text(
                       'Classez vos dépenses avec les sous-catégories pour '
                       'affiner l\'analyse.',
-                      style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.colorScheme.onSurfaceVariant),
+                      style: theme.textTheme.bodySmall
+                          ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
                     )
                   : Column(
                       children: [
@@ -305,15 +316,16 @@ class _StatisticsScreenState extends ConsumerState<StatisticsScreen> {
                     ),
             ),
           ),
-          SectionHeader('Répartition des recettes', overline: 'Par catégorie'),
+          SectionHeader('Répartition des recettes',
+              inset: LHSpacing.screen, overline: 'Par catégorie'),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: LHSpacing.screen),
             child: LHCard(
               child: incomeSlices.isEmpty
                   ? Text(
                       'Aucune recette sur la période.',
-                      style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.colorScheme.onSurfaceVariant),
+                      style: theme.textTheme.bodySmall
+                          ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
                     )
                   : Column(children: [
                       LhDonutChart(
@@ -327,9 +339,7 @@ class _StatisticsScreenState extends ConsumerState<StatisticsScreen> {
                           label: s.label,
                           value: Money(s.value.round(), Currency.xof)
                               .format(withCode: false),
-                          ratio: totalIncome > 0
-                              ? s.value / totalIncome
-                              : 0,
+                          ratio: totalIncome > 0 ? s.value / totalIncome : 0,
                           color: s.color,
                           trailing:
                               '${(s.value / (totalIncome == 0 ? 1 : totalIncome) * 100).round()} %',
@@ -338,7 +348,7 @@ class _StatisticsScreenState extends ConsumerState<StatisticsScreen> {
             ),
           ),
           SectionHeader('Budgets : prévu vs réalisé',
-              overline: 'Taux d\'utilisation'),
+              inset: LHSpacing.screen, overline: 'Taux d\'utilisation'),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: LHSpacing.screen),
             child: LHCard(
@@ -346,8 +356,8 @@ class _StatisticsScreenState extends ConsumerState<StatisticsScreen> {
                   ? Text(
                       'Aucun budget sur la période — planifiez des enveloppes '
                       'dans le module Finances.',
-                      style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.colorScheme.onSurfaceVariant),
+                      style: theme.textTheme.bodySmall
+                          ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
                     )
                   : Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -378,14 +388,13 @@ class _StatisticsScreenState extends ConsumerState<StatisticsScreen> {
                         const SizedBox(height: LHSpacing.sm),
                         Text(
                           'Taux d\'utilisation global : ${budgetUse.toStringAsFixed(1)} %',
-                          style: theme.textTheme.titleSmall
-                              ?.copyWith(color: or),
+                          style:
+                              theme.textTheme.titleSmall?.copyWith(color: or),
                         ),
                         const SizedBox(height: LHSpacing.md),
                         for (final s in periodBudgets.take(8))
                           Padding(
-                            padding:
-                                const EdgeInsets.symmetric(vertical: 6),
+                            padding: const EdgeInsets.symmetric(vertical: 6),
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
@@ -403,8 +412,8 @@ class _StatisticsScreenState extends ConsumerState<StatisticsScreen> {
                                   ),
                                   Text(
                                     '${(s.ratio * 100).round()} %',
-                                    style: theme.textTheme.labelMedium
-                                        ?.copyWith(
+                                    style:
+                                        theme.textTheme.labelMedium?.copyWith(
                                             color: s.ratio >= 1
                                                 ? LHColors.erreur
                                                 : s.ratio >= 0.8
@@ -420,8 +429,8 @@ class _StatisticsScreenState extends ConsumerState<StatisticsScreen> {
                                   '${Money(s.spent, Currency.xof).format(withCode: false)} dépensés sur ${Money(s.envelope, Currency.xof).format(withCode: false)}'
                                   ' (${fmt.formatShort(fmt.parseKey(s.budget.periodStart))})',
                                   style: theme.textTheme.bodySmall?.copyWith(
-                                      color: theme.colorScheme
-                                          .onSurfaceVariant),
+                                      color:
+                                          theme.colorScheme.onSurfaceVariant),
                                 ),
                               ],
                             ),
@@ -431,7 +440,7 @@ class _StatisticsScreenState extends ConsumerState<StatisticsScreen> {
             ),
           ),
           SectionHeader('Projets : taux d\'évolution',
-              overline: 'Avancement en cours'),
+              inset: LHSpacing.screen, overline: 'Avancement en cours'),
           const _ProjectsEvolution(),
         ],
       ),
@@ -463,8 +472,8 @@ class _ProjectsEvolution extends ConsumerWidget {
           child: Text(
             'Aucun projet actif — créez des projets pour suivre leur taux '
             'd\'évolution ici.',
-            style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant),
+            style: theme.textTheme.bodySmall
+                ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
           ),
         ),
       );
@@ -490,8 +499,7 @@ class _ProjectEvolutionTile extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
-    final tasks =
-        ref.watch(projectTasksProvider(project.id)).valueOrNull ?? [];
+    final tasks = ref.watch(projectTasksProvider(project.id)).valueOrNull ?? [];
     final auto = autoProjectProgress(tasks);
     final progress =
         project.manualProgress != null ? project.manualProgress! / 100 : auto;
@@ -542,8 +550,8 @@ class _ProjectEvolutionTile extends ConsumerWidget {
                   'Taux d\'évolution : ${(progress * 100).toStringAsFixed(0)} %'
                   '${project.targetDate != null ? ' · échéance le ${fmt.formatShort(fmt.parseKey(project.targetDate!))}' : ''}'
                   '${tasks.isNotEmpty ? ' · ${tasks.where((l) => l.task.status == 'DONE').length}/${tasks.length} tâches' : ''}',
-                  style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant),
+                  style: theme.textTheme.bodySmall
+                      ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
                 ),
               ],
             ),

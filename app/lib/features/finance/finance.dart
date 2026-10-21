@@ -110,8 +110,8 @@ class AccountBalance {
 
 /// Statistiques de budget : E = B + A + R ; S = E − D ; conso = D / E (D05 §10.5).
 class BudgetStat {
-  BudgetStat(this.budget, this.envelope, this.spent, this.adjustments,
-      this.carryover);
+  BudgetStat(
+      this.budget, this.envelope, this.spent, this.adjustments, this.carryover);
 
   final Budget budget;
   final int envelope; // E
@@ -123,8 +123,7 @@ class BudgetStat {
   double get ratio => envelope > 0 ? spent / envelope : 0;
   bool get overThreshold =>
       envelope > 0 &&
-      ratio >=
-          0.8; // seuil par défaut ; le seuil réel est lu dans les réglages
+      ratio >= 0.8; // seuil par défaut ; le seuil réel est lu dans les réglages
   Currency get currency => Currency.xof;
 }
 
@@ -133,8 +132,7 @@ class BudgetStat {
 extension FinanceQueries on AppDatabase {
   Stream<List<FinancialAccount>> watchAccounts(String spaceId) {
     return (select(financialAccounts)
-          ..where((a) =>
-              a.spaceId.equals(spaceId) & a.archivedAt.isNull())
+          ..where((a) => a.spaceId.equals(spaceId) & a.archivedAt.isNull())
           ..orderBy([(a) => OrderingTerm(expression: a.createdAt)]))
         .watch();
   }
@@ -142,8 +140,10 @@ extension FinanceQueries on AppDatabase {
   Stream<List<FinancialTransaction>> watchTransactions(String spaceId) {
     return (select(financialTransactions)
           ..where((t) => t.spaceId.equals(spaceId))
-          ..orderBy([(t) =>
-              OrderingTerm(expression: t.occurredAt, mode: OrderingMode.desc)]))
+          ..orderBy([
+            (t) =>
+                OrderingTerm(expression: t.occurredAt, mode: OrderingMode.desc)
+          ]))
         .watch();
   }
 
@@ -151,8 +151,10 @@ extension FinanceQueries on AppDatabase {
       String accountId) {
     return (select(financialTransactions)
           ..where((t) => t.accountId.equals(accountId))
-          ..orderBy([(t) =>
-              OrderingTerm(expression: t.occurredAt, mode: OrderingMode.desc)]))
+          ..orderBy([
+            (t) =>
+                OrderingTerm(expression: t.occurredAt, mode: OrderingMode.desc)
+          ]))
         .watch();
   }
 
@@ -186,8 +188,10 @@ extension FinanceQueries on AppDatabase {
 
   Stream<List<TransactionAllocation>> watchAllocations(String spaceId) {
     return (select(transactionAllocations).join([
-      innerJoin(financialTransactions,
-          financialTransactions.id.equalsExp(transactionAllocations.transactionId))
+      innerJoin(
+          financialTransactions,
+          financialTransactions.id
+              .equalsExp(transactionAllocations.transactionId))
     ])
           ..where(financialTransactions.spaceId.equals(spaceId)))
         .watch()
@@ -234,8 +238,7 @@ extension FinanceQueries on AppDatabase {
 
   Future<List<AccountBalance>> computeAllBalances(String spaceId) async {
     final accounts = await (select(financialAccounts)
-          ..where((a) =>
-              a.spaceId.equals(spaceId) & a.archivedAt.isNull()))
+          ..where((a) => a.spaceId.equals(spaceId) & a.archivedAt.isNull()))
         .get();
     final result = <AccountBalance>[];
     for (final a in accounts) {
@@ -310,7 +313,8 @@ extension FinanceQueries on AppDatabase {
             ..where((b) => b.spaceId.equals(tx.spaceId)))
           .get();
       for (final b in spaceBudgets) {
-        final stat = await computeBudgetStat(b, await watchAllocations(tx.spaceId).first);
+        final stat = await computeBudgetStat(
+            b, await watchAllocations(tx.spaceId).first);
         if (stat.envelope > 0 && stat.ratio >= threshold) {
           await pushNotification(
             spaceId: tx.spaceId,
@@ -435,8 +439,7 @@ extension FinanceQueries on AppDatabase {
           occurredAt: now,
           note: 'Écart de rapprochement${note != null ? ' — $note' : ''}',
           createdAt: now));
-      await (update(accountReconciliations)
-            ..where((r) => r.id.equals(reconId)))
+      await (update(accountReconciliations)..where((r) => r.id.equals(reconId)))
           .write(AccountReconciliationsCompanion(
               adjustmentTransactionId: Value(txId)));
       logOp('FinancialTransaction', txId, 'CREATE',
@@ -463,8 +466,8 @@ extension FinanceQueries on AppDatabase {
         occurredAt: now,
         note: 'Échéance : ${due.label}',
         createdAt: now));
-    await (update(financialDueItems)..where((d) => d.id.equals(due.id)))
-        .write(FinancialDueItemsCompanion(
+    await (update(financialDueItems)..where((d) => d.id.equals(due.id))).write(
+        FinancialDueItemsCompanion(
             status: const Value('PAID'), paidTransactionId: Value(txId)));
     logOp('FinancialDueItem', due.id, 'UPDATE', {'status': 'PAID', 'tx': txId});
   }
@@ -523,8 +526,8 @@ final balancesProvider =
 });
 
 /// Statistiques budgétaires enrichies.
-final budgetStatsProvider = StreamProvider.family<List<BudgetStat>, String>(
-    (ref, spaceId) async* {
+final budgetStatsProvider =
+    StreamProvider.family<List<BudgetStat>, String>((ref, spaceId) async* {
   ref.watch(budgetsRawProvider(spaceId));
   final allocations = ref.watch(allocationsProvider(spaceId)).valueOrNull ?? [];
   final db = ref.watch(dbProvider);
@@ -572,26 +575,33 @@ class FinanceScreen extends ConsumerWidget {
                     _ConsolidatedCard(balances: balancesAsync.value!),
                     _QuickActionsRow(),
                     SectionHeader('Budgets du mois',
+                        inset: LHSpacing.screen,
                         overline: 'Pilotage',
                         action: TextButton(
                             onPressed: () => context.push('/budgets'),
                             child: const Text('Tout voir'))),
                     _BudgetsPreview(stats: budgetStatsAsync.value ?? []),
                     SectionHeader('Échéances',
+                        inset: LHSpacing.screen,
                         overline: 'À venir',
                         action: TextButton(
                             onPressed: () => context.push('/dues'),
                             child: const Text('Tout voir'))),
                     _DuesPreview(dues: duesAsync.value ?? []),
-                    SectionHeader('Dernières opérations', overline: 'Mouvements'),
+                    SectionHeader('Dernières opérations',
+                        inset: LHSpacing.screen, overline: 'Mouvements'),
                     ..._recentTx(context, ref, txsAsync.value ?? []),
                     const SizedBox(height: 8),
-                    Center(
-                      child: Text(
-                        'Les conversions entre devises sont explicites et conservent leur taux (CDC D05).',
-                        textAlign: TextAlign.center,
-                        style: theme.textTheme.bodySmall?.copyWith(
-                            color: theme.colorScheme.onSurfaceVariant),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: LHSpacing.screen),
+                      child: Center(
+                        child: Text(
+                          'Les conversions entre devises sont explicites et conservent leur taux (CDC D05).',
+                          textAlign: TextAlign.center,
+                          style: theme.textTheme.bodySmall?.copyWith(
+                              color: theme.colorScheme.onSurfaceVariant),
+                        ),
                       ),
                     ),
                   ],
@@ -605,14 +615,11 @@ class FinanceScreen extends ConsumerWidget {
       BuildContext context, WidgetRef ref, List<FinancialTransaction> txs) {
     final spaceId = ref.watch(activeSpaceIdProvider);
     final accounts = ref.watch(accountsProvider(spaceId)).valueOrNull ?? [];
-    final categories =
-        ref.watch(categoriesProvider(spaceId)).valueOrNull ?? [];
+    final categories = ref.watch(categoriesProvider(spaceId)).valueOrNull ?? [];
     return txs
         .take(8)
-        .map((t) => _TransactionTile(
-            tx: t,
-            accounts: accounts,
-            categories: categories))
+        .map((t) =>
+            _TransactionTile(tx: t, accounts: accounts, categories: categories))
         .toList();
   }
 }
@@ -725,17 +732,15 @@ class _AccountLine extends StatelessWidget {
         ),
         const SizedBox(width: LHSpacing.md),
         Expanded(
-          child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(b.account.name,
-                    style: theme.textTheme.titleSmall),
-                Text(
-                  '${accountTypeLabel(b.account.type)} · ${b.currency.code}',
-                  style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant),
-                ),
-              ]),
+          child:
+              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(b.account.name, style: theme.textTheme.titleSmall),
+            Text(
+              '${accountTypeLabel(b.account.type)} · ${b.currency.code}',
+              style: theme.textTheme.bodySmall
+                  ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+            ),
+          ]),
         ),
         Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
           Text(Money(b.current, b.currency).format(withCode: false),
@@ -743,8 +748,7 @@ class _AccountLine extends StatelessWidget {
                   ?.copyWith(fontWeight: FontWeight.w800)),
           Text(b.currency.code,
               style: theme.textTheme.bodySmall?.copyWith(
-                  fontSize: 10,
-                  color: theme.colorScheme.onSurfaceVariant)),
+                  fontSize: 10, color: theme.colorScheme.onSurfaceVariant)),
         ]),
         const Icon(Icons.chevron_right_rounded,
             size: 20, color: LHColors.neutre),
@@ -790,8 +794,8 @@ class _QuickActionsRow extends StatelessWidget {
     );
   }
 
-  Widget _action(BuildContext context, IconData icon, String label,
-      VoidCallback onTap) {
+  Widget _action(
+      BuildContext context, IconData icon, String label, VoidCallback onTap) {
     final theme = Theme.of(context);
     return InkWell(
       onTap: onTap,
@@ -843,35 +847,32 @@ class _BudgetsPreview extends StatelessWidget {
           padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
           child: LHCard(
             onTap: () => context.push('/budgets'),
-            child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(children: [
-                    Expanded(
-                        child: Text(s.budget.name,
-                            style: theme.textTheme.titleSmall)),
-                    Text(
-                      s.ratio >= 1
-                          ? 'Dépassé'
-                          : '${(100 * s.ratio).round()} %',
-                      style: theme.textTheme.labelMedium?.copyWith(
-                          fontWeight: FontWeight.w700,
-                          color: s.ratio >= 1
-                              ? LHColors.erreur
-                              : s.ratio >= 0.8
-                                  ? LHColors.alerte
-                                  : LHColors.emeraudeClair),
-                    ),
-                  ]),
-                  const SizedBox(height: 8),
-                  BudgetBar(ratio: s.ratio),
-                  const SizedBox(height: 6),
-                  Text(
-                    '${Money(s.spent, s.currency).format(withCode: false)} dépensés · reste ${Money(s.available, s.currency).format(withCode: false)} FCFA',
-                    style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant),
-                  ),
-                ]),
+            child:
+                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Row(children: [
+                Expanded(
+                    child:
+                        Text(s.budget.name, style: theme.textTheme.titleSmall)),
+                Text(
+                  s.ratio >= 1 ? 'Dépassé' : '${(100 * s.ratio).round()} %',
+                  style: theme.textTheme.labelMedium?.copyWith(
+                      fontWeight: FontWeight.w700,
+                      color: s.ratio >= 1
+                          ? LHColors.erreur
+                          : s.ratio >= 0.8
+                              ? LHColors.alerte
+                              : LHColors.emeraudeClair),
+                ),
+              ]),
+              const SizedBox(height: 8),
+              BudgetBar(ratio: s.ratio),
+              const SizedBox(height: 6),
+              Text(
+                '${Money(s.spent, s.currency).format(withCode: false)} dépensés · reste ${Money(s.available, s.currency).format(withCode: false)} FCFA',
+                style: theme.textTheme.bodySmall
+                    ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+              ),
+            ]),
           ),
         ),
     ]);
@@ -952,8 +953,7 @@ class _TransactionTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final account =
-        accounts.where((a) => a.id == tx.accountId).firstOrNull;
+    final account = accounts.where((a) => a.id == tx.accountId).firstOrNull;
     final category = tx.categoryId == null
         ? null
         : categories.where((c) => c.id == tx.categoryId).firstOrNull;
@@ -969,8 +969,8 @@ class _TransactionTile extends StatelessWidget {
       child: ListTile(
         dense: true,
         contentPadding: const EdgeInsets.symmetric(horizontal: 12),
-        shape:
-            RoundedRectangleBorder(borderRadius: BorderRadius.circular(LHRadius.lg)),
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(LHRadius.lg)),
         tileColor: theme.colorScheme.surface,
         leading: Container(
           width: 36,
@@ -979,8 +979,8 @@ class _TransactionTile extends StatelessWidget {
             color: txKindColor(tx.kind).withValues(alpha: 0.13),
             shape: BoxShape.circle,
           ),
-          child: Icon(txKindIcon(tx.kind),
-              size: 18, color: txKindColor(tx.kind)),
+          child:
+              Icon(txKindIcon(tx.kind), size: 18, color: txKindColor(tx.kind)),
         ),
         title: Text(tx.note?.isNotEmpty == true
             ? tx.note!
@@ -1026,8 +1026,8 @@ class _AccountDetailScreenState extends ConsumerState<AccountDetailScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final txsAsync = ref.watch(accountTransactionsProvider(widget.id));
-    final balances = ref.watch(balancesProvider(
-        ref.watch(activeSpaceIdProvider)));
+    final balances =
+        ref.watch(balancesProvider(ref.watch(activeSpaceIdProvider)));
     final balance = balances.valueOrNull
         ?.where((b) => b.account.id == widget.id)
         .firstOrNull;
@@ -1035,8 +1035,7 @@ class _AccountDetailScreenState extends ConsumerState<AccountDetailScreen> {
     return Scaffold(
       appBar: AppBar(title: Text(balance?.account.name ?? 'Compte')),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () =>
-            context.push('/transaction/new?account=${widget.id}'),
+        onPressed: () => context.push('/transaction/new?account=${widget.id}'),
         icon: const Icon(Icons.add),
         label: const Text('Opération'),
       ),
@@ -1044,9 +1043,9 @@ class _AccountDetailScreenState extends ConsumerState<AccountDetailScreen> {
         if (balance != null) _header(context, balance),
         Expanded(
           child: txsAsync.when(
-            loading: () =>
-                const Center(child: CircularProgressIndicator()),
-            error: (e, _) => EmptyState(icon: Icons.error_outline, message: '$e'),
+            loading: () => const Center(child: CircularProgressIndicator()),
+            error: (e, _) =>
+                EmptyState(icon: Icons.error_outline, message: '$e'),
             data: (txs) {
               if (txs.isEmpty) {
                 return const EmptyState(
@@ -1092,12 +1091,13 @@ class _AccountDetailScreenState extends ConsumerState<AccountDetailScreen> {
                                       'Montant : ${Money(t.amount, Currency.byCode(t.currency)).format()}. La suppression est journalisée pour la synchronisation.',
                                   confirmLabel: 'Supprimer',
                                   destructive: true),
-                              onDismissed: (_) => ref
-                                  .read(dbProvider)
-                                  .deleteTransaction(t),
+                              onDismissed: (_) =>
+                                  ref.read(dbProvider).deleteTransaction(t),
                               child: _TransactionTile(
                                   tx: t,
-                                  accounts: balance != null ? [balance.account] : const [],
+                                  accounts: balance != null
+                                      ? [balance.account]
+                                      : const [],
                                   categories: const []),
                             )),
                       ]);
@@ -1138,7 +1138,8 @@ class _AccountDetailScreenState extends ConsumerState<AccountDetailScreen> {
           Expanded(
               child: StatTile(
                   label: 'Entrées',
-                  value: '+${Money(b.income, b.currency).format(withCode: false)}',
+                  value:
+                      '+${Money(b.income, b.currency).format(withCode: false)}',
                   color: LHColors.financePositif,
                   icon: Icons.south_west_rounded)),
           Expanded(
@@ -1182,7 +1183,9 @@ class _AccountDetailScreenState extends ConsumerState<AccountDetailScreen> {
           ),
         ]),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Annuler')),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Annuler')),
           FilledButton(
             onPressed: () async {
               final m = Money.tryParse(ctrl.text, b.currency);

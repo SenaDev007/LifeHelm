@@ -18,7 +18,13 @@ import '../../shell/widgets.dart' show LhAppBar;
 const youMemberName = 'Vous';
 
 /// Palette des couleurs de membres (D12 — simulation locale).
-const memberColorHexes = ['#FFB400', '#22C55E', '#3B82F6', '#FF7A00', '#8B5CF6'];
+const memberColorHexes = [
+  '#FFB400',
+  '#22C55E',
+  '#3B82F6',
+  '#FF7A00',
+  '#8B5CF6'
+];
 
 /// Réponses simulées des personas — messagerie interne uniquement (D12 §17.1-1).
 const simulatedReplies = [
@@ -39,8 +45,7 @@ String memberFirstName(String displayName) {
   return parts.isEmpty || parts.first.isEmpty ? displayName : parts.first;
 }
 
-Color hexToColor(String hex) =>
-    Color(int.parse(hex.replaceFirst('#', '0xFF')));
+Color hexToColor(String hex) => Color(int.parse(hex.replaceFirst('#', '0xFF')));
 
 /// Heure relative : « 14:32 », « Hier », « lun. », « 24/10/2026 ».
 String relativeTime(DateTime d) {
@@ -75,17 +80,14 @@ extension MessagingQueries on AppDatabase {
           .watchSingleOrNull();
 
   Future<Conversation?> getConversation(String id) =>
-      (select(conversations)..where((c) => c.id.equals(id)))
-          .getSingleOrNull();
+      (select(conversations)..where((c) => c.id.equals(id))).getSingleOrNull();
 
-  Stream<List<ConversationMember>> watchConvMembers(
-          String conversationId) =>
+  Stream<List<ConversationMember>> watchConvMembers(String conversationId) =>
       (select(conversationMembers)
             ..where((m) => m.conversationId.equals(conversationId)))
           .watch();
 
-  Future<List<ConversationMember>> getConvMembers(
-          String conversationId) =>
+  Future<List<ConversationMember>> getConvMembers(String conversationId) =>
       (select(conversationMembers)
             ..where((m) => m.conversationId.equals(conversationId)))
           .get();
@@ -98,8 +100,7 @@ extension MessagingQueries on AppDatabase {
           .watch();
 
   /// Réactions de tous les messages d'une conversation (jointure).
-  Stream<List<MessageReaction>> watchConvReactions(
-      String conversationId) {
+  Stream<List<MessageReaction>> watchConvReactions(String conversationId) {
     final query = select(messageReactions).join([
       innerJoin(messages, messages.id.equalsExp(messageReactions.messageId)),
     ]);
@@ -122,8 +123,8 @@ extension MessagingQueries on AppDatabase {
   /// Messages de toutes les conversations d'un espace (pour la liste).
   Stream<List<Message>> watchSpaceConvMessages(String spaceId) {
     final query = select(messages).join([
-      innerJoin(conversations,
-          conversations.id.equalsExp(messages.conversationId)),
+      innerJoin(
+          conversations, conversations.id.equalsExp(messages.conversationId)),
     ]);
     query.where(conversations.spaceId.equals(spaceId));
     return query
@@ -176,8 +177,7 @@ extension MessagingQueries on AppDatabase {
   }
 
   Future<void> touchConversation(String conversationId) async {
-    await (update(conversations)
-          ..where((c) => c.id.equals(conversationId)))
+    await (update(conversations)..where((c) => c.id.equals(conversationId)))
         .write(ConversationsCompanion(lastMessageAt: Value(DateTime.now())));
     logOp('Conversation', conversationId, 'UPDATE', {'lastMessageAt': true});
   }
@@ -185,8 +185,7 @@ extension MessagingQueries on AppDatabase {
   /// Accusés de lecture configurables (D12 §17.1-7) — jamais inventés.
   Future<void> setReadReceiptsEnabled(
       String conversationId, bool enabled) async {
-    await (update(conversations)
-          ..where((c) => c.id.equals(conversationId)))
+    await (update(conversations)..where((c) => c.id.equals(conversationId)))
         .write(ConversationsCompanion(readReceiptsEnabled: Value(enabled)));
     logOp('Conversation', conversationId, 'UPDATE',
         {'readReceiptsEnabled': enabled});
@@ -200,9 +199,8 @@ extension MessagingQueries on AppDatabase {
 
   /// Modification traçable (D12 §17.1-4).
   Future<void> editMessage(String messageId, String body) async {
-    await (update(messages)..where((m) => m.id.equals(messageId)))
-        .write(MessagesCompanion(
-            body: Value(body), editedAt: Value(DateTime.now())));
+    await (update(messages)..where((m) => m.id.equals(messageId))).write(
+        MessagesCompanion(body: Value(body), editedAt: Value(DateTime.now())));
     logOp('Message', messageId, 'UPDATE', {'edited': true});
   }
 
@@ -228,10 +226,7 @@ extension MessagingQueries on AppDatabase {
       logOp('MessageReaction', id, 'DELETE', {'emoji': emoji});
     } else {
       await into(messageReactions).insert(MessageReaction(
-          id: id,
-          messageId: messageId,
-          memberName: memberName,
-          emoji: emoji));
+          id: id, messageId: messageId, memberName: memberName, emoji: emoji));
       logOp('MessageReaction', id, 'CREATE', {'emoji': emoji});
     }
   }
@@ -243,11 +238,12 @@ extension MessagingQueries on AppDatabase {
     final you =
         members.where((m) => m.displayName == youMemberName).firstOrNull;
     if (you == null) return 0;
-    final count = await (update(messages)..where((m) =>
-            m.conversationId.equals(conversationId) &
-            m.senderMemberId.equals(you.id).not() &
-            m.deletedAt.isNull() &
-            m.status.equals('READ').not()))
+    final count = await (update(messages)
+          ..where((m) =>
+              m.conversationId.equals(conversationId) &
+              m.senderMemberId.equals(you.id).not() &
+              m.deletedAt.isNull() &
+              m.status.equals('READ').not()))
         .write(const MessagesCompanion(status: Value('READ')));
     if (count > 0) {
       logOp('Conversation', conversationId, 'UPDATE', {'markedRead': count});
@@ -261,11 +257,12 @@ extension MessagingQueries on AppDatabase {
     final you =
         members.where((m) => m.displayName == youMemberName).firstOrNull;
     if (you == null) return 0;
-    final count = await (update(messages)..where((m) =>
-            m.conversationId.equals(conversationId) &
-            m.senderMemberId.equals(you.id) &
-            m.deletedAt.isNull() &
-            m.status.equals('DELIVERED')))
+    final count = await (update(messages)
+          ..where((m) =>
+              m.conversationId.equals(conversationId) &
+              m.senderMemberId.equals(you.id) &
+              m.deletedAt.isNull() &
+              m.status.equals('DELIVERED')))
         .write(const MessagesCompanion(status: Value('READ')));
     if (count > 0) {
       logOp('Conversation', conversationId, 'UPDATE', {'mineRead': count});
@@ -276,17 +273,15 @@ extension MessagingQueries on AppDatabase {
 
 // ═══════════════════════════ PROVIDERS ═══════════════════════════
 
-final conversationsProvider =
-    StreamProvider.family<List<Conversation>, String>(
-        (ref, spaceId) => ref.watch(dbProvider).watchConversations(spaceId));
+final conversationsProvider = StreamProvider.family<List<Conversation>, String>(
+    (ref, spaceId) => ref.watch(dbProvider).watchConversations(spaceId));
 
 final spaceConvMembersProvider =
     StreamProvider.family<List<ConversationMember>, String>(
         (ref, spaceId) => ref.watch(dbProvider).watchSpaceConvMembers(spaceId));
 
-final spaceConvMessagesProvider =
-    StreamProvider.family<List<Message>, String>(
-        (ref, spaceId) => ref.watch(dbProvider).watchSpaceConvMessages(spaceId));
+final spaceConvMessagesProvider = StreamProvider.family<List<Message>, String>(
+    (ref, spaceId) => ref.watch(dbProvider).watchSpaceConvMessages(spaceId));
 
 final conversationProvider = StreamProvider.family<Conversation?, String>(
     (ref, id) => ref.watch(dbProvider).watchConversation(id));
@@ -328,16 +323,14 @@ class ConversationsScreen extends ConsumerWidget {
         error: (e, _) =>
             EmptyState(icon: Icons.error_outline, message: 'Erreur : $e'),
         data: (convs) {
-          final members =
-              membersAsync.valueOrNull ?? <ConversationMember>[];
+          final members = membersAsync.valueOrNull ?? <ConversationMember>[];
           final messages = messagesAsync.valueOrNull ?? <Message>[];
           if (convs.isEmpty) {
             return EmptyState(
               illustration: 'assets/illustrations/messaging.png',
               icon: Icons.forum_outlined,
               message: 'Aucune conversation',
-              hint:
-                  'Démarrez une conversation directe ou créez un groupe pour '
+              hint: 'Démarrez une conversation directe ou créez un groupe pour '
                   'cet espace.',
               action: FilledButton.tonal(
                 onPressed: () =>
@@ -393,10 +386,7 @@ class ConversationsScreen extends ConsumerWidget {
           return;
         }
         conv = await db.createConversation(
-            spaceId: spaceId,
-            kind: 'GROUP',
-            title: title,
-            memberNames: names);
+            spaceId: spaceId, kind: 'GROUP', title: title, memberNames: names);
       }
       navigator.pop();
       if (context.mounted) context.push('/chat/${conv.id}');
@@ -452,8 +442,8 @@ class ConversationsScreen extends ConsumerWidget {
                       controller: titleCtrl,
                       autofocus: true,
                       textCapitalization: TextCapitalization.words,
-                      decoration: const InputDecoration(
-                          labelText: 'Titre du groupe *'),
+                      decoration:
+                          const InputDecoration(labelText: 'Titre du groupe *'),
                     ),
                     const SizedBox(height: LHSpacing.md),
                     if (names.isNotEmpty)
@@ -571,8 +561,8 @@ class _ConversationTile extends StatelessWidget {
       padding:
           const EdgeInsets.symmetric(horizontal: LHSpacing.lg, vertical: 4),
       child: LHCard(
-        padding: const EdgeInsets.symmetric(
-            horizontal: LHSpacing.md, vertical: 10),
+        padding:
+            const EdgeInsets.symmetric(horizontal: LHSpacing.md, vertical: 10),
         onTap: () => context.push('/chat/${conversation.id}'),
         child: Row(
           children: [
@@ -611,8 +601,8 @@ class _ConversationTile extends StatelessWidget {
                 if (unread > 0) ...[
                   const SizedBox(height: 5),
                   Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 7, vertical: 2),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
                     decoration: BoxDecoration(
                       color: LHColors.or,
                       borderRadius: BorderRadius.circular(LHRadius.full),
@@ -639,8 +629,7 @@ class _ConversationTile extends StatelessWidget {
       final other = others.firstOrNull;
       return InitialsAvatar(
           name: other?.displayName ?? '?',
-          color:
-              other == null ? LHColors.neutre : hexToColor(other.colorHex));
+          color: other == null ? LHColors.neutre : hexToColor(other.colorHex));
     }
     // Groupe : double avatar (deux premiers autres membres).
     if (others.length >= 2) {
@@ -654,16 +643,12 @@ class _ConversationTile extends StatelessWidget {
             Align(
               alignment: Alignment.centerLeft,
               child: InitialsAvatar(
-                  name: b.displayName,
-                  color: hexToColor(b.colorHex),
-                  size: 30),
+                  name: b.displayName, color: hexToColor(b.colorHex), size: 30),
             ),
             Align(
               alignment: Alignment.centerRight,
               child: InitialsAvatar(
-                  name: a.displayName,
-                  color: hexToColor(a.colorHex),
-                  size: 30),
+                  name: a.displayName, color: hexToColor(a.colorHex), size: 30),
             ),
           ],
         ),
@@ -671,8 +656,7 @@ class _ConversationTile extends StatelessWidget {
     }
     if (others.length == 1) {
       return InitialsAvatar(
-          name: others[0].displayName,
-          color: hexToColor(others[0].colorHex));
+          name: others[0].displayName, color: hexToColor(others[0].colorHex));
     }
     return const InitialsAvatar(name: 'Groupe');
   }
@@ -717,8 +701,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   /// uniquement si les accusés de lecture sont activés (sinon ils restent
   /// DELIVERED — on n'invente jamais une lecture).
   void _simulateOpenRead() {
-    Future.delayed(
-        Duration(milliseconds: 3000 + _random.nextInt(3001)), () async {
+    Future.delayed(Duration(milliseconds: 3000 + _random.nextInt(3001)),
+        () async {
       if (_disposed || !mounted) return;
       final db = ref.read(dbProvider);
       final conv = await db.getConversation(widget.id);
@@ -736,9 +720,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       await ref.read(dbProvider).setMessageStatus(messageId, 'SENT');
       Future.delayed(const Duration(milliseconds: 1200), () async {
         if (_disposed || !mounted) return;
-        await ref
-            .read(dbProvider)
-            .setMessageStatus(messageId, 'DELIVERED');
+        await ref.read(dbProvider).setMessageStatus(messageId, 'DELIVERED');
       });
     });
   }
@@ -746,8 +728,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   /// Lecture simulée de mes messages : READ avec 70 % de chance après 4-7 s
   /// (sinon ils restent DELIVERED) — jamais sans accusés activés.
   void _simulateMyRead() {
-    Future.delayed(
-        Duration(milliseconds: 4000 + _random.nextInt(3001)), () async {
+    Future.delayed(Duration(milliseconds: 4000 + _random.nextInt(3001)),
+        () async {
       if (_disposed || !mounted) return;
       final db = ref.read(dbProvider);
       final conv = await db.getConversation(widget.id);
@@ -762,8 +744,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   /// avec notification in-app et horodatage de conversation.
   void _simulateReply() {
     if (_random.nextDouble() >= 0.4) return;
-    Future.delayed(
-        Duration(milliseconds: 3000 + _random.nextInt(4001)), () async {
+    Future.delayed(Duration(milliseconds: 3000 + _random.nextInt(4001)),
+        () async {
       if (_disposed || !mounted) return;
       final db = ref.read(dbProvider);
       final conv = await db.getConversation(widget.id);
@@ -830,8 +812,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
   /// Long-press sur une bulle : réagir, modifier (< 15 min, mon message),
   /// supprimer pour tous.
-  Future<void> _showMessageActions(
-      Message msg, ConversationMember? you) async {
+  Future<void> _showMessageActions(Message msg, ConversationMember? you) async {
     final canEdit = you != null &&
         msg.senderMemberId == you.id &&
         msg.deletedAt == null &&
@@ -844,8 +825,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(LHSpacing.screen,
-                  LHSpacing.md, LHSpacing.screen, LHSpacing.sm),
+              padding: const EdgeInsets.fromLTRB(LHSpacing.screen, LHSpacing.md,
+                  LHSpacing.screen, LHSpacing.sm),
               child: Text(
                 'Réagir',
                 style: Theme.of(ctx).textTheme.labelMedium?.copyWith(
@@ -864,8 +845,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                     },
                     child: Padding(
                       padding: const EdgeInsets.all(10),
-                      child:
-                          Text(emoji, style: const TextStyle(fontSize: 26)),
+                      child: Text(emoji, style: const TextStyle(fontSize: 26)),
                     ),
                   ),
               ],
@@ -876,8 +856,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               title: const Text('Modifier'),
               subtitle: canEdit
                   ? null
-                  : const Text(
-                      'Disponible moins de 15 minutes après l\'envoi'),
+                  : const Text('Disponible moins de 15 minutes après l\'envoi'),
               enabled: canEdit,
               onTap: canEdit
                   ? () {
@@ -887,8 +866,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                   : null,
             ),
             ListTile(
-              leading:
-                  const Icon(Icons.delete_outline, color: LHColors.erreur),
+              leading: const Icon(Icons.delete_outline, color: LHColors.erreur),
               title: const Text('Supprimer pour tous'),
               onTap: () {
                 Navigator.pop(ctx);
@@ -954,12 +932,12 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           mainAxisSize: MainAxisSize.min,
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(LHSpacing.screen,
-                  LHSpacing.md, LHSpacing.screen, LHSpacing.sm),
+              padding: const EdgeInsets.fromLTRB(LHSpacing.screen, LHSpacing.md,
+                  LHSpacing.screen, LHSpacing.sm),
               child: Align(
                 alignment: Alignment.centerLeft,
-                child: Text('Membres',
-                    style: Theme.of(ctx).textTheme.titleMedium),
+                child:
+                    Text('Membres', style: Theme.of(ctx).textTheme.titleMedium),
               ),
             ),
             for (final m in members)
@@ -987,15 +965,12 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final convAsync = ref.watch(conversationProvider(widget.id));
-    final members =
-        ref.watch(convMembersProvider(widget.id)).valueOrNull ??
-            <ConversationMember>[];
+    final members = ref.watch(convMembersProvider(widget.id)).valueOrNull ??
+        <ConversationMember>[];
     final messages =
-        ref.watch(convMessagesProvider(widget.id)).valueOrNull ??
-            <Message>[];
-    final reactions =
-        ref.watch(convReactionsProvider(widget.id)).valueOrNull ??
-            <MessageReaction>[];
+        ref.watch(convMessagesProvider(widget.id)).valueOrNull ?? <Message>[];
+    final reactions = ref.watch(convReactionsProvider(widget.id)).valueOrNull ??
+        <MessageReaction>[];
 
     final conv = convAsync.valueOrNull;
     final you =
@@ -1085,39 +1060,34 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                       ? EmptyState(
                           icon: Icons.chat_bubble_outline,
                           message: 'Aucun message',
-                          hint:
-                              'Envoyez le premier message pour démarrer la '
+                          hint: 'Envoyez le premier message pour démarrer la '
                               'conversation.',
                         )
                       : ListView.builder(
                           reverse: true,
                           padding: const EdgeInsets.symmetric(
-                              horizontal: LHSpacing.md,
-                              vertical: LHSpacing.sm),
+                              horizontal: LHSpacing.md, vertical: LHSpacing.sm),
                           itemCount: messages.length,
                           itemBuilder: (context, i) {
                             // Indice 0 = message le plus récent (inverse).
-                            final msg =
-                                messages[messages.length - 1 - i];
+                            final msg = messages[messages.length - 1 - i];
                             final prev = i + 1 < messages.length
                                 ? messages[messages.length - 2 - i]
                                 : null;
-                            final isMine = you != null &&
-                                msg.senderMemberId == you.id;
+                            final isMine =
+                                you != null && msg.senderMemberId == you.id;
                             final firstOfGroup = prev == null ||
                                 prev.senderMemberId != msg.senderMemberId;
                             return _MessageView(
                               message: msg,
                               sender: memberById[msg.senderMemberId],
                               isMine: isMine,
-                              showSenderHeader:
-                                  !isMine && firstOfGroup,
+                              showSenderHeader: !isMine && firstOfGroup,
                               firstNames: firstNames,
                               reactions: reactions
                                   .where((r) => r.messageId == msg.id)
                                   .toList(),
-                              onLongPress: () =>
-                                  _showMessageActions(msg, you),
+                              onLongPress: () => _showMessageActions(msg, you),
                               onToggleReaction: (emoji) =>
                                   _toggleReaction(msg.id, emoji),
                             );
@@ -1134,8 +1104,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     return SafeArea(
       top: false,
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(LHSpacing.md, LHSpacing.sm,
-            LHSpacing.xs, LHSpacing.sm),
+        padding: const EdgeInsets.fromLTRB(
+            LHSpacing.md, LHSpacing.sm, LHSpacing.md, LHSpacing.sm),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.end,
           children: [
@@ -1214,10 +1184,9 @@ class _MessageView extends StatelessWidget {
     final bubble = GestureDetector(
       onLongPress: onLongPress,
       child: Container(
-        constraints: BoxConstraints(
-            maxWidth: MediaQuery.of(context).size.width * 0.78),
-        padding:
-            const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+        constraints:
+            BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.78),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
         decoration: BoxDecoration(
           color: deleted
               ? theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.10)
@@ -1257,8 +1226,7 @@ class _MessageView extends StatelessWidget {
         children: [
           if (showSenderHeader)
             Padding(
-              padding:
-                  const EdgeInsets.only(left: LHSpacing.xs, bottom: 3),
+              padding: const EdgeInsets.only(left: LHSpacing.xs, bottom: 3),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -1290,8 +1258,7 @@ class _MessageView extends StatelessWidget {
                             horizontal: 7, vertical: 2),
                         decoration: BoxDecoration(
                           color: theme.colorScheme.surface,
-                          borderRadius:
-                              BorderRadius.circular(LHRadius.full),
+                          borderRadius: BorderRadius.circular(LHRadius.full),
                           border: Border.all(
                               color: theme.colorScheme.outline
                                   .withValues(alpha: 0.7)),
@@ -1299,14 +1266,12 @@ class _MessageView extends StatelessWidget {
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Text(e.key,
-                                style: const TextStyle(fontSize: 12)),
+                            Text(e.key, style: const TextStyle(fontSize: 12)),
                             const SizedBox(width: 3),
                             Text(
                               '${e.value}',
                               style: theme.textTheme.labelSmall?.copyWith(
-                                  color: theme.colorScheme
-                                      .onSurfaceVariant),
+                                  color: theme.colorScheme.onSurfaceVariant),
                             ),
                           ],
                         ),
@@ -1334,8 +1299,7 @@ class _MessageView extends StatelessWidget {
       padding: const EdgeInsets.only(top: 2, right: LHSpacing.xs),
       child: Text(
         label,
-        style:
-            theme.textTheme.labelSmall?.copyWith(color: color),
+        style: theme.textTheme.labelSmall?.copyWith(color: color),
       ),
     );
   }
@@ -1346,9 +1310,8 @@ class _MessageView extends StatelessWidget {
     final theme = Theme.of(context);
     final base = theme.textTheme.bodyMedium ?? const TextStyle();
     final mention = base.copyWith(
-        color: theme.brightness == Brightness.dark
-            ? LHColors.or
-            : LHColors.orDeep,
+        color:
+            theme.brightness == Brightness.dark ? LHColors.or : LHColors.orDeep,
         fontWeight: FontWeight.w700);
 
     final spans = <TextSpan>[];
@@ -1357,19 +1320,16 @@ class _MessageView extends StatelessWidget {
     for (final match in regex.allMatches(message.body)) {
       if (match.start > start) {
         spans.add(TextSpan(
-            text: message.body.substring(start, match.start),
-            style: base));
+            text: message.body.substring(start, match.start), style: base));
       }
       final token = match.group(0)!;
       final isMention = firstNames
           .any((n) => n.toLowerCase() == token.substring(1).toLowerCase());
-      spans.add(
-          TextSpan(text: token, style: isMention ? mention : base));
+      spans.add(TextSpan(text: token, style: isMention ? mention : base));
       start = match.end;
     }
     if (start < message.body.length) {
-      spans.add(
-          TextSpan(text: message.body.substring(start), style: base));
+      spans.add(TextSpan(text: message.body.substring(start), style: base));
     }
     if (message.editedAt != null) {
       spans.add(TextSpan(

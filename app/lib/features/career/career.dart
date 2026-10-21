@@ -94,8 +94,7 @@ Color certStatusColor(String s) {
 extension CareerQueries on AppDatabase {
   // —— Profil ——
   Stream<CareerProfile?> watchCareerProfile(String spaceId) {
-    return (select(careerProfiles)
-          ..where((p) => p.spaceId.equals(spaceId)))
+    return (select(careerProfiles)..where((p) => p.spaceId.equals(spaceId)))
         .watch()
         .map((rows) => rows.isEmpty ? null : rows.first);
   }
@@ -135,8 +134,9 @@ extension CareerQueries on AppDatabase {
     final query = select(userSkills).join([
       innerJoin(skills, skills.id.equalsExp(userSkills.skillId)),
     ]);
-    return query.watch().map((rows) =>
-        rows.map((r) => (r.readTable(userSkills), r.readTable(skills))).toList());
+    return query.watch().map((rows) => rows
+        .map((r) => (r.readTable(userSkills), r.readTable(skills)))
+        .toList());
   }
 
   Future<Skill?> findSkillByName(String name) async {
@@ -169,8 +169,8 @@ extension CareerQueries on AppDatabase {
     }
     if (userSkillId == null) {
       final id = 'usk_${DateTime.now().microsecondsSinceEpoch}';
-      await into(userSkills).insert(UserSkill(
-          id: id, skillId: skill.id, level: level, status: status));
+      await into(userSkills).insert(
+          UserSkill(id: id, skillId: skill.id, level: level, status: status));
       logOp('UserSkill', id, 'CREATE',
           {'skill': name, 'level': level, 'status': status});
     } else {
@@ -199,7 +199,8 @@ extension CareerQueries on AppDatabase {
 
   Future<void> saveLearningPath(LearningPath p, {required bool isNew}) async {
     await into(learningPaths).insert(p, mode: InsertMode.insertOrReplace);
-    logOp('LearningPath', p.id, isNew ? 'CREATE' : 'UPDATE', {'title': p.title});
+    logOp(
+        'LearningPath', p.id, isNew ? 'CREATE' : 'UPDATE', {'title': p.title});
   }
 
   Future<void> setPathStatus(String pathId, String status) async {
@@ -227,7 +228,10 @@ extension CareerQueries on AppDatabase {
         .get();
     final id = 'lpstep_${DateTime.now().microsecondsSinceEpoch}';
     await into(learningPathSteps).insert(LearningPathStep(
-        id: id, pathId: pathId, label: label, done: false,
+        id: id,
+        pathId: pathId,
+        label: label,
+        done: false,
         position: existing.length));
     logOp('LearningPathStep', id, 'CREATE', {'label': label});
   }
@@ -286,7 +290,8 @@ extension CareerQueries on AppDatabase {
 
   Future<void> savePortfolioItem(PortfolioItem p, {required bool isNew}) async {
     await into(portfolioItems).insert(p, mode: InsertMode.insertOrReplace);
-    logOp('PortfolioItem', p.id, isNew ? 'CREATE' : 'UPDATE', {'title': p.title});
+    logOp(
+        'PortfolioItem', p.id, isNew ? 'CREATE' : 'UPDATE', {'title': p.title});
   }
 
   Future<void> deletePortfolioItem(String id) async {
@@ -296,8 +301,7 @@ extension CareerQueries on AppDatabase {
 
   // —— Certifications ——
   Stream<List<Certification>> watchCertifications() {
-    return (select(certifications)
-          ..orderBy([(c) => OrderingTerm.asc(c.name)]))
+    return (select(certifications)..orderBy([(c) => OrderingTerm.asc(c.name)]))
         .watch();
   }
 
@@ -317,9 +321,8 @@ extension CareerQueries on AppDatabase {
 final careerProfileProvider = StreamProvider.family<CareerProfile?, String>(
     (ref, spaceId) => ref.watch(dbProvider).watchCareerProfile(spaceId));
 
-final userSkillsDetailedProvider =
-    StreamProvider<List<(UserSkill, Skill)>>(
-        (ref) => ref.watch(dbProvider).watchUserSkillsDetailed());
+final userSkillsDetailedProvider = StreamProvider<List<(UserSkill, Skill)>>(
+    (ref) => ref.watch(dbProvider).watchUserSkillsDetailed());
 
 final learningPathsProvider = StreamProvider.family<List<LearningPath>, String>(
     (ref, spaceId) => ref.watch(dbProvider).watchLearningPaths(spaceId));
@@ -418,32 +421,36 @@ class _ProfileTab extends ConsumerWidget {
             final hasSummary = summary != null && summary.isNotEmpty;
             return LHCard(
               accent: LHColors.or.withValues(alpha: 0.85),
-              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text(
-                  hasHeadline ? headline : 'Aucun titre professionnel',
-                  style: theme.textTheme.titleLarge?.copyWith(
-                      color: hasHeadline ? null : theme.colorScheme.onSurfaceVariant),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  hasSummary ? summary : '—',
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant),
-                ),
-                const Divider(height: LHSpacing.xl),
-                _profileRow(context, Icons.place_outlined,
-                    profile?.location, 'Localisation'),
-                _profileRow(context, Icons.mail_outline, profile?.email,
-                    'E-mail'),
-                _profileRow(
-                    context, Icons.phone_outlined, profile?.phone, 'Téléphone'),
-                const SizedBox(height: LHSpacing.md),
-                OutlinedButton.icon(
-                  onPressed: () => _ProfileDialog.show(context, profile),
-                  icon: const Icon(Icons.edit_outlined),
-                  label: const Text('Modifier le profil'),
-                ),
-              ]),
+              child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      hasHeadline ? headline : 'Aucun titre professionnel',
+                      style: theme.textTheme.titleLarge?.copyWith(
+                          color: hasHeadline
+                              ? null
+                              : theme.colorScheme.onSurfaceVariant),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      hasSummary ? summary : '—',
+                      style: theme.textTheme.bodyMedium
+                          ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                    ),
+                    const Divider(height: LHSpacing.xl),
+                    _profileRow(context, Icons.place_outlined,
+                        profile?.location, 'Localisation'),
+                    _profileRow(
+                        context, Icons.mail_outline, profile?.email, 'E-mail'),
+                    _profileRow(context, Icons.phone_outlined, profile?.phone,
+                        'Téléphone'),
+                    const SizedBox(height: LHSpacing.md),
+                    OutlinedButton.icon(
+                      onPressed: () => _ProfileDialog.show(context, profile),
+                      icon: const Icon(Icons.edit_outlined),
+                      label: const Text('Modifier le profil'),
+                    ),
+                  ]),
             );
           },
         ),
@@ -463,9 +470,8 @@ class _ProfileTab extends ConsumerWidget {
         Expanded(
           child: Text(
             empty ? '— ($label)' : value,
-            style: theme.textTheme.bodyMedium?.copyWith(
-                color:
-                    empty ? theme.colorScheme.outline : null),
+            style: theme.textTheme.bodyMedium
+                ?.copyWith(color: empty ? theme.colorScheme.outline : null),
           ),
         ),
       ]),
@@ -532,8 +538,8 @@ class _ProfileDialogState extends ConsumerState<_ProfileDialog> {
           TextField(
             controller: _summary,
             maxLines: 3,
-            decoration:
-                const InputDecoration(labelText: 'Résumé', hintText: 'Profil, spécialités…'),
+            decoration: const InputDecoration(
+                labelText: 'Résumé', hintText: 'Profil, spécialités…'),
           ),
           const SizedBox(height: 10),
           TextField(
@@ -554,19 +560,26 @@ class _ProfileDialogState extends ConsumerState<_ProfileDialog> {
       ),
       actions: [
         TextButton(
-            onPressed: () => Navigator.pop(context), child: const Text('Annuler')),
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Annuler')),
         FilledButton(
           onPressed: () async {
             final nav = Navigator.of(context);
             await ref.read(dbProvider).upsertCareerProfile(
-              ref.read(activeSpaceIdProvider),
-              widget.profile?.id,
-              headline: _headline.text.trim().isEmpty ? null : _headline.text.trim(),
-              summary: _summary.text.trim().isEmpty ? null : _summary.text.trim(),
-              location: _location.text.trim().isEmpty ? null : _location.text.trim(),
-              email: _email.text.trim().isEmpty ? null : _email.text.trim(),
-              phone: _phone.text.trim().isEmpty ? null : _phone.text.trim(),
-            );
+                  ref.read(activeSpaceIdProvider),
+                  widget.profile?.id,
+                  headline: _headline.text.trim().isEmpty
+                      ? null
+                      : _headline.text.trim(),
+                  summary: _summary.text.trim().isEmpty
+                      ? null
+                      : _summary.text.trim(),
+                  location: _location.text.trim().isEmpty
+                      ? null
+                      : _location.text.trim(),
+                  email: _email.text.trim().isEmpty ? null : _email.text.trim(),
+                  phone: _phone.text.trim().isEmpty ? null : _phone.text.trim(),
+                );
             nav.pop();
           },
           child: const Text('Enregistrer'),
@@ -590,6 +603,7 @@ class _SkillsTab extends ConsumerWidget {
       padding: const EdgeInsets.only(bottom: 96, top: 4),
       children: [
         SectionHeader('Compétences',
+            inset: LHSpacing.screen,
             overline: 'Niveaux & preuves',
             action: IconButton(
               tooltip: 'Ajouter une compétence',
@@ -612,8 +626,7 @@ class _SkillsTab extends ConsumerWidget {
             }
             final sorted = [...pairs];
             sorted.sort((a, b) {
-              final c = (a.$2.category ?? '')
-                  .compareTo(b.$2.category ?? '');
+              final c = (a.$2.category ?? '').compareTo(b.$2.category ?? '');
               if (c != 0) return c;
               return a.$2.name.compareTo(b.$2.name);
             });
@@ -629,72 +642,74 @@ class _SkillsTab extends ConsumerWidget {
                         category: sk.category,
                         level: us.level,
                         status: us.status),
-                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      Row(children: [
-                        Expanded(
-                          child: Text(sk.name,
-                              style: theme.textTheme.titleSmall),
-                        ),
-                        StatusChip(
-                            label: skillStatusLabel(us.status),
-                            color: skillStatusColor(us.status),
-                            small: true),
-                      ]),
-                      const SizedBox(height: 6),
-                      Row(children: [
-                        if (sk.category != null && sk.category!.isNotEmpty) ...[
-                          Text(sk.category!,
-                              style: TextStyle(
-                                  fontSize: 12,
-                                  color: theme.colorScheme.onSurfaceVariant)),
-                          const SizedBox(width: 12),
-                        ],
-                        // Niveau 0..5 : 5 pastilles remplies.
-                        for (var i = 1; i <= 5; i++)
-                          Container(
-                            width: 11,
-                            height: 11,
-                            margin: const EdgeInsets.only(right: 4),
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              color: i <= us.level
-                                  ? LHColors.or
-                                  : null,
-                              border: i <= us.level
-                                  ? null
-                                  : Border.all(
-                                      color: theme.colorScheme.outline),
+                    child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(children: [
+                            Expanded(
+                              child: Text(sk.name,
+                                  style: theme.textTheme.titleSmall),
                             ),
-                          ),
-                        const SizedBox(width: 6),
-                        Text('niveau ${us.level}/5',
-                            style: TextStyle(
-                                fontSize: 11,
-                                color: theme.colorScheme.onSurfaceVariant)),
-                        const Spacer(),
-                        IconButton(
-                          tooltip: 'Supprimer',
-                          visualDensity: VisualDensity.compact,
-                          icon: const Icon(Icons.delete_outline,
-                              size: 20, color: LHColors.erreur),
-                          onPressed: () async {
-                            final ok = await lhConfirm(
-                              context,
-                              title: 'Supprimer cette compétence ?',
-                              message:
-                                  '« ${sk.name} » sera retirée de votre profil.',
-                              confirmLabel: 'Supprimer',
-                              destructive: true,
-                            );
-                            if (ok) {
-                              await ref
-                                  .read(dbProvider)
-                                  .deleteUserSkill(us.id);
-                            }
-                          },
-                        ),
-                      ]),
-                    ]),
+                            StatusChip(
+                                label: skillStatusLabel(us.status),
+                                color: skillStatusColor(us.status),
+                                small: true),
+                          ]),
+                          const SizedBox(height: 6),
+                          Row(children: [
+                            if (sk.category != null &&
+                                sk.category!.isNotEmpty) ...[
+                              Text(sk.category!,
+                                  style: TextStyle(
+                                      fontSize: 12,
+                                      color:
+                                          theme.colorScheme.onSurfaceVariant)),
+                              const SizedBox(width: 12),
+                            ],
+                            // Niveau 0..5 : 5 pastilles remplies.
+                            for (var i = 1; i <= 5; i++)
+                              Container(
+                                width: 11,
+                                height: 11,
+                                margin: const EdgeInsets.only(right: 4),
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: i <= us.level ? LHColors.or : null,
+                                  border: i <= us.level
+                                      ? null
+                                      : Border.all(
+                                          color: theme.colorScheme.outline),
+                                ),
+                              ),
+                            const SizedBox(width: 6),
+                            Text('niveau ${us.level}/5',
+                                style: TextStyle(
+                                    fontSize: 11,
+                                    color: theme.colorScheme.onSurfaceVariant)),
+                            const Spacer(),
+                            IconButton(
+                              tooltip: 'Supprimer',
+                              visualDensity: VisualDensity.compact,
+                              icon: const Icon(Icons.delete_outline,
+                                  size: 20, color: LHColors.erreur),
+                              onPressed: () async {
+                                final ok = await lhConfirm(
+                                  context,
+                                  title: 'Supprimer cette compétence ?',
+                                  message:
+                                      '« ${sk.name} » sera retirée de votre profil.',
+                                  confirmLabel: 'Supprimer',
+                                  destructive: true,
+                                );
+                                if (ok) {
+                                  await ref
+                                      .read(dbProvider)
+                                      .deleteUserSkill(us.id);
+                                }
+                              },
+                            ),
+                          ]),
+                        ]),
                   ),
                 ),
             ]);
@@ -769,8 +784,9 @@ class _SkillDialogState extends ConsumerState<_SkillDialog> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return AlertDialog(
-      title:
-          Text(widget.userSkillId == null ? 'Ajouter une compétence' : 'Modifier la compétence'),
+      title: Text(widget.userSkillId == null
+          ? 'Ajouter une compétence'
+          : 'Modifier la compétence'),
       content: SingleChildScrollView(
         child: Column(mainAxisSize: MainAxisSize.min, children: [
           TextField(
@@ -783,7 +799,8 @@ class _SkillDialogState extends ConsumerState<_SkillDialog> {
           TextField(
             controller: _category,
             decoration: const InputDecoration(
-                labelText: 'Catégorie', hintText: 'ex. Technique, Transversal…'),
+                labelText: 'Catégorie',
+                hintText: 'ex. Technique, Transversal…'),
           ),
           const SizedBox(height: 14),
           Text('Niveau (0 à 5)',
@@ -822,7 +839,8 @@ class _SkillDialogState extends ConsumerState<_SkillDialog> {
       ),
       actions: [
         TextButton(
-            onPressed: () => Navigator.pop(context), child: const Text('Annuler')),
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Annuler')),
         FilledButton(
           onPressed: () async {
             final name = _name.text.trim();
@@ -832,12 +850,12 @@ class _SkillDialogState extends ConsumerState<_SkillDialog> {
             }
             final category = _category.text.trim();
             await ref.read(dbProvider).upsertUserSkill(
-              userSkillId: widget.userSkillId,
-              name: name,
-              category: category.isEmpty ? null : category,
-              level: _level,
-              status: _status,
-            );
+                  userSkillId: widget.userSkillId,
+                  name: name,
+                  category: category.isEmpty ? null : category,
+                  level: _level,
+                  status: _status,
+                );
             if (context.mounted) Navigator.pop(context);
           },
           child: Text(widget.userSkillId == null ? 'Ajouter' : 'Enregistrer'),
@@ -861,6 +879,7 @@ class _PathsTab extends ConsumerWidget {
       padding: const EdgeInsets.only(bottom: 96, top: 4),
       children: [
         SectionHeader("Parcours d'apprentissage",
+            inset: LHSpacing.screen,
             overline: 'Progression',
             action: IconButton(
               tooltip: 'Nouveau parcours',
@@ -921,8 +940,7 @@ class _PathCard extends ConsumerWidget {
                 style: const TextStyle(
                     fontSize: 9.5, fontWeight: FontWeight.w800)),
           ),
-          title: Text(path.title,
-              style: theme.textTheme.titleSmall),
+          title: Text(path.title, style: theme.textTheme.titleSmall),
           subtitle: Row(children: [
             StatusChip(
                 label: pathStatusLabel(path.status),
@@ -932,8 +950,7 @@ class _PathCard extends ConsumerWidget {
               const SizedBox(width: 8),
               Text('→ ${fmt.formatMedium(fmt.parseKey(path.targetDate!))}',
                   style: TextStyle(
-                      fontSize: 11,
-                      color: theme.colorScheme.onSurfaceVariant)),
+                      fontSize: 11, color: theme.colorScheme.onSurfaceVariant)),
             ],
           ]),
           children: [
@@ -941,8 +958,8 @@ class _PathCard extends ConsumerWidget {
               Padding(
                 padding: const EdgeInsets.fromLTRB(0, 0, 0, 8),
                 child: Text(path.description!,
-                    style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant)),
+                    style: theme.textTheme.bodySmall
+                        ?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
               ),
             for (final s in steps)
               Row(children: [
@@ -963,7 +980,8 @@ class _PathCard extends ConsumerWidget {
                 ),
                 IconButton(
                   visualDensity: VisualDensity.compact,
-                  icon: const Icon(Icons.close, size: 18, color: LHColors.erreur),
+                  icon:
+                      const Icon(Icons.close, size: 18, color: LHColors.erreur),
                   onPressed: () => db.deletePathStep(s.id),
                 ),
               ]),
@@ -1133,7 +1151,8 @@ class _PathDialogState extends ConsumerState<_PathDialog> {
       ),
       actions: [
         TextButton(
-            onPressed: () => Navigator.pop(context), child: const Text('Annuler')),
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Annuler')),
         FilledButton(
           onPressed: () async {
             final title = _title.text.trim();
@@ -1181,6 +1200,7 @@ class _ExperiencesTab extends ConsumerWidget {
       padding: const EdgeInsets.only(bottom: 96, top: 4),
       children: [
         SectionHeader('Expériences',
+            inset: LHSpacing.screen,
             overline: 'Parcours professionnel',
             action: IconButton(
               tooltip: 'Ajouter une expérience',
@@ -1200,127 +1220,139 @@ class _ExperiencesTab extends ConsumerWidget {
                         'Aucune expérience.\nAjoutez vos postes pour construire votre timeline.'),
               );
             }
-            return Column(children: [
-              for (final (i, e) in exps.indexed)
-                IntrinsicHeight(
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      // Rail de timeline
-                      SizedBox(
-                        width: 22,
-                        child: Column(children: [
-                          Container(
-                            width: 12,
-                            height: 12,
-                            margin: const EdgeInsets.only(top: 22),
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              color: e.isCurrent
-                                  ? LHColors.emeraudeClair
-                                  : null,
-                              border: Border.all(
-                                  color: e.isCurrent
-                                      ? LHColors.emeraudeClair
-                                      : theme.colorScheme.outline,
-                                  width: 2),
+            // Marge d'écran : le rail de timeline ne doit pas coller au bord.
+            return Padding(
+              padding: const EdgeInsets.symmetric(horizontal: LHSpacing.screen),
+              child: Column(children: [
+                for (final (i, e) in exps.indexed)
+                  IntrinsicHeight(
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        // Rail de timeline
+                        SizedBox(
+                          width: 22,
+                          child: Column(children: [
+                            Container(
+                              width: 12,
+                              height: 12,
+                              margin: const EdgeInsets.only(top: 22),
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color:
+                                    e.isCurrent ? LHColors.emeraudeClair : null,
+                                border: Border.all(
+                                    color: e.isCurrent
+                                        ? LHColors.emeraudeClair
+                                        : theme.colorScheme.outline,
+                                    width: 2),
+                              ),
                             ),
-                          ),
-                          Expanded(
-                            child: Container(
-                              width: 2,
-                              color: i == exps.length - 1
-                                  ? Colors.transparent
-                                  : theme.colorScheme.outline
-                                      .withValues(alpha: 0.6),
+                            Expanded(
+                              child: Container(
+                                width: 2,
+                                color: i == exps.length - 1
+                                    ? Colors.transparent
+                                    : theme.colorScheme.outline
+                                        .withValues(alpha: 0.6),
+                              ),
                             ),
-                          ),
-                        ]),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 5),
-                          child: LHCard(
-                            accent: e.isCurrent ? LHColors.emeraudeClair : null,
-                            onTap: () => _ExperienceDialog.show(context, existing: e),
-                            child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(children: [
-                                    Expanded(
-                                      child: Text(e.role,
-                                          style: theme.textTheme.titleSmall),
-                                    ),
-                                    if (e.isCurrent)
-                                      const StatusChip(
-                                          label: 'En poste',
-                                          color: LHColors.emeraudeClair,
-                                          small: true),
-                                  ]),
-                                  const SizedBox(height: 2),
-                                  Row(children: [
-                                    Icon(Icons.business_outlined,
-                                        size: 14,
-                                        color: theme
-                                            .colorScheme.onSurfaceVariant),
-                                    const SizedBox(width: 6),
-                                    Expanded(
-                                      child: Text(e.organization,
-                                          style: theme.textTheme.bodyMedium
-                                              ?.copyWith(
-                                                  color: theme.colorScheme
-                                                      .onSurfaceVariant)),
-                                    ),
-                                  ]),
-                                  const SizedBox(height: 6),
-                                  Text(
-                                    '${fmt.formatMonthYear(fmt.parseKey(e.startDate))} → '
-                                    '${e.isCurrent ? "aujourd'hui" : (e.endDate != null ? fmt.formatMonthYear(fmt.parseKey(e.endDate!)) : '—')}',
-                                    style: TextStyle(
-                                        fontSize: 12,
-                                        color: theme
-                                            .colorScheme.onSurfaceVariant),
-                                  ),
-                                  if (e.description != null &&
-                                      e.description!.isNotEmpty) ...[
+                          ]),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 5),
+                            child: LHCard(
+                              accent:
+                                  e.isCurrent ? LHColors.emeraudeClair : null,
+                              onTap: () =>
+                                  _ExperienceDialog.show(context, existing: e),
+                              child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(children: [
+                                      Expanded(
+                                        child: Text(e.role,
+                                            style: theme.textTheme.titleSmall),
+                                      ),
+                                      if (e.isCurrent)
+                                        const StatusChip(
+                                            label: 'En poste',
+                                            color: LHColors.emeraudeClair,
+                                            small: true),
+                                    ]),
+                                    const SizedBox(height: 2),
+                                    Row(children: [
+                                      Icon(Icons.business_outlined,
+                                          size: 14,
+                                          color: theme
+                                              .colorScheme.onSurfaceVariant),
+                                      const SizedBox(width: 6),
+                                      Expanded(
+                                        child: Text(e.organization,
+                                            style: theme.textTheme.bodyMedium
+                                                ?.copyWith(
+                                                    color: theme.colorScheme
+                                                        .onSurfaceVariant)),
+                                      ),
+                                    ]),
                                     const SizedBox(height: 6),
-                                    Text(e.description!,
-                                        maxLines: 3,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: theme.textTheme.bodySmall),
-                                  ],
-                                  Row(mainAxisAlignment: MainAxisAlignment.end, children: [
-                                    IconButton(
-                                      tooltip: 'Supprimer',
-                                      visualDensity: VisualDensity.compact,
-                                      icon: const Icon(Icons.delete_outline,
-                                          size: 20, color: LHColors.erreur),
-                                      onPressed: () async {
-                                        final ok = await lhConfirm(
-                                          context,
-                                          title: 'Supprimer cette expérience ?',
-                                          message:
-                                              '« ${e.role} — ${e.organization} » sera supprimée.',
-                                          confirmLabel: 'Supprimer',
-                                          destructive: true,
-                                        );
-                                        if (ok) {
-                                          await ref
-                                              .read(dbProvider)
-                                              .deleteExperience(e.id);
-                                        }
-                                      },
+                                    Text(
+                                      '${fmt.formatMonthYear(fmt.parseKey(e.startDate))} → '
+                                      '${e.isCurrent ? "aujourd'hui" : (e.endDate != null ? fmt.formatMonthYear(fmt.parseKey(e.endDate!)) : '—')}',
+                                      style: TextStyle(
+                                          fontSize: 12,
+                                          color: theme
+                                              .colorScheme.onSurfaceVariant),
                                     ),
+                                    if (e.description != null &&
+                                        e.description!.isNotEmpty) ...[
+                                      const SizedBox(height: 6),
+                                      Text(e.description!,
+                                          maxLines: 3,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: theme.textTheme.bodySmall),
+                                    ],
+                                    Row(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.end,
+                                        children: [
+                                          IconButton(
+                                            tooltip: 'Supprimer',
+                                            visualDensity:
+                                                VisualDensity.compact,
+                                            icon: const Icon(
+                                                Icons.delete_outline,
+                                                size: 20,
+                                                color: LHColors.erreur),
+                                            onPressed: () async {
+                                              final ok = await lhConfirm(
+                                                context,
+                                                title:
+                                                    'Supprimer cette expérience ?',
+                                                message:
+                                                    '« ${e.role} — ${e.organization} » sera supprimée.',
+                                                confirmLabel: 'Supprimer',
+                                                destructive: true,
+                                              );
+                                              if (ok) {
+                                                await ref
+                                                    .read(dbProvider)
+                                                    .deleteExperience(e.id);
+                                              }
+                                            },
+                                          ),
+                                        ]),
                                   ]),
-                                ]),
+                            ),
                           ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
-            ]);
+              ]),
+            );
           },
         ),
       ],
@@ -1439,9 +1471,7 @@ class _ExperienceDialogState extends ConsumerState<_ExperienceDialog> {
                             ? '—'
                             : fmt.formatMedium(fmt.parseKey(_endDate!))),
                     style: TextStyle(
-                        color: _isCurrent
-                            ? Theme.of(context).hintColor
-                            : null),
+                        color: _isCurrent ? Theme.of(context).hintColor : null),
                   ),
                 ),
               ),
@@ -1467,7 +1497,8 @@ class _ExperienceDialogState extends ConsumerState<_ExperienceDialog> {
       ),
       actions: [
         TextButton(
-            onPressed: () => Navigator.pop(context), child: const Text('Annuler')),
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Annuler')),
         FilledButton(
           onPressed: () async {
             final org = _organization.text.trim();
@@ -1523,6 +1554,7 @@ class _PortfolioTab extends ConsumerWidget {
       padding: const EdgeInsets.only(bottom: 96, top: 4),
       children: [
         SectionHeader('Portfolio',
+            inset: LHSpacing.screen,
             overline: 'Réalisations',
             action: IconButton(
               tooltip: 'Ajouter une réalisation',
@@ -1546,62 +1578,67 @@ class _PortfolioTab extends ConsumerWidget {
                       const EdgeInsets.symmetric(horizontal: 16, vertical: 5),
                   child: LHCard(
                     onTap: () => _PortfolioDialog.show(context, existing: item),
-                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      Text(item.title, style: theme.textTheme.titleSmall),
-                      if (item.description != null &&
-                          item.description!.isNotEmpty) ...[
-                        const SizedBox(height: 4),
-                        Text(item.description!,
-                            maxLines: 3,
-                            overflow: TextOverflow.ellipsis,
-                            style: theme.textTheme.bodySmall?.copyWith(
-                                color: theme.colorScheme.onSurfaceVariant)),
-                      ],
-                      if (item.link != null && item.link!.isNotEmpty) ...[
-                        const SizedBox(height: 6),
-                        Row(children: [
-                          Icon(Icons.link_outlined,
-                              size: 15, color: LHColors.info),
-                          const SizedBox(width: 6),
-                          Expanded(
-                            child: Text(item.link!,
-                                maxLines: 1,
+                    child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(item.title, style: theme.textTheme.titleSmall),
+                          if (item.description != null &&
+                              item.description!.isNotEmpty) ...[
+                            const SizedBox(height: 4),
+                            Text(item.description!,
+                                maxLines: 3,
                                 overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
-                                    fontSize: 12, color: LHColors.info)),
-                          ),
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                    color: theme.colorScheme.onSurfaceVariant)),
+                          ],
+                          if (item.link != null && item.link!.isNotEmpty) ...[
+                            const SizedBox(height: 6),
+                            Row(children: [
+                              Icon(Icons.link_outlined,
+                                  size: 15, color: LHColors.info),
+                              const SizedBox(width: 6),
+                              Expanded(
+                                child: Text(item.link!,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                        fontSize: 12, color: LHColors.info)),
+                              ),
+                            ]),
+                          ],
+                          Row(
+                              mainAxisAlignment: MainAxisAlignment.end,
+                              children: [
+                                IconButton(
+                                  tooltip: 'Supprimer',
+                                  visualDensity: VisualDensity.compact,
+                                  icon: const Icon(Icons.delete_outline,
+                                      size: 20, color: LHColors.erreur),
+                                  onPressed: () async {
+                                    final ok = await lhConfirm(
+                                      context,
+                                      title: 'Supprimer cette réalisation ?',
+                                      message:
+                                          '« ${item.title} » sera supprimée du portfolio.',
+                                      confirmLabel: 'Supprimer',
+                                      destructive: true,
+                                    );
+                                    if (ok) {
+                                      await ref
+                                          .read(dbProvider)
+                                          .deletePortfolioItem(item.id);
+                                    }
+                                  },
+                                ),
+                              ]),
                         ]),
-                      ],
-                      Row(mainAxisAlignment: MainAxisAlignment.end, children: [
-                        IconButton(
-                          tooltip: 'Supprimer',
-                          visualDensity: VisualDensity.compact,
-                          icon: const Icon(Icons.delete_outline,
-                              size: 20, color: LHColors.erreur),
-                          onPressed: () async {
-                            final ok = await lhConfirm(
-                              context,
-                              title: 'Supprimer cette réalisation ?',
-                              message: '« ${item.title} » sera supprimée du portfolio.',
-                              confirmLabel: 'Supprimer',
-                              destructive: true,
-                            );
-                            if (ok) {
-                              await ref
-                                  .read(dbProvider)
-                                  .deletePortfolioItem(item.id);
-                            }
-                          },
-                        ),
-                      ]),
-                    ]),
                   ),
                 ),
             ]);
           },
         ),
-
         SectionHeader('Certifications',
+            inset: LHSpacing.screen,
             overline: 'Justificatifs',
             action: IconButton(
               tooltip: 'Ajouter une certification',
@@ -1625,68 +1662,73 @@ class _PortfolioTab extends ConsumerWidget {
                       const EdgeInsets.symmetric(horizontal: 16, vertical: 5),
                   child: LHCard(
                     onTap: () => _CertDialog.show(context, existing: c),
-                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      Row(children: [
-                        Expanded(
-                          child: Text(c.name, style: theme.textTheme.titleSmall),
-                        ),
-                        StatusChip(
-                            label: certStatusLabel(c.status),
-                            color: certStatusColor(c.status),
-                            small: true),
-                      ]),
-                      const SizedBox(height: 4),
-                      if (c.issuer != null && c.issuer!.isNotEmpty)
-                        Row(children: [
-                          Icon(Icons.workspace_premium_outlined,
-                              size: 15,
-                              color: theme.colorScheme.onSurfaceVariant),
-                          const SizedBox(width: 6),
-                          Text(c.issuer!,
-                              style: theme.textTheme.bodySmall?.copyWith(
-                                  color:
-                                      theme.colorScheme.onSurfaceVariant)),
-                        ]),
-                      const SizedBox(height: 4),
-                      Text(
-                        'Délivrée le ${c.issueDate != null ? fmt.formatMedium(fmt.parseKey(c.issueDate!)) : '—'}'
-                        '${c.expiryDate != null ? ' · expire le ${fmt.formatMedium(fmt.parseKey(c.expiryDate!))}' : ''}',
-                        style: TextStyle(
-                            fontSize: 12,
-                            color: theme.colorScheme.onSurfaceVariant),
-                      ),
-                      if (c.credentialId != null &&
-                          c.credentialId!.isNotEmpty) ...[
-                        const SizedBox(height: 4),
-                        Text('N° ${c.credentialId}',
-                            style: const TextStyle(
+                    child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(children: [
+                            Expanded(
+                              child: Text(c.name,
+                                  style: theme.textTheme.titleSmall),
+                            ),
+                            StatusChip(
+                                label: certStatusLabel(c.status),
+                                color: certStatusColor(c.status),
+                                small: true),
+                          ]),
+                          const SizedBox(height: 4),
+                          if (c.issuer != null && c.issuer!.isNotEmpty)
+                            Row(children: [
+                              Icon(Icons.workspace_premium_outlined,
+                                  size: 15,
+                                  color: theme.colorScheme.onSurfaceVariant),
+                              const SizedBox(width: 6),
+                              Text(c.issuer!,
+                                  style: theme.textTheme.bodySmall?.copyWith(
+                                      color:
+                                          theme.colorScheme.onSurfaceVariant)),
+                            ]),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Délivrée le ${c.issueDate != null ? fmt.formatMedium(fmt.parseKey(c.issueDate!)) : '—'}'
+                            '${c.expiryDate != null ? ' · expire le ${fmt.formatMedium(fmt.parseKey(c.expiryDate!))}' : ''}',
+                            style: TextStyle(
                                 fontSize: 12,
-                                fontFamily: 'monospace',
-                                color: LHColors.neutre)),
-                      ],
-                      Row(mainAxisAlignment: MainAxisAlignment.end, children: [
-                        IconButton(
-                          tooltip: 'Supprimer',
-                          visualDensity: VisualDensity.compact,
-                          icon: const Icon(Icons.delete_outline,
-                              size: 20, color: LHColors.erreur),
-                          onPressed: () async {
-                            final ok = await lhConfirm(
-                              context,
-                              title: 'Supprimer cette certification ?',
-                              message: '« ${c.name} » sera supprimée.',
-                              confirmLabel: 'Supprimer',
-                              destructive: true,
-                            );
-                            if (ok) {
-                              await ref
-                                  .read(dbProvider)
-                                  .deleteCertification(c.id);
-                            }
-                          },
-                        ),
-                      ]),
-                    ]),
+                                color: theme.colorScheme.onSurfaceVariant),
+                          ),
+                          if (c.credentialId != null &&
+                              c.credentialId!.isNotEmpty) ...[
+                            const SizedBox(height: 4),
+                            Text('N° ${c.credentialId}',
+                                style: const TextStyle(
+                                    fontSize: 12,
+                                    fontFamily: 'monospace',
+                                    color: LHColors.neutre)),
+                          ],
+                          Row(
+                              mainAxisAlignment: MainAxisAlignment.end,
+                              children: [
+                                IconButton(
+                                  tooltip: 'Supprimer',
+                                  visualDensity: VisualDensity.compact,
+                                  icon: const Icon(Icons.delete_outline,
+                                      size: 20, color: LHColors.erreur),
+                                  onPressed: () async {
+                                    final ok = await lhConfirm(
+                                      context,
+                                      title: 'Supprimer cette certification ?',
+                                      message: '« ${c.name} » sera supprimée.',
+                                      confirmLabel: 'Supprimer',
+                                      destructive: true,
+                                    );
+                                    if (ok) {
+                                      await ref
+                                          .read(dbProvider)
+                                          .deleteCertification(c.id);
+                                    }
+                                  },
+                                ),
+                              ]),
+                        ]),
                   ),
                 ),
             ]);
@@ -1705,8 +1747,7 @@ class _PortfolioDialog extends ConsumerStatefulWidget {
 
   static Future<void> show(BuildContext context, {PortfolioItem? existing}) {
     return showDialog<void>(
-        context: context,
-        builder: (_) => _PortfolioDialog(existing: existing));
+        context: context, builder: (_) => _PortfolioDialog(existing: existing));
   }
 
   @override
@@ -1764,7 +1805,8 @@ class _PortfolioDialogState extends ConsumerState<_PortfolioDialog> {
       ),
       actions: [
         TextButton(
-            onPressed: () => Navigator.pop(context), child: const Text('Annuler')),
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Annuler')),
         FilledButton(
           onPressed: () async {
             final title = _title.text.trim();
@@ -1804,8 +1846,7 @@ class _CertDialog extends ConsumerStatefulWidget {
 
   static Future<void> show(BuildContext context, {Certification? existing}) {
     return showDialog<void>(
-        context: context,
-        builder: (_) => _CertDialog(existing: existing));
+        context: context, builder: (_) => _CertDialog(existing: existing));
   }
 
   @override
@@ -1841,8 +1882,8 @@ class _CertDialogState extends ConsumerState<_CertDialog> {
   }
 
   Future<void> _pickDate({required bool isIssue}) async {
-    final initial =
-        fmt.parseKey((isIssue ? _issueDate : _expiryDate) ?? fmt.dateKey(fmt.today()));
+    final initial = fmt.parseKey(
+        (isIssue ? _issueDate : _expiryDate) ?? fmt.dateKey(fmt.today()));
     final picked = await showDatePicker(
       context: context,
       initialDate: initial,
@@ -1934,7 +1975,8 @@ class _CertDialogState extends ConsumerState<_CertDialog> {
       ),
       actions: [
         TextButton(
-            onPressed: () => Navigator.pop(context), child: const Text('Annuler')),
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Annuler')),
         FilledButton(
           onPressed: () async {
             final name = _name.text.trim();
@@ -1948,7 +1990,8 @@ class _CertDialogState extends ConsumerState<_CertDialog> {
               Certification(
                 id: c?.id ?? 'cert_${DateTime.now().microsecondsSinceEpoch}',
                 name: name,
-                issuer: _issuer.text.trim().isEmpty ? null : _issuer.text.trim(),
+                issuer:
+                    _issuer.text.trim().isEmpty ? null : _issuer.text.trim(),
                 issueDate: _issueDate,
                 expiryDate: _expiryDate,
                 status: _status,

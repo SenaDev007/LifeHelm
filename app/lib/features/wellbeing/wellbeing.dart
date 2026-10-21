@@ -88,8 +88,7 @@ extension WellbeingQueries on AppDatabase {
 
   Future<DailyReview?> getDailyReview(String spaceId, String dateKey) {
     return (select(dailyReviews)
-          ..where((r) =>
-              r.spaceId.equals(spaceId) & r.dateKey.equals(dateKey)))
+          ..where((r) => r.spaceId.equals(spaceId) & r.dateKey.equals(dateKey)))
         .getSingleOrNull();
   }
 
@@ -124,9 +123,8 @@ final wellbeingEntriesProvider =
 final dailyReviewsProvider = StreamProvider.family<List<DailyReview>, String>(
     (ref, spaceId) => ref.watch(dbProvider).watchDailyReviews(spaceId));
 
-final reflectionQuestionsProvider =
-    StreamProvider<List<ReflectionQuestion>>(
-        (ref) => ref.watch(dbProvider).watchActiveQuestions());
+final reflectionQuestionsProvider = StreamProvider<List<ReflectionQuestion>>(
+    (ref) => ref.watch(dbProvider).watchActiveQuestions());
 
 // ═══════════════════════════ ÉCRAN : BIEN-ÊTRE ═══════════════════════════
 
@@ -198,9 +196,9 @@ class _WellbeingBody extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
           child: LHCard(
             accent: LHColors.or.withValues(alpha: 0.85),
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text('7 derniers jours',
-                  style: theme.textTheme.titleSmall),
+            child:
+                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text('7 derniers jours', style: theme.textTheme.titleSmall),
               const SizedBox(height: LHSpacing.md),
               Row(children: [
                 Expanded(
@@ -223,7 +221,8 @@ class _WellbeingBody extends StatelessWidget {
                 Expanded(
                   child: StatTile(
                     label: 'Stress moy.',
-                    value: avgLabel(last7.map((e) => e.stress).whereType<int>()),
+                    value:
+                        avgLabel(last7.map((e) => e.stress).whereType<int>()),
                     color: LHColors.info,
                     icon: Icons.spa_outlined,
                   ),
@@ -238,7 +237,9 @@ class _WellbeingBody extends StatelessWidget {
 
         // Timeline du journal.
         SectionHeader('Journal',
-            overline: 'Entrées', action: TextButton(
+            inset: LHSpacing.screen,
+            overline: 'Entrées',
+            action: TextButton(
               onPressed: () => context.push('/wellbeing/review'),
               child: const Text('Bilan du jour'),
             )),
@@ -253,7 +254,8 @@ class _WellbeingBody extends StatelessWidget {
           )
         else
           for (final e in entries)
-            _EntryTile(entry: e, onTap: () => _EntrySheet.show(context, existing: e)),
+            _EntryTile(
+                entry: e, onTap: () => _EntrySheet.show(context, existing: e)),
         const SizedBox(height: 8),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -284,8 +286,7 @@ class _MoodBars extends StatelessWidget {
     for (final e in entries) {
       final existing = byDay[e.dateKey];
       // Plusieurs entrées par jour : la dernière créée l'emporte.
-      if (existing == null ||
-          e.createdAt.isAfter(existing.createdAt)) {
+      if (existing == null || e.createdAt.isAfter(existing.createdAt)) {
         byDay[e.dateKey] = e;
       }
     }
@@ -310,8 +311,8 @@ class _MoodBars extends StatelessWidget {
                     border: byDay[fmt.dateKey(d)]?.mood != null
                         ? null
                         : Border.all(color: theme.colorScheme.outline),
-                    borderRadius: const BorderRadius.vertical(
-                        top: Radius.circular(4)),
+                    borderRadius:
+                        const BorderRadius.vertical(top: Radius.circular(4)),
                   ),
                 ),
                 const SizedBox(height: 3),
@@ -356,14 +357,16 @@ class _EntryTile extends StatelessWidget {
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               color: moodColor(mood).withValues(alpha: 0.14),
-              border: Border.all(color: moodColor(mood).withValues(alpha: 0.55)),
+              border:
+                  Border.all(color: moodColor(mood).withValues(alpha: 0.55)),
             ),
             child: Text(mood != null ? moodEmojis[mood - 1] : '—',
                 style: const TextStyle(fontSize: 22)),
           ),
           const SizedBox(width: LHSpacing.md),
           Expanded(
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            child:
+                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Row(children: [
                 Text(
                   fmt.humanDate(fmt.parseKey(entry.dateKey)),
@@ -424,7 +427,8 @@ class _EntrySheet extends ConsumerStatefulWidget {
   final WellbeingEntry? existing;
 
   /// Ouvre la feuille (création ou édition — même modal prérempli).
-  static Future<void> show(BuildContext context, {WellbeingEntry? existing}) async {
+  static Future<void> show(BuildContext context,
+      {WellbeingEntry? existing}) async {
     return showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
@@ -591,8 +595,7 @@ class _EntrySheetState extends ConsumerState<_EntrySheet> {
             Row(children: [
               if (isEdit)
                 TextButton(
-                  style:
-                      TextButton.styleFrom(foregroundColor: LHColors.erreur),
+                  style: TextButton.styleFrom(foregroundColor: LHColors.erreur),
                   onPressed: _delete,
                   child: const Text('Supprimer'),
                 ),
@@ -641,21 +644,18 @@ class _EmojiScale extends StatelessWidget {
                 margin: const EdgeInsets.symmetric(horizontal: 3),
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
-                  color: value == i
-                      ? moodColor(i).withValues(alpha: 0.16)
-                      : null,
+                  color:
+                      value == i ? moodColor(i).withValues(alpha: 0.16) : null,
                   border: Border.all(
-                    color: value == i
-                        ? moodColor(i)
-                        : theme.colorScheme.outline,
+                    color:
+                        value == i ? moodColor(i) : theme.colorScheme.outline,
                     width: value == i ? 2 : 1,
                   ),
                   borderRadius: BorderRadius.circular(LHRadius.md),
                 ),
                 child: Text(moodEmojis[i - 1],
                     style: TextStyle(
-                        fontSize: 22,
-                        color: value == i ? moodColor(i) : null)),
+                        fontSize: 22, color: value == i ? moodColor(i) : null)),
               ),
             ),
           ),
@@ -712,8 +712,7 @@ class DailyReviewScreen extends ConsumerStatefulWidget {
   const DailyReviewScreen({super.key});
 
   @override
-  ConsumerState<DailyReviewScreen> createState() =>
-      _DailyReviewScreenState();
+  ConsumerState<DailyReviewScreen> createState() => _DailyReviewScreenState();
 }
 
 class _DailyReviewScreenState extends ConsumerState<DailyReviewScreen> {
@@ -752,7 +751,8 @@ class _DailyReviewScreenState extends ConsumerState<DailyReviewScreen> {
       } catch (_) {/* answersJson illisible : on repart à blanc */}
     }
     for (final q in _questions) {
-      _answers[q.id] = TextEditingController(text: byQuestion[q.question] ?? '');
+      _answers[q.id] =
+          TextEditingController(text: byQuestion[q.question] ?? '');
     }
     _noteCtrl.text = _existing?.note ?? '';
     if (mounted) setState(() {});
@@ -792,8 +792,8 @@ class _DailyReviewScreenState extends ConsumerState<DailyReviewScreen> {
     await db.saveDailyReview(review, isNew: existing == null);
     if (!mounted) return;
     setState(() => _saving = false);
-    lhToast(context,
-        existing == null ? 'Bilan enregistré' : 'Bilan mis à jour');
+    lhToast(
+        context, existing == null ? 'Bilan enregistré' : 'Bilan mis à jour');
     context.pop();
   }
 
@@ -811,17 +811,15 @@ class _DailyReviewScreenState extends ConsumerState<DailyReviewScreen> {
         actions: [
           TextButton(
               onPressed: _saving ? null : _save,
-              child: Text(_existing == null
-                  ? 'Enregistrer'
-                  : 'Mettre à jour')),
+              child: Text(_existing == null ? 'Enregistrer' : 'Mettre à jour')),
         ],
       ),
       body: ListView(
         padding: const EdgeInsets.all(LHSpacing.screen),
         children: [
           Text(fmt.formatFull(fmt.today()),
-              style: theme.textTheme.labelMedium?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant)),
+              style: theme.textTheme.labelMedium
+                  ?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
           const SizedBox(height: LHSpacing.md),
 
           if (_questions.isEmpty)
@@ -843,8 +841,7 @@ class _DailyReviewScreenState extends ConsumerState<DailyReviewScreen> {
                 decoration: InputDecoration(
                   hintText: 'Votre réponse…',
                   border: OutlineInputBorder(
-                      borderRadius:
-                          BorderRadius.circular(LHRadius.md)),
+                      borderRadius: BorderRadius.circular(LHRadius.md)),
                 ),
               ),
               const SizedBox(height: LHSpacing.lg),
@@ -903,17 +900,17 @@ class _DailyReviewScreenState extends ConsumerState<DailyReviewScreen> {
                           child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text(
-                                    fmt.humanDate(fmt.parseKey(r.dateKey)),
+                                Text(fmt.humanDate(fmt.parseKey(r.dateKey)),
                                     style: theme.textTheme.titleSmall),
                                 if (r.note != null && r.note!.isNotEmpty) ...[
                                   const SizedBox(height: 2),
                                   Text(r.note!,
                                       maxLines: 2,
                                       overflow: TextOverflow.ellipsis,
-                                      style: theme.textTheme.bodySmall?.copyWith(
-                                          color: theme.colorScheme
-                                              .onSurfaceVariant)),
+                                      style: theme.textTheme.bodySmall
+                                          ?.copyWith(
+                                              color: theme.colorScheme
+                                                  .onSurfaceVariant)),
                                 ],
                               ]),
                         ),
