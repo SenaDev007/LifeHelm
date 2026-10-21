@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/net/api_client.dart';
+import '../../core/push/push_service.dart';
 import '../../core/theme/tokens.dart';
 import 'briefing.dart' show aiBriefingProvider;
 import '../../core/widgets/common.dart';
@@ -32,6 +33,7 @@ class _AiPreferencesScreenState extends ConsumerState<AiPreferencesScreen> {
   List<LhAiConsent> _consents = [];
   bool _loading = true;
   bool _saving = false;
+  bool _pushBusy = false; // activation / désactivation des notifications
   String? _error;
 
   @override
@@ -85,6 +87,14 @@ class _AiPreferencesScreenState extends ConsumerState<AiPreferencesScreen> {
       if (patch.containsKey('dailyBriefing')) {
         ref.invalidate(aiBriefingProvider);
       }
+      // Les notifications du briefing suivent l'heure et l'état du briefing.
+      if (patch.containsKey('dailyBriefing') ||
+          patch.containsKey('briefingHour')) {
+        ref.read(pushProvider.notifier).reschedule(
+          (patch['briefingHour'] ?? prefs.briefingHour) as int,
+          active: (patch['dailyBriefing'] ?? prefs.dailyBriefing) as bool,
+        );
+      }
     } catch (e) {
       if (mounted) lhToast(context, apiErrorText(e));
     } finally {
@@ -116,6 +126,8 @@ class _AiPreferencesScreenState extends ConsumerState<AiPreferencesScreen> {
                       _consentsCard(context),
                       const SizedBox(height: LHSpacing.md),
                       _briefingCard(context),
+                      const SizedBox(height: LHSpacing.md),
+                      _pushCard(context),
                       const SizedBox(height: LHSpacing.md),
                       _usageCard(context),
                       const SizedBox(height: LHSpacing.md),
@@ -463,6 +475,139 @@ class _AiPreferencesScreenState extends ConsumerState<AiPreferencesScreen> {
                       {'briefingHour': v.round(), 'dailyBriefing': true}),
             ),
           ),
+      ]),
+    );
+  }
+
+  /// Notifications natives du briefing (D17.6) — canal actif, permission,
+  /// test immédiat. Deux canaux, une promesse : prévenir quand le briefing
+  /// est prêt. Push serveur (FCM) dès qu'un projet Firebase est branché ;
+  /// sinon repli local quotidien — jamais de fausse promesse.
+  Widget _pushCard(BuildContext context) {
+    final theme = Theme.of(context);
+    final prefs = _prefs!;
+    final push = ref.watch(pushProvider);
+
+    if (!push.supported) {
+      // Web — honnête : pas de notifications natives sur le web.
+      return LHCard(
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          const SectionHeader('Notifications du briefing',
+              overline: 'Appareil'),
+          const SizedBox(height: LHSpacing.md),
+          Row(children: [
+            const Icon(Icons.notifications_off_outlined,
+                color: LHColors.ardoise),
+            const SizedBox(width: LHSpacing.md),
+            Expanded(
+              child: Text(
+                'Les notifications natives ne sont pas disponibles sur le web. '
+                'Le briefing reste consultable dans l\'application, même hors '
+                'connexion.',
+                style: theme.textTheme.bodySmall
+                    ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+              ),
+            ),
+          ]),
+        ]),
+      );
+    }
+
+    final (badge, badgeColor, badgeIcon) = switch (push.channel) {
+      PushChannel.fcm => (
+        'Push serveur actif (FCM)',
+        LHColors.vertSucces,
+        Icons.cloud_done_outlined
+      ),
+      PushChannel.local => (
+        'Notification locale programmée',
+        LHColors.electrique,
+        Icons.schedule_outlined
+      ),
+      PushChannel.denied => (
+        'Permission refusée',
+        LHColors.orange,
+        Icons.notifications_off_outlined
+      ),
+      PushChannel.off => (
+        'Désactivées',
+        LHColors.ardoise,
+        Icons.notifications_none_outlined
+      ),
+    };
+
+    final heureNote = push.channel == PushChannel.fcm
+        ? 'Notification dès que le briefing est généré (autour de '
+            '${prefs.briefingHour}h00).'
+        : 'Notification quotidienne à ${prefs.briefingHour}h15 — le serveur a '
+            'alors déjà préparé votre briefing.';
+
+    return LHCard(
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        SwitchListTile(
+          contentPadding: EdgeInsets.zero,
+          title: const Text('Me notifier quand le briefing est prêt'),
+          subtitle: const Text(
+              'Notification native sur cet appareil — rien n\'est envoyé '
+              'tant que vous ne l\'activez pas.'),
+          value: push.enabled,
+          onChanged: _pushBusy
+              ? null
+              : (v) async {
+                  setState(() => _pushBusy = true);
+                  final notifier = ref.read(pushProvider.notifier);
+                  if (v) {
+                    await notifier.enable();
+                  } else {
+                    await notifier.disable();
+                  }
+                  if (mounted) setState(() => _pushBusy = false);
+                },
+        ),
+        const SizedBox(height: LHSpacing.sm),
+        Row(children: [
+          Icon(badgeIcon, color: badgeColor, size: 20),
+          const SizedBox(width: LHSpacing.sm),
+          Expanded(
+            child: Text(badge,
+                style: theme.textTheme.labelLarge?.copyWith(
+                    color: badgeColor, fontWeight: FontWeight.w700)),
+          ),
+        ]),
+        const SizedBox(height: 6),
+        Text(
+          push.enabled ? heureNote : 'Activez pour recevoir la notification.',
+          style: theme.textTheme.bodySmall
+              ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+        ),
+        if (push.enabled && !prefs.dailyBriefing) ...[
+          const SizedBox(height: LHSpacing.sm),
+          Text(
+            'Attention : le briefing quotidien est désactivé ci-dessus — '
+            'aucune notification ne sera envoyée tant qu\'il est inactif.',
+            style: theme.textTheme.bodySmall?.copyWith(color: LHColors.orange),
+          ),
+        ],
+        if (push.enabled && push.channel != PushChannel.denied) ...[
+          const SizedBox(height: LHSpacing.md),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: OutlinedButton.icon(
+              onPressed: _pushBusy
+                  ? null
+                  : () async {
+                      await ref
+                          .read(pushProvider.notifier)
+                          .testNotification();
+                      if (!context.mounted) return;
+                      lhToast(context,
+                          'Notification de test envoyée — repliez l\'app pour la voir.');
+                    },
+              icon: const Icon(Icons.send_outlined, size: 18),
+              label: const Text('Notification de test'),
+            ),
+          ),
+        ],
       ]),
     );
   }

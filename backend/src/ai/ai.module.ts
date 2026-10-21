@@ -6,6 +6,7 @@ import { AiActionsService } from './ai-actions.service';
 import { AiPreferencesService } from './ai-preferences.service';
 import { AiConsentsService } from './ai-consents.service';
 import { AiInsightsService } from './ai-insights.service';
+import { PushModule } from '../push/push.module';
 
 /**
  * HELM AI (Dossier 17) — Phase 3 : briefing quotidien automatique,
@@ -16,6 +17,7 @@ import { AiInsightsService } from './ai-insights.service';
  * défaut, réponses structurées sourcées, aucune mutation sans confirmation.
  */
 @Module({
+  imports: [PushModule], // notification push à la génération du briefing (cron)
   controllers: [AiController],
   providers: [
     AiService,

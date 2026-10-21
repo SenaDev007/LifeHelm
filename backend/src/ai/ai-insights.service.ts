@@ -5,6 +5,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { NvidiaProvider } from './nvidia.provider';
 import { AiTools, ToolContext } from './ai-tools';
 import { AiPreferencesService, ALERT_THRESHOLDS } from './ai-preferences.service';
+import { PushService } from '../push/push.service';
 
 /**
  * HELM AI Phase 3 — Briefing quotidien & alertes intelligentes (D17.6).
@@ -46,6 +47,7 @@ export class AiInsightsService {
     private readonly prisma: PrismaService,
     private readonly nvidia: NvidiaProvider,
     private readonly prefs: AiPreferencesService,
+    private readonly push: PushService,
   ) {
     this.tools = new AiTools(prisma);
   }
@@ -470,8 +472,20 @@ export class AiInsightsService {
           select: { id: true },
         });
         if (done) continue;
-        await this.getOrGenerate(userId, day, 'CRON');
+        const result = await this.getOrGenerate(userId, day, 'CRON');
         this.logger.log(`Briefing CRON généré (${day})`);
+        // Notification push native (D17.6) — uniquement pour la génération
+        // automatique : à la demande, l'utilisateur est déjà dans l'app.
+        // Best-effort : une panne push ne peut jamais casser le briefing.
+        if (result.enabled && result.generatedNow && result.briefing) {
+          await this.push
+            .sendBriefingPush(userId, {
+              headline: result.briefing.headline,
+              alertCount: result.briefing.alertCount,
+              date: result.briefing.date,
+            })
+            .catch((e) => this.logger.warn(`Push briefing échoué : ${String(e).slice(0, 120)}`));
+        }
       } catch (e) {
         // Journalisation minimisée — jamais de contenu métier.
         this.logger.warn(`Briefing CRON échoué : ${String(e).slice(0, 120)}`);

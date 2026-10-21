@@ -61,6 +61,7 @@ model User {
   aiUsageRecords       AiUsageRecord[]
   aiBriefings          AiBriefing[]
   aiAlerts             AiAlert[]
+  pushDevices          PushDevice[]
 }
 
 model Session {
@@ -353,4 +354,28 @@ model AiAlert {
   @@unique([userId, dedupKey])
   @@index([userId, status])
   @@index([userId, createdAt])
+}
+
+// ═══════════════════ D17.6 — Notifications push natives (briefing) ═══════════════════
+// ═══ Appareils enregistrés pour recevoir les notifications FCM. Un jeton ═══
+// ═══ par appareil (rotation gérée par upsert) ; les jetons invalidés par ═══
+// ═══ FCM (UNREGISTERED) sont désactivés automatiquement au premier envoi. ═══
+
+/// Appareil push (FCM HTTP v1) — le jeton n'est JAMAIS renvoyé en clair par
+/// l'API (masquage partiel) ; l'envoi est best-effort : une panne push ne
+/// peut jamais faire échouer la génération du briefing.
+model PushDevice {
+  id         String   @id @default(uuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  token      String   @unique // jeton FCM de l'appareil
+  platform   String   @default("ANDROID") // ANDROID | IOS | WEB
+  deviceId   String? // identifiant d'appareil local (base Drift), si connu
+  appVersion String?
+  active     Boolean  @default(true) // false = signalé invalide par FCM
+  lastSeenAt DateTime @default(now())
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([userId, active])
 }

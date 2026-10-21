@@ -11,6 +11,10 @@ import '../../core/widgets/common.dart';
 
 // ═══════════════════════ BRIEFING QUOTIDIEN (D17.6 — Phase 3) ═══════════════════════
 
+/// Signal « ouvrir la feuille briefing » posé par un tap sur une notification
+/// (push FCM ou locale — D17.6). Le cockpit y souscrit ; consommé à l'ouverture.
+final briefingOpenRequest = StateProvider<bool>((_) => false);
+
 /// État du briefing côté application.
 class BriefingState {
   const BriefingState({

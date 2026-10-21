@@ -1,7 +1,8 @@
 import 'dart:async';
 import 'dart:convert';
 
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart'
+    show kIsWeb, defaultTargetPlatform, TargetPlatform;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
 
@@ -715,6 +716,39 @@ class ApiClient {
     final data = await put('/ai/consents/$scope', body: {'granted': granted});
     return LhAiConsent.fromJson(data);
   }
+
+  // ── Notifications push natives du briefing (D17.6) ──
+
+  /// Enregistre l'appareil pour le push FCM (upsert par jeton côté serveur).
+  /// Retourne l'identifiant serveur de l'appareil (désinscription future).
+  Future<String> pushRegisterDevice({
+    required String token,
+    String? deviceId,
+    String appVersion = '0.3.0',
+  }) async {
+    final platform = kIsWeb
+        ? 'WEB'
+        : switch (defaultTargetPlatform) {
+            TargetPlatform.android => 'ANDROID',
+            TargetPlatform.iOS => 'IOS',
+            _ => 'WEB',
+          };
+    final data = await post('/push/devices', body: {
+      'token': token,
+      'platform': platform,
+      if (deviceId != null) 'deviceId': deviceId,
+      'appVersion': appVersion,
+    });
+    return data['id'] as String;
+  }
+
+  /// Retire l'appareil enregistré (arrêt des notifications serveur).
+  Future<void> pushUnregisterDevice(String serverDeviceId) async {
+    await delete('/push/devices/$serverDeviceId');
+  }
+
+  /// Statut push du serveur (READY / DEGRADED + appareils actifs).
+  Future<Map<String, dynamic>> pushStatus() async => get('/push/status');
 
   /// Libère les ressources (contrôleur d'événements de session).
   void dispose() {

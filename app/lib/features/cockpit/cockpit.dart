@@ -47,6 +47,14 @@ int hybridScore(dbm.Task t, String todayKey, int windowDays) {
 
 // ═══════════════════════════ ÉCRAN : COCKPIT ═══════════════════════════
 
+/// Ouvre la feuille briefing sur demande d'une notification (le signal est
+/// consommé immédiatement — une seule ouverture par tap).
+void _openBriefingOnTap(BuildContext context, WidgetRef ref) {
+  if (!ref.read(briefingOpenRequest)) return;
+  ref.read(briefingOpenRequest.notifier).state = false;
+  showBriefingSheet(context);
+}
+
 /// Cockpit personnel — agrégation sans duplication : les modules sources
 /// restent les sources de vérité (CDC D02 §7.3).
 class CockpitScreen extends ConsumerWidget {
@@ -62,6 +70,18 @@ class CockpitScreen extends ConsumerWidget {
     final space = ref.watch(activeSpaceProvider).valueOrNull;
     final settings = ref.watch(settingsProvider).valueOrNull ?? const {};
     final firstName = (settings['ownerName'] ?? '').trim();
+
+    // Tap sur une notification (push FCM ou locale) → ouverture automatique
+    // de la feuille briefing (D17.6) — le signal est posé par le service push.
+    ref.listen<bool>(briefingOpenRequest, (prev, next) {
+      if (next) _openBriefingOnTap(context, ref);
+    });
+    // Cas d'un démarrage depuis la notification (signal déjà posé avant le
+    // premier build du cockpit).
+    if (ref.read(briefingOpenRequest)) {
+      WidgetsBinding.instance
+          .addPostFrameCallback((_) => _openBriefingOnTap(context, ref));
+    }
 
     return Scaffold(
       appBar: LhAppBar(title: space?.name ?? 'LifeHelm'),
