@@ -2,10 +2,13 @@ plugins {
     id("com.android.application")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
+    // Firebase (FCM) : traite android/app/google-services.json (projet
+    // « lifehelm ») et génère les ressources de configuration.
+    id("com.google.gms.google-services")
 }
 
 android {
-    namespace = "app.lifehelm.lifehelm"
+    namespace = "com.yehiortech.lifehelm"
     compileSdk = flutter.compileSdkVersion
     // NDK : aucun module de l'app ne compile en natif (AAR précompilés ;
     // overrides path_provider/shared_preferences pour éviter « jni »). La
@@ -24,8 +27,9 @@ android {
     }
 
     defaultConfig {
-        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
-        applicationId = "app.lifehelm.lifehelm"
+        // Identité officielle de l'app (YEHI OR Tech) — correspond au package
+        // enregistré dans Firebase (google-services.json, projet « lifehelm »).
+        applicationId = "com.yehiortech.lifehelm"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion

@@ -1,35 +1,28 @@
 import 'package:firebase_core/firebase_core.dart';
 
-// ═══════════════════ CONFIGURATION FIREBASE (FCM) — OPTIONNELLE ═══════════════════
+// ═══════════════════ CONFIGURATION FIREBASE (FCM) — PROJET « lifehelm » ═══════════════════
 //
-// Le push serveur (FCM) n'est actif que si un projet Firebase est branché.
-// Deux façons de l'activer — au choix :
+// Brancheur : option 1 (natif Android) est ACTIVE depuis le 22/10/2026.
 //
-//   1. ANDROID natif : déposer `android/app/google-services.json` (console
-//      Firebase) et appliquer le plugin Gradle `com.google.gms.google-services`
-//      dans android/build.gradle.kts — `Firebase.initializeApp()` par défaut
-//      lira alors la configuration automatiquement.
+//   • `android/app/google-services.json` est déposé (console Firebase,
+//     projet « lifehelm », package com.yehiortech.lifehelm) et le plugin
+//     Gradle `com.google.gms.google-services` est appliqué :
+//     `Firebase.initializeApp()` lit la configuration automatiquement —
+//     [kFirebaseOptions] reste `null`.
 //
-//   2. Multi-plateforme : renseigner [kFirebaseOptions] ci-dessous (valeurs
-//      PUBLIQUES de la console Firebase → Paramètres du projet → Vos apps ;
-//      ce ne sont pas des secrets).
+//   • [kFirebaseOptions] (option 2) ne sert que si l'on veut piloter la
+//     configuration depuis Dart (multi-plateforme). Valeurs publiques de la
+//     console Firebase → Paramètres du projet → Vos apps, si besoin :
+//     projectId `lifehelm`, messagingSenderId `154896556414`,
+//     storageBucket `lifehelm.firebasestorage.app`.
 //
-// Tant que rien n'est branché, `Firebase.initializeApp()` échoue proprement et
-// l'application replie sur la notification LOCALE quotidienne : le briefing
-// reste notifié chaque jour, honnêtement (jamais d'échec silencieux).
+// Repli LOCAL : tant que le serveur n'a pas ses credentials, la notification
+// locale quotidienne continue de fonctionner (briefing notifié honnêtement).
 //
 // Côté serveur : renseigner FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL et
 // FIREBASE_PRIVATE_KEY (Railway → Variables d'environnement) pour que le cron
 // du briefing pousse réellement vers les appareils enregistrés.
 
-/// Options Firebase explicites — `null` tant que le projet n'est pas branché.
-/// Exemple :
-/// ```dart
-/// const kFirebaseOptions = FirebaseOptions(
-///   apiKey: 'AIza…',
-///   appId: '1:1234567890:android:abcdef',
-///   messagingSenderId: '1234567890',
-///   projectId: 'lifehelm',
-/// );
-/// ```
+/// Options Firebase explicites — `null` : la configuration native
+/// (google-services.json) fait foi.
 const FirebaseOptions? kFirebaseOptions = null;

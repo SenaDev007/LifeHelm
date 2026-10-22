@@ -1,4 +1,4 @@
-package app.lifehelm.lifehelm
+package com.yehiortech.lifehelm
 
 import io.flutter.embedding.android.FlutterActivity
 

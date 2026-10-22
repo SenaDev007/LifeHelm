@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "154896556414",
+    "project_id": "lifehelm",
+    "storage_bucket": "lifehelm.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:154896556414:android:758f685e09ba47a87b532f",
+        "android_client_info": {
+          "package_name": "com.yehiortech.lifehelm"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA_PvW-sMwPjUFDqMOy9dtHlHjLh3h-1gc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
