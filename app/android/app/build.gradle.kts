@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
@@ -6,6 +8,15 @@ plugins {
     // « lifehelm ») et génère les ressources de configuration.
     id("com.google.gms.google-services")
 }
+
+// ── Signature release (Play Store) ─────────────────────────────────────────────
+// Identifiants dans android/key.properties (non versionné — voir .gitignore).
+// Sans ce fichier (build anonyme/CI), repli sur la clé debug.
+val keystoreProperties = Properties().apply {
+    val f = rootProject.file("key.properties")
+    if (f.exists()) f.inputStream().use { load(it) }
+}
+val hasReleaseKeystore = keystoreProperties.getProperty("storeFile") != null
 
 android {
     namespace = "com.yehiortech.lifehelm"
@@ -43,11 +54,30 @@ android {
         multiDexEnabled = true
     }
 
+    // Signature release (Play Store) — déclarée AVANT buildTypes (ordre
+    // d'évaluation Kotlin DSL). Identifiants dans android/key.properties
+    // (non versionné) ; keystore : android/app/upload-keystore.jks.
+    // Sans ce fichier (build anonyme/CI), repli sur la clé debug.
+    signingConfigs {
+        create("release") {
+            if (hasReleaseKeystore) {
+                keyAlias = keystoreProperties.getProperty("keyAlias")
+                keyPassword = keystoreProperties.getProperty("keyPassword")
+                storeFile = file(keystoreProperties.getProperty("storeFile"))
+                storePassword = keystoreProperties.getProperty("storePassword")
+            }
+        }
+    }
+
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.getByName("debug")
+            // Play App Signing : Google gère la clé applicative ; cette clé
+            // (« upload ») signe les AAB téléversés. Repli debug si key.properties absent.
+            signingConfig = if (hasReleaseKeystore) {
+                signingConfigs.getByName("release")
+            } else {
+                signingConfigs.getByName("debug")
+            }
         }
     }
 }
