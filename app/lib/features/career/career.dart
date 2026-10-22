@@ -829,7 +829,12 @@ class _SkillDialogState extends ConsumerState<_SkillDialog> {
                   label: Text(skillStatusLabel(s)),
                   selected: _status == s,
                   labelStyle: TextStyle(
-                      color: _status == s ? skillStatusColor(s) : null,
+                      // Règle n°3 : la couleur de statut reste sur les
+                      // badges de liste ; le chip sélectionné reste lisible.
+                      color: _status == s
+                          ? LHContrast.selectedChipLabel(
+                              Theme.of(context).brightness)
+                          : null,
                       fontWeight: _status == s ? FontWeight.w700 : null),
                   onSelected: (_) => setState(() => _status = s),
                 ),
@@ -1965,7 +1970,10 @@ class _CertDialogState extends ConsumerState<_CertDialog> {
                   label: Text(certStatusLabel(s)),
                   selected: _status == s,
                   labelStyle: TextStyle(
-                      color: _status == s ? certStatusColor(s) : null,
+                      color: _status == s
+                          ? LHContrast.selectedChipLabel(
+                              Theme.of(context).brightness)
+                          : null,
                       fontWeight: _status == s ? FontWeight.w700 : null),
                   onSelected: (_) => setState(() => _status = s),
                 ),

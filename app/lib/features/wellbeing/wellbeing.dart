@@ -695,7 +695,10 @@ class _NumberScale extends StatelessWidget {
               selected: value == i,
               onSelected: (sel) => onChanged(sel ? i : null),
               labelStyle: TextStyle(
-                  color: value == i ? LHColors.or : null,
+                  // Règle n°3 : jamais d'or brut sur lavis doré.
+                  color: value == i
+                      ? LHContrast.selectedChipLabel(Theme.of(context).brightness)
+                      : null,
                   fontWeight: FontWeight.w700),
             ),
           ),

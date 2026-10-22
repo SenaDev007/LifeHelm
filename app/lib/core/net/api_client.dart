@@ -41,7 +41,8 @@ class LhNetworkException implements Exception {
 /// Traduction française des codes d'erreur serveur.
 String apiErrorText(Object error) {
   if (error is LhNetworkException) {
-    return 'Connexion impossible — vérifiez votre réseau.';
+    return 'Connexion au serveur impossible. Vérifiez votre réseau, '
+        'puis réessayez — le serveur peut être en train de se réactiver.';
   }
   if (error is LhApiException) {
     switch (error.code) {
@@ -256,6 +257,45 @@ class ApiClient {
 
   http.Client get _client => _inner ?? http.Client();
 
+  /// Délai maximum d'une tentative réseau : au-delà, on considère la
+  /// tentative morte et on réessaie.
+  static const Duration _attemptTimeout = Duration(seconds: 15);
+
+  /// Pauses entre tentatives (tentative 2 après 1,2 s, tentative 3 après
+  /// 4 s) : le réveil du serveur de production (Railway, 30-60 s) est
+  /// ainsi absorbé silencieusement.
+  static const List<Duration> _retryDelays = [
+    Duration(milliseconds: 1200),
+    Duration(seconds: 4),
+  ];
+
+  /// Exécute [attempt] avec timeout et réessais automatiques. Les erreurs
+  /// sans réponse du serveur (timeout, réseau coupé, DNS) déclenchent la
+  /// tentative suivante ; trois échecs → [LhNetworkException]. Les réponses
+  /// HTTP (même 4xx/5xx) sont retournées telles quelles : seules les
+  /// pannes de transport sont rejouées.
+  Future<http.Response> _sendWithRetry(
+      Future<http.Response> Function() attempt) async {
+    Object? lastError;
+    for (var i = 0; i <= _retryDelays.length; i++) {
+      if (i > 0) {
+        try {
+          await Future<void>.delayed(_retryDelays[i - 1]);
+        } catch (_) {
+          break;
+        }
+      }
+      try {
+        return await attempt().timeout(_attemptTimeout);
+      } catch (e) {
+        lastError = e;
+      }
+    }
+    throw LhNetworkException(
+        'Serveur injoignable après ${_retryDelays.length + 1} tentatives'
+        '${lastError == null ? '' : ' ($lastError)'}');
+  }
+
   Future<Map<String, dynamic>> _send(
     String method,
     String path, {
@@ -284,7 +324,8 @@ class ApiClient {
 
     http.Response response;
     try {
-      response = await attempt();
+      // Timeout par tentative + réessais automatiques (cold start Railway).
+      response = await _sendWithRetry(attempt);
     } on LhNetworkException {
       rethrow;
     } catch (_) {

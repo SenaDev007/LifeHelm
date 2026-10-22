@@ -10,6 +10,7 @@ import '../../core/providers.dart';
 import '../../core/theme/tokens.dart';
 import '../../core/utils/formatters.dart' as fmt;
 import '../../core/widgets/common.dart';
+import '../profile/profile.dart' show localProfileProvider;
 import '../../main.dart' show bootState;
 
 // ═══════════════════════════ ÉCRAN : PLUS ═══════════════════════════
@@ -404,6 +405,7 @@ class _AccountSection extends ConsumerWidget {
 
     // ── Connecté : profil + gestion ──
     final user = session.user!;
+    final avatarPath = ref.watch(localProfileProvider).valueOrNull?.avatarPath;
     final (badge, badgeColor) = _statusBadge(syncState);
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       SectionHeader('Compte & synchronisation',
@@ -413,7 +415,7 @@ class _AccountSection extends ConsumerWidget {
         child: LHCard(
           onTap: () => context.push('/account'),
           child: Row(children: [
-            InitialsAvatar(name: user.displayName, size: 46),
+            LhAvatar(path: avatarPath, name: user.displayName, size: 46),
             const SizedBox(width: LHSpacing.md),
             Expanded(
               child: Column(

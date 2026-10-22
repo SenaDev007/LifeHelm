@@ -1,3 +1,6 @@
+import 'dart:io';
+
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 
 import '../theme/tokens.dart';
@@ -393,6 +396,9 @@ class StatTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    // Règle n°3 (contraste) : accent assombri pour rester lisible sur carte
+    // claire — l'or solaire brut y est illisible.
+    final c = color;
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       Row(children: [
         if (icon != null) ...[
@@ -411,8 +417,13 @@ class StatTile extends StatelessWidget {
       Text(value,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
-          style: theme.textTheme.titleLarge
-              ?.copyWith(color: color, fontWeight: FontWeight.w800)),
+          style: theme.textTheme.titleLarge?.copyWith(
+              color: c == null
+                  ? null
+                  : (theme.brightness == Brightness.dark
+                      ? c
+                      : LHContrast.accentOnLight(c)),
+              fontWeight: FontWeight.w800)),
     ]);
   }
 }
@@ -565,5 +576,50 @@ IconData spaceIcon(String type) {
       return Icons.work_outline;
     default:
       return Icons.person_outline;
+  }
+}
+
+
+/// Avatar utilisateur : photo de profil locale (URI « data: » ou chemin de
+/// fichier) si présente, initiales du nom sinon. Utilisé par la page Profil
+/// ET la page « Plus » — la photo choisie reste visible partout.
+class LhAvatar extends StatelessWidget {
+  const LhAvatar(
+      {super.key, required this.path, required this.name, this.size = 46, this.color});
+
+  /// Chemin/URI de la photo (avatarPath du profil local), null si aucune.
+  final String? path;
+  final String name;
+  final double size;
+  final Color? color;
+
+  @override
+  Widget build(BuildContext context) {
+    final fallback = InitialsAvatar(name: name, size: size, color: color);
+    final p = path;
+    if (p == null || p.isEmpty) return fallback;
+    if (p.startsWith('data:')) {
+      return ClipOval(
+        child: SizedBox(
+          width: size,
+          height: size,
+          child: Image.network(p,
+              fit: BoxFit.cover,
+              errorBuilder: (_, __, ___) => fallback),
+        ),
+      );
+    }
+    if (!kIsWeb) {
+      return ClipOval(
+        child: SizedBox(
+          width: size,
+          height: size,
+          child: Image.file(File(p),
+              fit: BoxFit.cover,
+              errorBuilder: (_, __, ___) => fallback),
+        ),
+      );
+    }
+    return fallback;
   }
 }

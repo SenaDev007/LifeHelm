@@ -5,12 +5,18 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'app.dart';
 import 'core/db/database.dart';
 import 'core/providers.dart';
+import 'core/widgets/error_shield.dart';
 
 /// État d'amorçage global — rempli avant `runApp`.
 final bootState = BootState();
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Bouclier anti-crash : écran de récupération propre (jamais la page
+  // grise « package:flutter … ») + erreurs asynchrones loguées sans crash.
+  ErrorShield.install();
+
   await initializeDateFormatting('fr');
 
   // Ouverture de la base locale avant le rendu (offline-first).

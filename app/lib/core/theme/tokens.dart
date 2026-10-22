@@ -104,6 +104,28 @@ abstract final class LHFonts {
   static const String texte = 'Inter';
 }
 
+/// Aides de lisibilité (règle n°3 : le contraste reste prioritaire).
+///
+/// Les chips sélectionnés et les tuiles de statistiques posent des accents
+/// colorés sur des surfaces dorées claires (thème clair) — l'or solaire
+/// brut (#FFB400) y est illisible. Ces fonctions traduisent un accent en
+/// variante lisible selon la luminosité.
+abstract final class LHContrast {
+  /// Variante de texte lisible d'un accent posé sur un fond CLAIR :
+  /// or solaire → or profond ; vert succès → vert profond.
+  static Color accentOnLight(Color c) {
+    if (c == LHColors.or) return LHColors.orDeep;
+    if (c == LHColors.vertSucces) return LHColors.vertProfond;
+    return c;
+  }
+
+  /// Couleur de libellé d'un chip sélectionné (fond orTint en clair,
+  /// orSurface en sombre) : bleu nuit sur lavis doré, lavis doré sur
+  /// surface sombre — jamais blanc ni or brut.
+  static Color selectedChipLabel(Brightness b) =>
+      b == Brightness.dark ? LHColors.orTint : LHColors.navyInk;
+}
+
 /// Codes d'icônes de secours pour les catégories financières.
 abstract final class LHIcons {
   static const List<IconData> finance = [

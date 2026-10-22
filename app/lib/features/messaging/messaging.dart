@@ -314,7 +314,7 @@ class ConversationsScreen extends ConsumerWidget {
     return Scaffold(
       appBar: LhAppBar(title: 'Messages'),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _showNewConversationSheet(context, ref, spaceId),
+        onPressed: () => _showNewConversationSheet(context, spaceId),
         icon: const Icon(Icons.add),
         label: const Text('Nouvelle conversation'),
       ),
@@ -334,7 +334,7 @@ class ConversationsScreen extends ConsumerWidget {
                   'cet espace.',
               action: FilledButton.tonal(
                 onPressed: () =>
-                    _showNewConversationSheet(context, ref, spaceId),
+                    _showNewConversationSheet(context, spaceId),
                 child: const Text('Nouvelle conversation'),
               ),
             );
@@ -359,55 +359,100 @@ class ConversationsScreen extends ConsumerWidget {
 
   // —— Création (bottom sheet) ——
 
-  Future<void> _showNewConversationSheet(
-      BuildContext context, WidgetRef ref, String spaceId) {
-    final correspondentCtrl = TextEditingController();
-    final titleCtrl = TextEditingController();
-    final memberCtrl = TextEditingController();
-    final names = <String>[];
-    var kind = 'DIRECT';
-
-    Future<void> create(BuildContext sheetCtx) async {
-      final db = ref.read(dbProvider);
-      final navigator = Navigator.of(sheetCtx);
-      Conversation conv;
-      if (kind == 'DIRECT') {
-        final name = correspondentCtrl.text.trim();
-        if (name.isEmpty) {
-          lhToast(sheetCtx, 'Indiquez le nom du correspondant.');
-          return;
-        }
-        conv = await db.createConversation(
-            spaceId: spaceId, kind: 'DIRECT', memberNames: [name]);
-      } else {
-        final title = titleCtrl.text.trim();
-        if (title.isEmpty) {
-          lhToast(sheetCtx, 'Indiquez un titre de groupe.');
-          return;
-        }
-        conv = await db.createConversation(
-            spaceId: spaceId, kind: 'GROUP', title: title, memberNames: names);
-      }
-      navigator.pop();
-      if (context.mounted) context.push('/chat/${conv.id}');
-    }
-
-    void addMember(void Function(void Function()) setSheet) {
-      final n = memberCtrl.text.trim();
-      if (n.isEmpty) return;
-      setSheet(() {
-        if (!names.contains(n)) names.add(n);
-      });
-      memberCtrl.clear();
-    }
-
+  /// La feuille de création est un widget à part entière : ses contrôleurs
+  /// ne sont libérés qu'au démontage complet de la feuille (après
+  /// l'animation de sortie). L'ancien motif `whenComplete(dispose)` libérait
+  /// les contrôleurs pendant l'animation — les champs encore à l'écran
+  /// provoquaient « TextEditingController used after being disposed », puis
+  /// une cascade d'assertions framework (page d'erreur « package:flutter »).
+  /// Même correction que la feuille contacts.
+  Future<void> _showNewConversationSheet(BuildContext context, String spaceId) {
     return showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
-      builder: (sheetCtx) => StatefulBuilder(
-        builder: (sheetCtx, setSheet) => Padding(
+      builder: (sheetCtx) => _NewConversationSheet(
+        spaceId: spaceId,
+        onCreated: (conv) {
+          // Contexte de la liste : la feuille est déjà fermée.
+          if (context.mounted) context.push('/chat/${conv.id}');
+        },
+      ),
+    );
+  }
+}
+
+/// Feuille « Nouvelle conversation » : directe (un correspondant) ou groupe
+/// (titre + membres) — StatefulWidget dédié pour libérer les contrôleurs
+/// APRÈS l'animation de fermeture.
+class _NewConversationSheet extends ConsumerStatefulWidget {
+  const _NewConversationSheet({required this.spaceId, required this.onCreated});
+
+  final String spaceId;
+  final ValueChanged<Conversation> onCreated;
+
+  @override
+  ConsumerState<_NewConversationSheet> createState() =>
+      _NewConversationSheetState();
+}
+
+class _NewConversationSheetState extends ConsumerState<_NewConversationSheet> {
+  final _correspondentCtrl = TextEditingController();
+  final _titleCtrl = TextEditingController();
+  final _memberCtrl = TextEditingController();
+  final _names = <String>[];
+  var _kind = 'DIRECT';
+
+  @override
+  void dispose() {
+    // Libération uniquement au démontage complet (animation incluse).
+    _correspondentCtrl.dispose();
+    _titleCtrl.dispose();
+    _memberCtrl.dispose();
+    super.dispose();
+  }
+
+  void _addMember() {
+    final n = _memberCtrl.text.trim();
+    if (n.isEmpty) return;
+    setState(() {
+      if (!_names.contains(n)) _names.add(n);
+    });
+    _memberCtrl.clear();
+  }
+
+  Future<void> _create() async {
+    final db = ref.read(dbProvider);
+    Conversation conv;
+    if (_kind == 'DIRECT') {
+      final name = _correspondentCtrl.text.trim();
+      if (name.isEmpty) {
+        lhToast(context, 'Indiquez le nom du correspondant.');
+        return;
+      }
+      conv = await db.createConversation(
+          spaceId: widget.spaceId, kind: 'DIRECT', memberNames: [name]);
+    } else {
+      final title = _titleCtrl.text.trim();
+      if (title.isEmpty) {
+        lhToast(context, 'Indiquez un titre de groupe.');
+        return;
+      }
+      conv = await db.createConversation(
+          spaceId: widget.spaceId,
+          kind: 'GROUP',
+          title: title,
+          memberNames: List.of(_names));
+    }
+    if (!mounted) return;
+    Navigator.of(context).pop();
+    widget.onCreated(conv);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
           padding: EdgeInsets.only(
-              bottom: MediaQuery.of(sheetCtx).viewInsets.bottom),
+              bottom: MediaQuery.of(context).viewInsets.bottom),
           child: SafeArea(
             child: SingleChildScrollView(
               padding: const EdgeInsets.all(LHSpacing.screen),
@@ -417,21 +462,21 @@ class ConversationsScreen extends ConsumerWidget {
                 children: [
                   Text(
                     'Nouvelle conversation',
-                    style: Theme.of(sheetCtx)
+                    style: Theme.of(context)
                         .textTheme
                         .titleMedium
                         ?.copyWith(fontWeight: FontWeight.w700),
                   ),
                   const SizedBox(height: LHSpacing.lg),
                   LhSegmented<String>(
-                    value: kind,
+                    value: _kind,
                     items: const {'DIRECT': 'Directe', 'GROUP': 'Groupe'},
-                    onChanged: (v) => setSheet(() => kind = v),
+                    onChanged: (v) => setState(() => _kind = v),
                   ),
                   const SizedBox(height: LHSpacing.lg),
-                  if (kind == 'DIRECT')
+                  if (_kind == 'DIRECT')
                     TextField(
-                      controller: correspondentCtrl,
+                      controller: _correspondentCtrl,
                       autofocus: true,
                       textCapitalization: TextCapitalization.words,
                       decoration: const InputDecoration(
@@ -439,25 +484,25 @@ class ConversationsScreen extends ConsumerWidget {
                     )
                   else ...[
                     TextField(
-                      controller: titleCtrl,
+                      controller: _titleCtrl,
                       autofocus: true,
                       textCapitalization: TextCapitalization.words,
                       decoration:
                           const InputDecoration(labelText: 'Titre du groupe *'),
                     ),
                     const SizedBox(height: LHSpacing.md),
-                    if (names.isNotEmpty)
+                    if (_names.isNotEmpty)
                       Padding(
                         padding: const EdgeInsets.only(bottom: LHSpacing.sm),
                         child: Wrap(
                           spacing: 6,
                           runSpacing: 6,
                           children: [
-                            for (final n in names)
+                            for (final n in _names)
                               InputChip(
                                 label: Text(n),
                                 onDeleted: () =>
-                                    setSheet(() => names.remove(n)),
+                                    setState(() => _names.remove(n)),
                               ),
                           ],
                         ),
@@ -466,17 +511,17 @@ class ConversationsScreen extends ConsumerWidget {
                       children: [
                         Expanded(
                           child: TextField(
-                            controller: memberCtrl,
+                            controller: _memberCtrl,
                             textCapitalization: TextCapitalization.words,
                             decoration: const InputDecoration(
                                 labelText: 'Nom du membre'),
-                            onSubmitted: (_) => addMember(setSheet),
+                            onSubmitted: (_) => _addMember(),
                           ),
                         ),
                         IconButton(
                           tooltip: 'Ajouter le membre',
                           icon: const Icon(Icons.person_add_alt),
-                          onPressed: () => addMember(setSheet),
+                          onPressed: _addMember,
                         ),
                       ],
                     ),
@@ -486,12 +531,12 @@ class ConversationsScreen extends ConsumerWidget {
                     mainAxisAlignment: MainAxisAlignment.end,
                     children: [
                       TextButton(
-                        onPressed: () => Navigator.pop(sheetCtx),
+                        onPressed: () => Navigator.pop(context),
                         child: const Text('Annuler'),
                       ),
                       const SizedBox(width: LHSpacing.sm),
                       FilledButton(
-                        onPressed: () => create(sheetCtx),
+                        onPressed: _create,
                         child: const Text('Créer'),
                       ),
                     ],
@@ -500,13 +545,7 @@ class ConversationsScreen extends ConsumerWidget {
               ),
             ),
           ),
-        ),
-      ),
-    ).whenComplete(() {
-      correspondentCtrl.dispose();
-      titleCtrl.dispose();
-      memberCtrl.dispose();
-    });
+        );
   }
 }
 
@@ -880,34 +919,19 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     );
   }
 
+  /// Dialogue d'édition : le contrôleur est un champ du StatefulWidget —
+  /// libéré au démontage complet du dialogue (l'ancien `whenComplete(
+  /// ctrl.dispose)` cassait l'animation de sortie — même motif que la
+  /// feuille de création).
   Future<void> _showEditMessageDialog(Message msg) {
-    final ctrl = TextEditingController(text: msg.body);
+    final db = ref.read(dbProvider);
     return showDialog<void>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Modifier le message'),
-        content: TextField(
-          controller: ctrl,
-          autofocus: true,
-          maxLines: 4,
-          textCapitalization: TextCapitalization.sentences,
-        ),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('Annuler')),
-          FilledButton(
-            onPressed: () {
-              final text = ctrl.text.trim();
-              Navigator.pop(ctx);
-              if (text.isEmpty || text == msg.body) return;
-              ref.read(dbProvider).editMessage(msg.id, text);
-            },
-            child: const Text('Enregistrer'),
-          ),
-        ],
+      builder: (ctx) => _EditMessageDialog(
+        msg: msg,
+        onSaved: (text) => db.editMessage(msg.id, text),
       ),
-    ).whenComplete(ctrl.dispose);
+    );
   }
 
   Future<void> _confirmDeleteMessage(Message msg) async {
@@ -1341,5 +1365,60 @@ class _MessageView extends StatelessWidget {
       ));
     }
     return TextSpan(children: spans);
+  }
+}
+
+/// Dialogue « Modifier le message » — StatefulWidget dédié : le contrôleur
+/// n'est libéré qu'au démontage complet (animation de sortie incluse).
+class _EditMessageDialog extends StatefulWidget {
+  const _EditMessageDialog({required this.msg, required this.onSaved});
+
+  final Message msg;
+  final ValueChanged<String> onSaved;
+
+  @override
+  State<_EditMessageDialog> createState() => _EditMessageDialogState();
+}
+
+class _EditMessageDialogState extends State<_EditMessageDialog> {
+  late final TextEditingController _ctrl;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = TextEditingController(text: widget.msg.body);
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Modifier le message'),
+      content: TextField(
+        controller: _ctrl,
+        autofocus: true,
+        maxLines: 4,
+        textCapitalization: TextCapitalization.sentences,
+      ),
+      actions: [
+        TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Annuler')),
+        FilledButton(
+          onPressed: () {
+            final text = _ctrl.text.trim();
+            Navigator.pop(context);
+            if (text.isEmpty || text == widget.msg.body) return;
+            widget.onSaved(text);
+          },
+          child: const Text('Enregistrer'),
+        ),
+      ],
+    );
   }
 }

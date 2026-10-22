@@ -243,8 +243,12 @@ class _TodaySection extends ConsumerWidget {
           Icon(icon, color: color, size: 22),
           const SizedBox(height: 6),
           Text(value,
-              style: theme.textTheme.titleLarge
-                  ?.copyWith(fontWeight: FontWeight.w800, color: color)),
+              style: theme.textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.w800,
+                  // Règle n°3 (contraste) : accent assombri sur lavis clair.
+                  color: theme.brightness == Brightness.dark
+                      ? color
+                      : LHContrast.accentOnLight(color))),
           Text(label,
               textAlign: TextAlign.center,
               style: theme.textTheme.bodySmall?.copyWith(

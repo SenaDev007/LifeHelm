@@ -516,9 +516,12 @@ class _TasksBodyState extends State<_TasksBody> {
       label: Text(label + (activeCount != null ? ' ($activeCount)' : '')),
       selected: selected,
       onSelected: (_) => setState(() => _filter = value),
+      // Règle n°3 : libellé lisible sur fond doré sélectionné (l'ancien
+      // ternaire était inversé — blanc sur lavis clair, noir sur surface
+      // sombre : illisible dans les deux thèmes).
       labelStyle: TextStyle(
           color: selected
-              ? (theme.brightness == Brightness.dark ? LHColors.noir : Colors.white)
+              ? LHContrast.selectedChipLabel(theme.brightness)
               : null),
     );
   }
@@ -933,7 +936,10 @@ class _TaskEditScreenState extends ConsumerState<TaskEditScreen> {
                                     selected: _priority == p,
                     onSelected: (_) => setState(() => _priority = p),
                     labelStyle: TextStyle(
-                        color: _priority == p ? taskPriorityColor(p) : null),
+                        color: _priority == p
+                            ? LHContrast.selectedChipLabel(
+                                Theme.of(context).brightness)
+                            : null),
                   ),
               ],
             ),
