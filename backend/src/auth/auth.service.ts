@@ -124,11 +124,19 @@ export class AuthService {
     });
     if (exact.length > 0) return exact;
 
-    // 2) Numéro local sans indicatif — recherche par suffixe (min. 8 chiffres
-    //    pour éviter les faux positifs).
+    // 2) Correspondance par suffixe — les deux sens sont couverts :
+    //    a) saisie LOCALE plus courte que le numéro stocké (« 0197… »
+    //       retrouve « +2290197… ») ;
+    //    b) saisie AVEC indicatif plus longue qu'un numéro stocké en local
+    //       (« +2290197… » retrouve « +0197… », formats 2024 à 10 chiffres
+    //       et ancien à 8) — remonté par l'utilisateur v0.2.0.
+    //    Min. 8 chiffres pour éviter les faux positifs ; les candidats
+    //    multiples sont départagés par mot de passe (login).
     if (digits.length < 8) return [];
+    const suffixes = [...new Set([digits, digits.slice(-10), digits.slice(-8)])]
+      .filter((suffix) => suffix.length >= 8);
     return this.prisma.user.findMany({
-      where: { phone: { endsWith: digits } },
+      where: { OR: suffixes.map((suffix) => ({ phone: { endsWith: suffix } })) },
       take: 5,
     });
   }
