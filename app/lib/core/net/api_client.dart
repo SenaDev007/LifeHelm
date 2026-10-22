@@ -41,7 +41,7 @@ class LhNetworkException implements Exception {
 /// Traduction française des codes d'erreur serveur.
 String apiErrorText(Object error) {
   if (error is LhNetworkException) {
-    return 'Connexion impossible — vérifiez votre réseau ou l\'URL du serveur.';
+    return 'Connexion impossible — vérifiez votre réseau.';
   }
   if (error is LhApiException) {
     switch (error.code) {
@@ -63,7 +63,7 @@ String apiErrorText(Object error) {
         return 'Code de réinitialisation invalide ou expiré.';
       default:
         if (error.message.isNotEmpty) return error.message;
-        return 'Erreur serveur (${error.statusCode}).';
+        return 'Erreur de connexion (${error.statusCode}).';
     }
   }
   return 'Une erreur inattendue est survenue.';
@@ -247,12 +247,11 @@ class ApiClient {
         // Sur mobile, un chemin relatif n'a pas d'origine : l'utilisateur
         // doit renseigner une URL complète dans Paramètres.
         throw LhNetworkException(
-            'URL du serveur incomplète — renseignez une URL complète '
-            '(https://…) dans Paramètres → Avancé.');
+            'Connexion impossible — vérifiez votre réseau.');
       }
       return Uri.base.resolve('$base$pathAndQuery');
     }
-    throw LhNetworkException('URL du serveur invalide : « $base ».');
+    throw LhNetworkException('Connexion impossible — vérifiez votre réseau.');
   }
 
   http.Client get _client => _inner ?? http.Client();

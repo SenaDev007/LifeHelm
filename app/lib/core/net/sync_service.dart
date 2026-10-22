@@ -430,7 +430,7 @@ class SyncController {
       ok = false;
       _state = _state.copyWith(
           lastError:
-              'Serveur injoignable — nouvelle tentative automatique plus tard.');
+              'Connexion impossible — nouvelle tentative automatique plus tard.');
     } on LhApiException catch (e) {
       ok = false;
       _state = _state.copyWith(lastError: apiErrorText(e));
@@ -505,11 +505,11 @@ class SyncController {
             break;
           case 'CONFLICT':
             await db.resolveSyncOp(opId, 'CONFLICT',
-                error: 'Divergence serveur');
+                error: 'Conflit de versions');
             break;
           default:
             await db.resolveSyncOp(opId, 'REJECTED',
-                error: (r['reason'] as String?) ?? 'Rejetée par le serveur');
+                error: (r['reason'] as String?) ?? 'Rejetée lors de la synchronisation');
         }
       }
       // Purge de l'historique synchronisé de plus de 7 jours (D01.4).
@@ -734,7 +734,7 @@ class SyncController {
       if ((data['hasMore'] as bool?) != true) break;
     }
     _state = _state.copyWith(
-        lastError: 'Version serveur introuvable pour $resourceType.');
+        lastError: 'Version introuvable pour $resourceType.');
     _emit();
     return false;
   }

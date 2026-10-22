@@ -211,10 +211,10 @@ class _TransactionEditScreenState extends ConsumerState<TransactionEditScreen> {
       ..sort((a, b) => a.name.compareTo(b.name));
     final subs = _parentCategoryId == null
         ? const <FinancialCategory>[]
-        : relevantCategories
+        : (relevantCategories
             .where((c) => c.parentId == _parentCategoryId)
             .toList()
-          ..sort((a, b) => a.name.compareTo(b.name));
+          ..sort((a, b) => a.name.compareTo(b.name)));
     final currentPeriod = fmt.dateKey(DateTime(_date.year, _date.month, 1));
 
     return Scaffold(
@@ -257,11 +257,14 @@ class _TransactionEditScreenState extends ConsumerState<TransactionEditScreen> {
               label: 'Depuis le compte',
               child: DropdownButtonFormField<String>(
                 value: _accountId,
+                isExpanded: true,
                 items: [
                   for (final a in accounts)
                     DropdownMenuItem(
                         value: a.id,
-                        child: Text('${a.name} (${a.currency})')),
+                        child: Text('${a.name} (${a.currency})',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis)),
                 ],
                 onChanged: (v) => setState(() => _accountId = v),
               ),
@@ -271,11 +274,14 @@ class _TransactionEditScreenState extends ConsumerState<TransactionEditScreen> {
               label: 'Vers le compte',
               child: DropdownButtonFormField<String>(
                 value: _toAccountId,
+                isExpanded: true,
                 items: [
                   for (final a in accounts)
                     DropdownMenuItem(
                         value: a.id,
-                        child: Text('${a.name} (${a.currency})')),
+                        child: Text('${a.name} (${a.currency})',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis)),
                 ],
                 onChanged: (v) => setState(() => _toAccountId = v),
               ),
@@ -323,7 +329,7 @@ class _TransactionEditScreenState extends ConsumerState<TransactionEditScreen> {
                 const SizedBox(width: 10),
                 Expanded(
                   child: Text(
-                    'Un transfert interne n\'est ni un revenu ni une dépense dans les totaux consolidés (CDC D05).',
+                    'Un transfert interne n\'est ni un revenu ni une dépense dans les totaux consolidés.',
                     style: theme.textTheme.bodySmall
                         ?.copyWith(height: 1.4),
                   ),
@@ -335,11 +341,14 @@ class _TransactionEditScreenState extends ConsumerState<TransactionEditScreen> {
               label: 'Compte',
               child: DropdownButtonFormField<String>(
                 value: _accountId,
+                isExpanded: true,
                 items: [
                   for (final a in accounts)
                     DropdownMenuItem(
                         value: a.id,
-                        child: Text('${a.name} (${a.currency})')),
+                        child: Text('${a.name} (${a.currency})',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis)),
                 ],
                 onChanged: (v) => setState(() => _accountId = v),
               ),
@@ -462,6 +471,7 @@ class _TransactionEditScreenState extends ConsumerState<TransactionEditScreen> {
                 label: 'Statut',
                 child: DropdownButtonFormField<String>(
                   value: _status,
+                  isExpanded: true,
                   items: const [
                     DropdownMenuItem(value: 'POSTED', child: Text('Comptabilisée')),
                     DropdownMenuItem(value: 'PENDING', child: Text('En attente')),

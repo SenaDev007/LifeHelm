@@ -641,7 +641,8 @@ class SettingsScreen extends ConsumerWidget {
           leading: const Icon(Icons.lock_outline),
           title: const Text('Données locales'),
           subtitle: const Text(
-              'Tout est stocké sur l\'appareil (SQLite) et journalisé en attente de synchronisation. Aucun envoi externe sans compte.'),
+              'Tout est stocké sur votre appareil. Rien n\'est envoyé à '
+              'l\'extérieur sans votre accord.'),
         ),
         ListTile(
           leading: const Icon(Icons.cloud_sync_outlined),
@@ -658,28 +659,9 @@ class SettingsScreen extends ConsumerWidget {
           title: Text('Effacer les données locales',
               style: const TextStyle(color: LHColors.erreur)),
           subtitle: const Text(
-              'Supprime tout le contenu de l\'appareil (espaces, jetons, réglages) puis relance l\'accueil.'),
+              'Supprime tout le contenu de l\'appareil (espaces, session, '
+              'réglages) puis relance l\'accueil.'),
           onTap: () => _wipeLocalData(context, ref),
-        ),
-        SectionHeader('Avancé',
-            inset: LHSpacing.screen, overline: 'Connexion au serveur'),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20),
-          child: LabeledField(
-            label: 'URL du serveur (API)',
-            child: _ServerUrlField(initial: settings['apiBaseUrl']),
-          ),
-        ),
-        const SizedBox(height: LHSpacing.sm),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20),
-          child: Text(
-            'Web : « /api/v1 » (même origine que l\'application web). '
-            'Mobile : par défaut le serveur de production '
-            'https://lifehelm-production.up.railway.app/api/v1 — modifiable ci-dessus.',
-            style: theme.textTheme.bodySmall?.copyWith(
-                height: 1.5, color: theme.colorScheme.onSurfaceVariant),
-          ),
         ),
         SectionHeader('À propos',
             inset: LHSpacing.screen, overline: 'LifeHelm'),
@@ -687,9 +669,9 @@ class SettingsScreen extends ConsumerWidget {
           padding: const EdgeInsets.symmetric(horizontal: 20),
           child: Text(
             'LifeHelm v0.2.0 — Life Management System.\n'
-            'Édité par YEHI OR Tech. Implémentation Flutter offline-first des '
-            'Dossiers 01 à 14 du cahier des charges, synchronisée par un '
-            'backend NestJS/PostgreSQL.',
+            'Édité par YEHI OR Tech. Vos données restent sur votre appareil '
+            'et se retrouvent automatiquement sur vos autres appareils '
+            'lorsque la synchronisation est activée.',
             style: theme.textTheme.bodySmall?.copyWith(
                 height: 1.6, color: theme.colorScheme.onSurfaceVariant),
           ),
@@ -714,7 +696,7 @@ class SettingsScreen extends ConsumerWidget {
       context,
       title: 'Effacer les données locales ?',
       message:
-          'Tous les espaces, tâches, finances, notes et réglages de cet appareil seront supprimés. La session (jetons) est également effacée.',
+          'Tous les espaces, tâches, finances, notes et réglages de cet appareil seront supprimés. Votre session est également effacée.',
       confirmLabel: 'Continuer',
       destructive: true,
     );
@@ -744,71 +726,9 @@ class SettingsScreen extends ConsumerWidget {
   }
 }
 
-/// Champ « URL du serveur » : validation http(s):// ou chemin relatif
-/// commençant par « / », puis invalidation du cache de connexion.
-class _ServerUrlField extends ConsumerStatefulWidget {
-  const _ServerUrlField({this.initial});
-
-  final String? initial;
-
-  @override
-  ConsumerState<_ServerUrlField> createState() => _ServerUrlFieldState();
-}
-
-class _ServerUrlFieldState extends ConsumerState<_ServerUrlField> {
-  late final _controller =
-      TextEditingController(text: widget.initial ?? ApiClient.defaultBaseUrl);
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  bool _valid(String v) {
-    final t = v.trim();
-    if (t.isEmpty) return false;
-    return t.startsWith(RegExp(r'https?://')) ||
-        (t.startsWith('/') && !t.startsWith('//'));
-  }
-
-  Future<void> _save() async {
-    final value = _controller.text.trim();
-    if (!_valid(value)) {
-      lhToast(context,
-          'URL invalide — https://… ou chemin relatif commençant par « / ».');
-      return;
-    }
-    await ref.read(dbProvider).setSetting('apiBaseUrl', value);
-    ref.read(apiClientProvider).invalidateBaseUrl();
-    if (mounted) lhToast(context, 'Redémarrage de la connexion.');
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(children: [
-      Expanded(
-        child: TextField(
-          controller: _controller,
-          keyboardType: TextInputType.url,
-          autocorrect: false,
-          onSubmitted: (_) => _save(),
-          decoration: const InputDecoration(
-              hintText: '/api/v1', prefixIcon: Icon(Icons.dns_outlined)),
-        ),
-      ),
-      const SizedBox(width: LHSpacing.sm),
-      FilledButton.tonal(
-        onPressed: _save,
-        child: const Text('Enregistrer'),
-      ),
-    ]);
-  }
-}
-
 // ═══════════════════════════ ÉCRAN : ESPACES ═══════════════════════════
 
-/// Gestion des espaces, membres et rôles (CDC §5).
+/// Gestion des espaces, membres et rôles.
 class SpacesScreen extends ConsumerWidget {
   const SpacesScreen({super.key});
 
@@ -849,8 +769,10 @@ class SpacesScreen extends ConsumerWidget {
             Padding(
               padding: const EdgeInsets.all(20),
               child: Text(
-                'Les données sont isolées par espace, sauf partage explicite (CDC §2.1). '
-                'Les rôles OWNER, ADMIN, MANAGER, MEMBER et VIEWER seront appliqués côté serveur à chaque opération.',
+                'Chaque espace garde ses données pour lui : rien n\'est '
+                'partagé sans votre accord explicite. Chaque membre agit selon '
+                'son rôle — propriétaire, administrateur, gestionnaire ou '
+                'observateur.',
                 style: theme.textTheme.bodySmall?.copyWith(
                     height: 1.5, color: theme.colorScheme.onSurfaceVariant),
               ),
@@ -1492,7 +1414,7 @@ class _SyncScreenState extends ConsumerState<SyncScreen> {
                                 ? 'Synchronisation en cours…'
                                 : state == null || !state.connected
                                     ? 'Compte déconnecté'
-                                    : 'Connecté au serveur',
+                                    : 'Connecté',
                             style: theme.textTheme.titleSmall,
                           ),
                           Text(
@@ -1569,7 +1491,7 @@ class _SyncScreenState extends ConsumerState<SyncScreen> {
           // ── CONFLITS ──
           if (conflicts.isNotEmpty) ...[
             SectionHeader('Conflits à résoudre',
-                inset: LHSpacing.screen, overline: 'Divergence serveur'),
+                inset: LHSpacing.screen, overline: 'Conflit de versions'),
             for (final op in conflicts)
               Padding(
                 padding:
@@ -1595,7 +1517,7 @@ class _SyncScreenState extends ConsumerState<SyncScreen> {
                         ]),
                         const SizedBox(height: 4),
                         Text(
-                          'Cette ressource a divergé côté serveur. Choisissez la version à conserver.',
+                          'Cette ressource a été modifiée sur un autre appareil. Choisissez la version à conserver.',
                           style: theme.textTheme.bodySmall?.copyWith(
                               color: theme.colorScheme.onSurfaceVariant),
                         ),
@@ -1609,7 +1531,7 @@ class _SyncScreenState extends ConsumerState<SyncScreen> {
                                     .keepLocalVersion(op.id);
                                 if (mounted) {
                                   lhToast(this.context,
-                                      'Votre version sera renvoyée au serveur.');
+                                      'Votre version sera conservée partout.');
                                 }
                               },
                               icon: const Icon(Icons.upload_rounded, size: 16),
@@ -1627,12 +1549,12 @@ class _SyncScreenState extends ConsumerState<SyncScreen> {
                                 lhToast(
                                     this.context,
                                     ok
-                                        ? 'Version serveur appliquée.'
-                                        : 'Version serveur introuvable — réessayez plus tard.');
+                                        ? 'L\'autre version a été appliquée.'
+                                        : 'Version introuvable — réessayez plus tard.');
                               },
                               icon:
                                   const Icon(Icons.download_rounded, size: 16),
-                              label: const Text('Version serveur'),
+                              label: const Text('Autre version'),
                             ),
                           ),
                         ]),
@@ -1642,14 +1564,14 @@ class _SyncScreenState extends ConsumerState<SyncScreen> {
           ],
           // ── REJETS ──
           if (rejections.isNotEmpty) ...[
-            SectionHeader('Rejets du serveur',
+            SectionHeader('Rejets de synchronisation',
                 inset: LHSpacing.screen, overline: 'Non appliqué'),
             for (final op in rejections)
               ListTile(
                 dense: true,
                 leading: Icon(_opIcon(op.op), size: 20, color: LHColors.erreur),
                 title: Text('${_resourceLabel(op.resourceType)} · ${op.op}'),
-                subtitle: Text(op.lastError ?? 'Rejetée par le serveur'),
+                subtitle: Text(op.lastError ?? 'Rejetée lors de la synchronisation'),
               ),
           ],
           // ── HISTORIQUE ──

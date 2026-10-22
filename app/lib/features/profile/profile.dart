@@ -797,9 +797,9 @@ class _SecurityQuestionsSheetState
       setState(() {
         _busy = false;
         _info = serverSynced
-            ? 'Questions enregistrées (appareil + serveur).'
+            ? 'Questions enregistrées sur vos appareils.'
             : 'Questions enregistrées sur cet appareil — elles seront '
-                'synchronisées à la prochaine connexion au serveur.';
+                'synchronisées à votre prochaine connexion.';
       });
     }
   }
@@ -1011,7 +1011,7 @@ class _DeleteAccountSheetState extends ConsumerState<_DeleteAccountSheet> {
             const SizedBox(height: LHSpacing.sm),
             Text(
               'Votre compte, vos sessions et toutes vos données synchronisées '
-              'seront effacés du serveur, pour toujours. Cette action est '
+              'seront effacées partout, pour toujours. Cette action est '
               'IRRÉVERSIBLE. Les données présentes uniquement sur cet appareil '
               'seront également supprimées.',
               textAlign: TextAlign.center,

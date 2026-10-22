@@ -37,6 +37,9 @@ dependencies:
   # Photo de profil (galerie / appareil photo).
   image_picker: ^1.1.2
 
+  # Lecture du carnet d'adresses du téléphone (import de contacts).
+  flutter_contacts: ^1.1.9
+
   # Réseau & synchronisation (CDC §3 — backend REST, JWT).
   http: ^1.2.0
   flutter_secure_storage: ^9.2.2
@@ -55,6 +58,14 @@ dev_dependencies:
   # Génération du schéma Drift.
   drift_dev: ^2.28.0
   build_runner: ^2.4.13
+
+# Les variantes Android récentes de certains plugins (path_provider 2.3,
+# shared_preferences 2.5) tirent « jni », dont la compilation exige le NDK
+# Android (~2 Go) pour un gain nul ici — on retient les séries classiques
+# (implémentation Kotlin).
+dependency_overrides:
+  path_provider_android: 2.2.18
+  shared_preferences_android: 2.4.28
 
 flutter:
   uses-material-design: true

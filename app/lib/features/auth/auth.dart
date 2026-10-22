@@ -857,7 +857,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
         if (devToken != null && devToken.isNotEmpty) {
           _devToken = devToken;
           _info =
-              'Serveur de démonstration — code de réinitialisation ci-dessous.';
+              'Mode démonstration — code de réinitialisation ci-dessous.';
         } else {
           _info =
               'Si un compte existe, un lien de réinitialisation a été envoyé.';

@@ -396,7 +396,7 @@ class _NotificationPrefsScreenState
           secondary: const Icon(Icons.bedtime_outlined),
           title: const Text('Activer la plage silencieuse'),
           subtitle: Text(
-              'Les alertes non critiques sont regroupées pendant la plage ; les critiques passent toujours (CDC D13).'),
+              'Les alertes non critiques sont regroupées pendant la plage ; les critiques passent toujours.'),
           value: (settings['quietHoursEnabled'] ?? 'false') == 'true',
           onChanged: (v) => db.setSetting('quietHoursEnabled', '$v'),
         ),
@@ -450,7 +450,7 @@ class _NotificationPrefsScreenState
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 20),
           child: Text(
-            'Les préférences ne modifient jamais la ressource source : reporter le rappel d\'une échéance ne reporte pas sa date (CDC D13 §18.4).',
+            'Les préférences ne modifient jamais la ressource source : reporter le rappel d\'une échéance ne reporte pas sa date.',
             style: theme.textTheme.bodySmall
                 ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
           ),

@@ -465,7 +465,7 @@ class _AiAssistantScreenState extends ConsumerState<AiAssistantScreen> {
         const SizedBox(width: 8),
         Expanded(
           child: Text(
-            'HELM AI nécessite une connexion au serveur. Les règles locales '
+            'HELM AI nécessite une connexion. Les règles locales '
             'et les rappels de LifeHelm continuent de fonctionner.',
             style: theme.textTheme.bodySmall
                 ?.copyWith(color: theme.colorScheme.onSurface),

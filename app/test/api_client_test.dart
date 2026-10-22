@@ -216,7 +216,7 @@ void main() {
     await expectLater(
       client.get('/auth/me'),
       throwsA(isA<LhNetworkException>().having(
-          (e) => e.message, 'message', contains('URL du serveur'))),
+          (e) => e.message, 'message', contains('Connexion impossible'))),
     );
   });
 }

@@ -597,7 +597,7 @@ class FinanceScreen extends ConsumerWidget {
                           horizontal: LHSpacing.screen),
                       child: Center(
                         child: Text(
-                          'Les conversions entre devises sont explicites et conservent leur taux (CDC D05).',
+                          'Les conversions entre devises sont explicites et conservent leur taux.',
                           textAlign: TextAlign.center,
                           style: theme.textTheme.bodySmall?.copyWith(
                               color: theme.colorScheme.onSurfaceVariant),
@@ -1171,7 +1171,7 @@ class _AccountDetailScreenState extends ConsumerState<AccountDetailScreen> {
           Text(
             'Solde enregistré : ${Money(b.current, b.currency).format()}\n'
             'Saisissez le solde réellement constaté — l\'écart sera présenté, '
-            'jamais corrigé automatiquement (CDC D05).',
+            'jamais corrigé automatiquement.',
             style: const TextStyle(fontSize: 13.5, height: 1.5),
           ),
           const SizedBox(height: 12),

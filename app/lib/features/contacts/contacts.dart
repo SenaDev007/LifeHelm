@@ -1,5 +1,6 @@
 import 'package:drift/drift.dart' hide Column;
 import 'package:flutter/material.dart';
+import 'package:flutter_contacts/flutter_contacts.dart' as fcontacts;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -8,6 +9,7 @@ import '../../core/providers.dart';
 import '../../core/theme/tokens.dart';
 import '../../core/utils/formatters.dart' as fmt;
 import '../../core/widgets/common.dart';
+import '../../core/widgets/pickers.dart';
 import '../../shell/widgets.dart' show LhAppBar;
 
 // ═══════════════════════════ LABELS MÉTIER (D11) ═══════════════════════════
@@ -350,17 +352,28 @@ class _ContactsScreenState extends ConsumerState<ContactsScreen> {
                 ),
               ),
               Padding(
-                padding: const EdgeInsets.fromLTRB(LHSpacing.lg, LHSpacing.sm,
-                    LHSpacing.lg, LHSpacing.sm),
-                child: TextField(
-                  onChanged: (v) => setState(() => _query = v.trim()),
-                  decoration: const InputDecoration(
-                    hintText: 'Rechercher un nom ou une organisation',
-                    prefixIcon: Icon(Icons.search),
-                    isDense: true,
-                    border: OutlineInputBorder(),
+                padding: const EdgeInsets.fromLTRB(
+                    LHSpacing.lg, LHSpacing.sm, LHSpacing.lg, LHSpacing.sm),
+                child: Row(children: [
+                  Expanded(
+                    child: TextField(
+                      onChanged: (v) => setState(() => _query = v.trim()),
+                      decoration: const InputDecoration(
+                        hintText: 'Rechercher un nom ou une organisation',
+                        prefixIcon: Icon(Icons.search),
+                        isDense: true,
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
                   ),
-                ),
+                  const SizedBox(width: LHSpacing.sm),
+                  IconButton.outlined(
+                    tooltip: 'Importer depuis le téléphone',
+                    icon: const Icon(Icons.phone_android),
+                    onPressed: () => _importFromPhone(
+                        spaceId, contacts),
+                  ),
+                ]),
               ),
               Padding(
                 padding:
@@ -384,11 +397,11 @@ class _ContactsScreenState extends ConsumerState<ContactsScreen> {
                         icon: Icons.contacts_outlined,
                         message: 'Aucun contact ici',
                         hint:
-                            'Le carnet est isolé par espace. Les contacts se saisissent '
-                            'manuellement — aucun accès au carnet du téléphone.',
+                            'Créez un contact ou importez-le depuis le carnet '
+                            'de votre téléphone.',
                         action: FilledButton.tonal(
-                          onPressed: () => _showNewContactSheet(spaceId),
-                          child: const Text('Nouveau contact'),
+                          onPressed: () => _importFromPhone(spaceId, contacts),
+                          child: const Text('Importer depuis le téléphone'),
                         ),
                       )
                     : ListView.builder(
@@ -407,177 +420,503 @@ class _ContactsScreenState extends ConsumerState<ContactsScreen> {
 
   // —— Création (bottom sheet) ——
 
+  /// La feuille de création est un widget à part entière : ses contrôleurs
+  /// ne sont libérés qu'au démontage complet de la feuille (après
+  /// l'animation de sortie). L'ancien motif `whenComplete(dispose)` libérait
+  /// les contrôleurs pendant l'animation — les champs encore à l'écran
+  /// provoquaient alors « TextEditingController used after disposed »
+  /// (page d'erreur framework).
   Future<void> _showNewContactSheet(String spaceId) {
-    final firstCtrl = TextEditingController();
-    final lastCtrl = TextEditingController();
-    final orgCtrl = TextEditingController();
-    final jobCtrl = TextEditingController();
-    final phoneCtrl = TextEditingController();
-    final emailCtrl = TextEditingController();
-    var kind = 'PERSON';
-
-    Future<void> create(BuildContext sheetCtx) async {
-      final db = ref.read(dbProvider);
-      final navigator = Navigator.of(sheetCtx);
-      String id;
-      if (kind == 'PERSON') {
-        final first = _trimOrNull(firstCtrl.text);
-        final last = _trimOrNull(lastCtrl.text);
-        if (first == null && last == null) {
-          lhToast(sheetCtx, 'Indiquez au moins un prénom ou un nom.');
-          return;
-        }
-        id = await db.createContact(
-            spaceId: spaceId,
-            kind: 'PERSON',
-            firstName: first,
-            lastName: last,
-            jobTitle: _trimOrNull(jobCtrl.text));
-      } else {
-        final org = _trimOrNull(orgCtrl.text);
-        if (org == null) {
-          lhToast(sheetCtx, 'Indiquez le nom de l\'organisation.');
-          return;
-        }
-        id = await db.createContact(
-            spaceId: spaceId,
-            kind: 'ORGANIZATION',
-            organizationName: org,
-            jobTitle: _trimOrNull(jobCtrl.text));
-      }
-      // Coordonnées initiales optionnelles.
-      final phone = _trimOrNull(phoneCtrl.text);
-      final email = _trimOrNull(emailCtrl.text);
-      if (phone != null) {
-        await db.addContactPoint(
-            contactId: id, type: 'PHONE', value: phone);
-      }
-      if (email != null) {
-        await db.addContactPoint(
-            contactId: id, type: 'EMAIL', value: email);
-      }
-      navigator.pop();
-      if (mounted) context.push('/contact/$id');
-    }
-
     return showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
-      builder: (sheetCtx) => StatefulBuilder(
-        builder: (sheetCtx, setSheet) => Padding(
-          padding: EdgeInsets.only(
-              bottom: MediaQuery.of(sheetCtx).viewInsets.bottom),
-          child: SafeArea(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(LHSpacing.screen),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
+      builder: (sheetCtx) => _NewContactSheet(
+        spaceId: spaceId,
+        onCreated: (id) => context.push('/contact/$id'),
+      ),
+    );
+  }
+
+  // —— Import depuis le carnet du téléphone ——
+
+  /// Demande la permission (à l'initiative de l'utilisateur), lit le carnet
+  /// du téléphone une seule fois, puis ouvre la feuille de sélection.
+  Future<void> _importFromPhone(String spaceId, List<Contact> existing) async {
+    // 1. Permission : demandée uniquement ici, à l'initiative de
+    //    l'utilisateur (aucune lecture en arrière-plan).
+    bool granted = false;
+    try {
+      granted = await fcontacts.FlutterContacts.requestPermission();
+    } catch (_) {
+      granted = false;
+    }
+    if (!mounted) return;
+    if (!granted) {
+      lhToast(context,
+          'Accès refusé. Autorisez « Contacts » pour LifeHelm dans les réglages du téléphone, puis réessayez.');
+      return;
+    }
+
+    // 2. Lecture du carnet (une seule fois, à la demande).
+    List<fcontacts.Contact> raw;
+    try {
+      raw = await fcontacts.FlutterContacts.getContacts(
+          withProperties: true, withThumbnail: false);
+    } catch (_) {
+      if (mounted) {
+        lhToast(context, 'Impossible de lire le carnet du téléphone.');
+      }
+      return;
+    }
+    if (!mounted) return;
+    if (raw.isEmpty) {
+      lhToast(context, 'Aucun contact trouvé dans le téléphone.');
+      return;
+    }
+
+    // 3. Sélection : feuille plein écran, recherche, doublons repérés.
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      builder: (sheetCtx) => _PhoneImportSheet(
+        spaceId: spaceId,
+        raw: raw,
+        existing: existing,
+      ),
+    );
+  }
+}
+
+/// Feuille « Nouveau contact » : personne ou organisation, fonction avec
+/// liste des professions, coordonnées initiales. Les contrôleurs vivent
+/// dans l'État et ne sont libérés qu'au démontage complet de la feuille.
+class _NewContactSheet extends ConsumerStatefulWidget {
+  const _NewContactSheet({required this.spaceId, required this.onCreated});
+
+  final String spaceId;
+  final void Function(String contactId) onCreated;
+
+  @override
+  ConsumerState<_NewContactSheet> createState() => _NewContactSheetState();
+}
+
+class _NewContactSheetState extends ConsumerState<_NewContactSheet> {
+  final _firstCtrl = TextEditingController();
+  final _lastCtrl = TextEditingController();
+  final _orgCtrl = TextEditingController();
+  final _jobCtrl = TextEditingController();
+  final _phoneCtrl = TextEditingController();
+  final _emailCtrl = TextEditingController();
+  var _kind = 'PERSON';
+
+  @override
+  void dispose() {
+    _firstCtrl.dispose();
+    _lastCtrl.dispose();
+    _orgCtrl.dispose();
+    _jobCtrl.dispose();
+    _phoneCtrl.dispose();
+    _emailCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _create() async {
+    final db = ref.read(dbProvider);
+    final navigator = Navigator.of(context);
+    String id;
+    if (_kind == 'PERSON') {
+      final first = _trimOrNull(_firstCtrl.text);
+      final last = _trimOrNull(_lastCtrl.text);
+      if (first == null && last == null) {
+        lhToast(context, 'Indiquez au moins un prénom ou un nom.');
+        return;
+      }
+      id = await db.createContact(
+          spaceId: widget.spaceId,
+          kind: 'PERSON',
+          firstName: first,
+          lastName: last,
+          jobTitle: _trimOrNull(_jobCtrl.text));
+    } else {
+      final org = _trimOrNull(_orgCtrl.text);
+      if (org == null) {
+        lhToast(context, 'Indiquez le nom de l\'organisation.');
+        return;
+      }
+      id = await db.createContact(
+          spaceId: widget.spaceId,
+          kind: 'ORGANIZATION',
+          organizationName: org,
+          jobTitle: _trimOrNull(_jobCtrl.text));
+    }
+    if (!mounted) return;
+    // Coordonnées initiales optionnelles.
+    final phone = _trimOrNull(_phoneCtrl.text);
+    final email = _trimOrNull(_emailCtrl.text);
+    if (phone != null) {
+      await db.addContactPoint(contactId: id, type: 'PHONE', value: phone);
+    }
+    if (!mounted) return;
+    if (email != null) {
+      await db.addContactPoint(contactId: id, type: 'EMAIL', value: email);
+    }
+    if (!mounted) return;
+    navigator.pop();
+    // La feuille se ferme ; le parent (toujours monté) ouvre la fiche.
+    widget.onCreated(id);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      child: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(LHSpacing.screen),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                'Nouveau contact',
+                style: Theme.of(context)
+                    .textTheme
+                    .titleMedium
+                    ?.copyWith(fontWeight: FontWeight.w700),
+              ),
+              const SizedBox(height: LHSpacing.lg),
+              LhSegmented<String>(
+                value: _kind,
+                items: const {
+                  'PERSON': 'Personne',
+                  'ORGANIZATION': 'Organisation',
+                },
+                onChanged: (v) => setState(() => _kind = v),
+              ),
+              const SizedBox(height: LHSpacing.lg),
+              if (_kind == 'PERSON') ...[
+                TextField(
+                  controller: _firstCtrl,
+                  textCapitalization: TextCapitalization.words,
+                  decoration: const InputDecoration(labelText: 'Prénom *'),
+                ),
+                const SizedBox(height: LHSpacing.md),
+                TextField(
+                  controller: _lastCtrl,
+                  textCapitalization: TextCapitalization.words,
+                  decoration: const InputDecoration(labelText: 'Nom'),
+                ),
+                const SizedBox(height: LHSpacing.md),
+                LabeledField(
+                  label: 'Fonction — liste au choix ou saisie libre',
+                  child: ProfessionPickerField(controller: _jobCtrl),
+                ),
+              ] else ...[
+                TextField(
+                  controller: _orgCtrl,
+                  textCapitalization: TextCapitalization.words,
+                  decoration: const InputDecoration(
+                      labelText: 'Nom de l\'organisation *'),
+                ),
+                const SizedBox(height: LHSpacing.md),
+                TextField(
+                  controller: _jobCtrl,
+                  textCapitalization: TextCapitalization.words,
+                  decoration: const InputDecoration(labelText: 'Secteur'),
+                ),
+              ],
+              const SizedBox(height: LHSpacing.lg),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  'Coordonnées (optionnel)',
+                  style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant),
+                ),
+              ),
+              const SizedBox(height: LHSpacing.sm),
+              TextField(
+                controller: _phoneCtrl,
+                keyboardType: TextInputType.phone,
+                decoration: const InputDecoration(labelText: 'Téléphone'),
+              ),
+              const SizedBox(height: LHSpacing.md),
+              TextField(
+                controller: _emailCtrl,
+                keyboardType: TextInputType.emailAddress,
+                decoration: const InputDecoration(labelText: 'Courriel'),
+              ),
+              const SizedBox(height: LHSpacing.xl),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
                 children: [
-                  Text(
-                    'Nouveau contact',
-                    style: Theme.of(sheetCtx)
-                        .textTheme
-                        .titleMedium
-                        ?.copyWith(fontWeight: FontWeight.w700),
+                  TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text('Annuler'),
                   ),
-                  const SizedBox(height: LHSpacing.lg),
-                  LhSegmented<String>(
-                    value: kind,
-                    items: const {
-                      'PERSON': 'Personne',
-                      'ORGANIZATION': 'Organisation',
-                    },
-                    onChanged: (v) => setSheet(() => kind = v),
-                  ),
-                  const SizedBox(height: LHSpacing.lg),
-                  if (kind == 'PERSON') ...[
-                    TextField(
-                      controller: firstCtrl,
-                      textCapitalization: TextCapitalization.words,
-                      decoration:
-                          const InputDecoration(labelText: 'Prénom *'),
-                    ),
-                    const SizedBox(height: LHSpacing.md),
-                    TextField(
-                      controller: lastCtrl,
-                      textCapitalization: TextCapitalization.words,
-                      decoration: const InputDecoration(labelText: 'Nom'),
-                    ),
-                    const SizedBox(height: LHSpacing.md),
-                    TextField(
-                      controller: jobCtrl,
-                      textCapitalization: TextCapitalization.words,
-                      decoration:
-                          const InputDecoration(labelText: 'Fonction'),
-                    ),
-                  ] else ...[
-                    TextField(
-                      controller: orgCtrl,
-                      textCapitalization: TextCapitalization.words,
-                      decoration: const InputDecoration(
-                          labelText: 'Nom de l\'organisation *'),
-                    ),
-                    const SizedBox(height: LHSpacing.md),
-                    TextField(
-                      controller: jobCtrl,
-                      textCapitalization: TextCapitalization.words,
-                      decoration:
-                          const InputDecoration(labelText: 'Secteur'),
-                    ),
-                  ],
-                  const SizedBox(height: LHSpacing.lg),
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: Text(
-                      'Coordonnées (optionnel)',
-                      style: Theme.of(sheetCtx).textTheme.labelMedium?.copyWith(
-                          color:
-                              Theme.of(sheetCtx).colorScheme.onSurfaceVariant),
-                    ),
-                  ),
-                  const SizedBox(height: LHSpacing.sm),
-                  TextField(
-                    controller: phoneCtrl,
-                    keyboardType: TextInputType.phone,
-                    decoration:
-                        const InputDecoration(labelText: 'Téléphone'),
-                  ),
-                  const SizedBox(height: LHSpacing.md),
-                  TextField(
-                    controller: emailCtrl,
-                    keyboardType: TextInputType.emailAddress,
-                    decoration: const InputDecoration(labelText: 'Courriel'),
-                  ),
-                  const SizedBox(height: LHSpacing.xl),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.end,
-                    children: [
-                      TextButton(
-                        onPressed: () => Navigator.pop(sheetCtx),
-                        child: const Text('Annuler'),
-                      ),
-                      const SizedBox(width: LHSpacing.sm),
-                      FilledButton(
-                        onPressed: () => create(sheetCtx),
-                        child: const Text('Créer'),
-                      ),
-                    ],
+                  const SizedBox(width: LHSpacing.sm),
+                  FilledButton(
+                    onPressed: _create,
+                    child: const Text('Créer'),
                   ),
                 ],
               ),
-            ),
+            ],
           ),
         ),
       ),
-    ).whenComplete(() {
-      firstCtrl.dispose();
-      lastCtrl.dispose();
-      orgCtrl.dispose();
-      jobCtrl.dispose();
-      phoneCtrl.dispose();
-      emailCtrl.dispose();
-    });
+    );
+  }
+}
+
+/// Feuille d'import : sélection des contacts du téléphone à ajouter au
+/// carnet. Les doublons (même nom) sont repérés et signalés ; la lecture du
+/// carnet n'a lieu qu'à l'ouverture, jamais en arrière-plan.
+class _PhoneImportSheet extends ConsumerStatefulWidget {
+  const _PhoneImportSheet({
+    required this.spaceId,
+    required this.raw,
+    required this.existing,
+  });
+
+  final String spaceId;
+  final List<fcontacts.Contact> raw;
+  final List<Contact> existing;
+
+  @override
+  ConsumerState<_PhoneImportSheet> createState() => _PhoneImportSheetState();
+}
+
+class _PhoneImportSheetState extends ConsumerState<_PhoneImportSheet> {
+  final _searchCtrl = TextEditingController();
+  String _query = '';
+  final Set<int> _selected = {};
+  var _importing = false;
+
+  String _phoneName(fcontacts.Contact c) => c.displayName.trim();
+
+  String? _phoneJob(fcontacts.Contact c) {
+    for (final o in c.organizations) {
+      final j = o.title.trim();
+      if (j.isNotEmpty) return j;
+    }
+    return null;
+  }
+
+  String? _phoneNumber(fcontacts.Contact c) {
+    for (final p in c.phones) {
+      final n = p.number.trim();
+      if (n.isNotEmpty) return n;
+    }
+    return null;
+  }
+
+  String? _phoneEmail(fcontacts.Contact c) {
+    for (final e in c.emails) {
+      final a = e.address.trim();
+      if (a.isNotEmpty) return a;
+    }
+    return null;
+  }
+
+  bool _alreadyInCarnet(fcontacts.Contact c) {
+    final target = _phoneName(c).toLowerCase();
+    if (target.isEmpty) return false;
+    return widget.existing.any(
+        (k) => contactDisplayName(k).toLowerCase() == target);
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    // Présélection : tous les contacts absents du carnet.
+    for (var i = 0; i < widget.raw.length; i++) {
+      if (!_alreadyInCarnet(widget.raw[i]) &&
+          _phoneName(widget.raw[i]).isNotEmpty) {
+        _selected.add(i);
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _searchCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _import() async {
+    if (_selected.isEmpty || _importing) return;
+    setState(() => _importing = true);
+    final db = ref.read(dbProvider);
+    final messenger = ScaffoldMessenger.of(context);
+    final navigator = Navigator.of(context);
+    var created = 0;
+    for (final i in _selected) {
+      final c = widget.raw[i];
+      final display = _phoneName(c);
+      // Prénom / nom : ceux du carnet du téléphone, sinon premier /
+      // dernier mot du nom complet.
+      var first = c.name.first.trim();
+      var last = c.name.last.trim();
+      if (first.isEmpty && last.isEmpty) {
+        final parts = display.split(RegExp(r'\s+'));
+        first = parts.isNotEmpty ? parts.first : '';
+        last = parts.length > 1 ? parts.sublist(1).join(' ') : '';
+      }
+      final id = await db.createContact(
+        spaceId: widget.spaceId,
+        kind: 'PERSON',
+        firstName: first.isEmpty ? null : first,
+        lastName: last.isEmpty ? null : last,
+        jobTitle: _phoneJob(c),
+      );
+      final phone = _phoneNumber(c);
+      if (phone != null) {
+        await db.addContactPoint(contactId: id, type: 'PHONE', value: phone);
+      }
+      final email = _phoneEmail(c);
+      if (email != null) {
+        await db.addContactPoint(contactId: id, type: 'EMAIL', value: email);
+      }
+      created++;
+    }
+    navigator.pop();
+    messenger
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(
+          content: Text(
+              '$created contact${created > 1 ? 's' : ''} importé${created > 1 ? 's' : ''} dans le carnet.')));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final duplicates = widget.raw.where(_alreadyInCarnet).length;
+    final visible = widget.raw.where((c) {
+      if (_phoneName(c).isEmpty) return false;
+      if (_query.isEmpty) return true;
+      final q = _query.toLowerCase();
+      return _phoneName(c).toLowerCase().contains(q) ||
+          (_phoneJob(c)?.toLowerCase().contains(q) ?? false);
+    }).toList();
+
+    return SizedBox(
+      height: MediaQuery.of(context).size.height * 0.88,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(
+            LHSpacing.screen, LHSpacing.md, LHSpacing.screen, 0),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+          Row(children: [
+            const Icon(Icons.phone_android, color: LHColors.or, size: 22),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text('Importer depuis le téléphone',
+                  style: theme.textTheme.titleMedium
+                      ?.copyWith(fontWeight: FontWeight.w700)),
+            ),
+            IconButton(
+              tooltip: 'Fermer',
+              icon: const Icon(Icons.close),
+              onPressed: () => Navigator.pop(context),
+            ),
+          ]),
+          Text(
+            '${widget.raw.length} contacts trouvés'
+            '${duplicates > 0 ? ' · $duplicates déjà dans le carnet' : ''}',
+            style: theme.textTheme.bodySmall
+                ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+          ),
+          const SizedBox(height: LHSpacing.md),
+          TextField(
+            controller: _searchCtrl,
+            onChanged: (v) => setState(() => _query = v.trim()),
+            decoration: const InputDecoration(
+              hintText: 'Rechercher un nom…',
+              prefixIcon: Icon(Icons.search),
+              isDense: true,
+            ),
+          ),
+          Row(children: [
+            TextButton(
+              onPressed: _selected.length >= widget.raw.length
+                  ? null
+                  : () => setState(() {
+                        for (var i = 0; i < widget.raw.length; i++) {
+                          if (_phoneName(widget.raw[i]).isNotEmpty &&
+                              !_alreadyInCarnet(widget.raw[i])) {
+                            _selected.add(i);
+                          }
+                        }
+                      }),
+              child: const Text('Tout cocher'),
+            ),
+            TextButton(
+              onPressed: _selected.isEmpty
+                  ? null
+                  : () => setState(_selected.clear),
+              child: const Text('Tout décocher'),
+            ),
+          ]),
+          Expanded(
+            child: ListView.builder(
+              padding: const EdgeInsets.only(bottom: 8),
+              itemCount: visible.length,
+              itemBuilder: (context, i) {
+                final c = visible[i];
+                final idx = widget.raw.indexOf(c);
+                final dup = _alreadyInCarnet(c);
+                final inSel = _selected.contains(idx);
+                final job = _phoneJob(c);
+                final phone = _phoneNumber(c);
+                return CheckboxListTile(
+                  value: inSel,
+                  onChanged: dup
+                      ? null
+                      : (v) => setState(() => v == true
+                          ? _selected.add(idx)
+                          : _selected.remove(idx)),
+                  controlAffinity: ListTileControlAffinity.leading,
+                  dense: true,
+                  title: Text(_phoneName(c),
+                      maxLines: 1, overflow: TextOverflow.ellipsis),
+                  subtitle: Text(
+                    dup
+                        ? 'Déjà dans le carnet'
+                        : [
+                            if (job != null) job,
+                            if (phone != null) phone,
+                          ].join(' · '),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                        color: dup ? theme.colorScheme.onSurfaceVariant : null),
+                  ),
+                );
+              },
+            ),
+          ),
+          SafeArea(
+            top: false,
+            child: Padding(
+              padding: const EdgeInsets.only(top: LHSpacing.sm),
+              child: FilledButton.icon(
+                onPressed: _selected.isEmpty || _importing ? null : _import,
+                icon: _importing
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2))
+                    : const Icon(Icons.download_rounded, size: 18),
+                label: Text(_importing
+                    ? 'Import en cours…'
+                    : 'Importer (${_selected.length})'),
+              ),
+            ),
+          ),
+        ]),
+      ),
+    );
   }
 }
 
@@ -966,297 +1305,418 @@ class _ContactDetailScreenState extends ConsumerState<ContactDetailScreen> {
 
   // —— Dialogues ——
 
+  /// Le dialogue est un widget à part entière : ses contrôleurs ne sont
+  /// libérés qu'au démontage complet (l'ancien `whenComplete(dispose)`
+  /// provoquait « TextEditingController used after disposed » pendant
+  /// l'animation de sortie).
   Future<void> _showAddPointDialog(Contact contact) {
-    final valueCtrl = TextEditingController();
-    final labelCtrl = TextEditingController();
-    var type = 'PHONE';
     return showDialog<void>(
       context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setDialog) => AlertDialog(
-          title: const Text('Ajouter une coordonnée'),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                LhSegmented<String>(
-                  value: type,
-                  items: const {
-                    'PHONE': 'Téléphone',
-                    'EMAIL': 'Courriel',
-                    'ADDRESS': 'Adresse',
-                    'URL': 'Lien',
-                  },
-                  onChanged: (v) => setDialog(() => type = v),
-                ),
-                const SizedBox(height: LHSpacing.lg),
-                TextField(
-                  controller: valueCtrl,
-                  autofocus: true,
-                  decoration: InputDecoration(
-                    labelText: 'Valeur *',
-                    hintText: switch (type) {
-                      'PHONE' => '+33 6 12 34 56 78',
-                      'EMAIL' => 'prenom@exemple.fr',
-                      'ADDRESS' => '12 rue des Lilas, Lomé',
-                      _ => 'https://…',
-                    },
-                  ),
-                  keyboardType: type == 'PHONE'
-                      ? TextInputType.phone
-                      : (type == 'EMAIL'
-                          ? TextInputType.emailAddress
-                          : TextInputType.url),
-                ),
-                const SizedBox(height: LHSpacing.md),
-                TextField(
-                  controller: labelCtrl,
-                  decoration: const InputDecoration(
-                      labelText: 'Libellé (optionnel)',
-                      hintText: 'Bureau, portable…'),
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-                onPressed: () => Navigator.pop(ctx),
-                child: const Text('Annuler')),
-            FilledButton(
-              onPressed: () async {
-                final value = valueCtrl.text.trim();
-                if (value.isEmpty) {
-                  lhToast(ctx, 'La valeur est obligatoire.');
-                  return;
-                }
-                final label = labelCtrl.text.trim();
-                Navigator.pop(ctx);
-                await ref.read(dbProvider).addContactPoint(
-                      contactId: contact.id,
-                      type: type,
-                      value: value,
-                      label: label.isEmpty ? null : label,
-                    );
-              },
-              child: const Text('Ajouter'),
-            ),
-          ],
-        ),
-      ),
-    ).whenComplete(() {
-      valueCtrl.dispose();
-      labelCtrl.dispose();
-    });
+      builder: (ctx) => _AddPointDialog(contact: contact),
+    );
   }
 
   Future<void> _showAddInteractionDialog(Contact contact) {
-    final summaryCtrl = TextEditingController();
-    var dateKey = fmt.dateKey(fmt.today()); // défaut : aujourd'hui
-    var kind = 'CALL';
     return showDialog<void>(
       context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setDialog) => AlertDialog(
-          title: const Text('Ajouter une interaction'),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                InkWell(
-                  onTap: () async {
-                    final picked = await showDatePicker(
-                      context: ctx,
-                      initialDate: fmt.parseKey(dateKey),
-                      firstDate: DateTime(2000),
-                      lastDate: DateTime(2100),
-                      locale: const Locale('fr'),
-                    );
-                    if (picked != null) {
-                      setDialog(() => dateKey = fmt.dateKey(picked));
-                    }
-                  },
-                  child: InputDecorator(
-                    decoration: const InputDecoration(
-                        labelText: 'Date',
-                        prefixIcon: Icon(Icons.event_outlined)),
-                    child: Text(fmt.humanDate(fmt.parseKey(dateKey))),
-                  ),
-                ),
-                const SizedBox(height: LHSpacing.md),
-                Wrap(
-                  spacing: 6,
-                  runSpacing: 6,
-                  children: [
-                    for (final k in interactionKinds)
-                      ChoiceChip(
-                        label: Text(interactionKindLabel(k)),
-                        selected: kind == k,
-                        onSelected: (_) => setDialog(() => kind = k),
-                      ),
-                  ],
-                ),
-                const SizedBox(height: LHSpacing.md),
-                TextField(
-                  controller: summaryCtrl,
-                  autofocus: true,
-                  maxLines: 3,
-                  textCapitalization: TextCapitalization.sentences,
-                  decoration: const InputDecoration(
-                      labelText: 'Résumé *',
-                      hintText: 'De quoi avez-vous parlé ?'),
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-                onPressed: () => Navigator.pop(ctx),
-                child: const Text('Annuler')),
-            FilledButton(
-              onPressed: () async {
-                final summary = summaryCtrl.text.trim();
-                if (summary.isEmpty) {
-                  lhToast(ctx, 'Le résumé est obligatoire.');
-                  return;
-                }
-                Navigator.pop(ctx);
-                await ref.read(dbProvider).addContactInteraction(
-                      contactId: contact.id,
-                      dateKey: dateKey,
-                      kind: kind,
-                      summary: summary,
-                    );
+      builder: (ctx) => _AddInteractionDialog(contact: contact),
+    );
+  }
+
+  Future<void> _showNotesDialog(Contact contact) {
+    return showDialog<void>(
+      context: context,
+      builder: (ctx) => _NotesDialog(contact: contact),
+    );
+  }
+
+  Future<void> _showEditDialog(Contact contact) {
+    return showDialog<void>(
+      context: context,
+      builder: (ctx) => _EditContactDialog(contact: contact),
+    );
+  }
+}
+
+/// Dialogue « Ajouter une coordonnée » — contrôleurs possédés par l'État.
+class _AddPointDialog extends ConsumerStatefulWidget {
+  const _AddPointDialog({required this.contact});
+
+  final Contact contact;
+
+  @override
+  ConsumerState<_AddPointDialog> createState() => _AddPointDialogState();
+}
+
+class _AddPointDialogState extends ConsumerState<_AddPointDialog> {
+  final _valueCtrl = TextEditingController();
+  final _labelCtrl = TextEditingController();
+  var _type = 'PHONE';
+
+  @override
+  void dispose() {
+    _valueCtrl.dispose();
+    _labelCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit() async {
+    final value = _valueCtrl.text.trim();
+    if (value.isEmpty) {
+      lhToast(context, 'La valeur est obligatoire.');
+      return;
+    }
+    final label = _labelCtrl.text.trim();
+    final db = ref.read(dbProvider);
+    final contactId = widget.contact.id;
+    final type = _type;
+    Navigator.of(context).pop();
+    await db.addContactPoint(
+      contactId: contactId,
+      type: type,
+      value: value,
+      label: label.isEmpty ? null : label,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Ajouter une coordonnée'),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            LhSegmented<String>(
+              value: _type,
+              items: const {
+                'PHONE': 'Téléphone',
+                'EMAIL': 'Courriel',
+                'ADDRESS': 'Adresse',
+                'URL': 'Lien',
               },
-              child: const Text('Ajouter'),
+              onChanged: (v) => setState(() => _type = v),
+            ),
+            const SizedBox(height: LHSpacing.lg),
+            TextField(
+              controller: _valueCtrl,
+              autofocus: true,
+              decoration: InputDecoration(
+                labelText: 'Valeur *',
+                hintText: switch (_type) {
+                  'PHONE' => '+33 6 12 34 56 78',
+                  'EMAIL' => 'prenom@exemple.fr',
+                  'ADDRESS' => '12 rue des Lilas, Lomé',
+                  _ => 'https://…',
+                },
+              ),
+              keyboardType: _type == 'PHONE'
+                  ? TextInputType.phone
+                  : (_type == 'EMAIL'
+                      ? TextInputType.emailAddress
+                      : TextInputType.url),
+            ),
+            const SizedBox(height: LHSpacing.md),
+            TextField(
+              controller: _labelCtrl,
+              decoration: const InputDecoration(
+                  labelText: 'Libellé (optionnel)', hintText: 'Bureau, portable…'),
             ),
           ],
         ),
       ),
-    ).whenComplete(summaryCtrl.dispose);
-  }
-
-  Future<void> _showNotesDialog(Contact contact) {
-    final ctrl = TextEditingController(text: contact.notes ?? '');
-    return showDialog<void>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Notes'),
-        content: TextField(
-          controller: ctrl,
-          maxLines: 6,
-          autofocus: true,
-          textCapitalization: TextCapitalization.sentences,
-          decoration: const InputDecoration(
-              hintText: 'Contexte, préférences, historique…'),
+      actions: [
+        TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Annuler')),
+        FilledButton(
+          onPressed: _submit,
+          child: const Text('Ajouter'),
         ),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('Annuler')),
-          FilledButton(
-            onPressed: () {
-              Navigator.pop(ctx);
-              final text = ctrl.text.trim();
-              ref.read(dbProvider).setContactNotes(
-                  contact.id, text.isEmpty ? null : text);
-            },
-            child: const Text('Enregistrer'),
-          ),
-        ],
-      ),
-    ).whenComplete(ctrl.dispose);
+      ],
+    );
+  }
+}
+
+/// Dialogue « Ajouter une interaction » — contrôleurs possédés par l'État.
+class _AddInteractionDialog extends ConsumerStatefulWidget {
+  const _AddInteractionDialog({required this.contact});
+
+  final Contact contact;
+
+  @override
+  ConsumerState<_AddInteractionDialog> createState() =>
+      _AddInteractionDialogState();
+}
+
+class _AddInteractionDialogState extends ConsumerState<_AddInteractionDialog> {
+  final _summaryCtrl = TextEditingController();
+  var _dateKey = '';
+  var _kind = 'CALL';
+
+  @override
+  void initState() {
+    super.initState();
+    _dateKey = fmt.dateKey(fmt.today()); // défaut : aujourd'hui
   }
 
-  Future<void> _showEditDialog(Contact contact) {
-    final firstCtrl = TextEditingController(text: contact.firstName ?? '');
-    final lastCtrl = TextEditingController(text: contact.lastName ?? '');
-    final orgCtrl =
-        TextEditingController(text: contact.organizationName ?? '');
-    final jobCtrl = TextEditingController(text: contact.jobTitle ?? '');
-    final isOrg = contact.kind == 'ORGANIZATION';
-    return showDialog<void>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(isOrg
-            ? 'Modifier l\'organisation'
-            : 'Modifier le contact'),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              if (!isOrg) ...[
-                TextField(
-                  controller: firstCtrl,
-                  textCapitalization: TextCapitalization.words,
-                  decoration: const InputDecoration(labelText: 'Prénom'),
-                ),
-                const SizedBox(height: LHSpacing.md),
-                TextField(
-                  controller: lastCtrl,
-                  textCapitalization: TextCapitalization.words,
-                  decoration: const InputDecoration(labelText: 'Nom'),
-                ),
-                const SizedBox(height: LHSpacing.md),
-              ] else ...[
-                TextField(
-                  controller: orgCtrl,
-                  textCapitalization: TextCapitalization.words,
-                  decoration: const InputDecoration(
-                      labelText: 'Nom de l\'organisation'),
-                ),
-                const SizedBox(height: LHSpacing.md),
-              ],
-              TextField(
-                controller: jobCtrl,
-                textCapitalization: TextCapitalization.words,
-                decoration: InputDecoration(
-                    labelText: isOrg ? 'Secteur' : 'Fonction'),
+  @override
+  void dispose() {
+    _summaryCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit() async {
+    final summary = _summaryCtrl.text.trim();
+    if (summary.isEmpty) {
+      lhToast(context, 'Le résumé est obligatoire.');
+      return;
+    }
+    final db = ref.read(dbProvider);
+    final contactId = widget.contact.id;
+    final dateKey = _dateKey;
+    final kind = _kind;
+    Navigator.of(context).pop();
+    await db.addContactInteraction(
+      contactId: contactId,
+      dateKey: dateKey,
+      kind: kind,
+      summary: summary,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Ajouter une interaction'),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            InkWell(
+              onTap: () async {
+                final picked = await showDatePicker(
+                  context: context,
+                  initialDate: fmt.parseKey(_dateKey),
+                  firstDate: DateTime(2000),
+                  lastDate: DateTime(2100),
+                  locale: const Locale('fr'),
+                );
+                if (picked != null && mounted) {
+                  setState(() => _dateKey = fmt.dateKey(picked));
+                }
+              },
+              child: InputDecorator(
+                decoration: const InputDecoration(
+                    labelText: 'Date', prefixIcon: Icon(Icons.event_outlined)),
+                child: Text(fmt.humanDate(fmt.parseKey(_dateKey))),
               ),
-            ],
-          ),
+            ),
+            const SizedBox(height: LHSpacing.md),
+            Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: [
+                for (final k in interactionKinds)
+                  ChoiceChip(
+                    label: Text(interactionKindLabel(k)),
+                    selected: _kind == k,
+                    onSelected: (_) => setState(() => _kind = k),
+                  ),
+              ],
+            ),
+            const SizedBox(height: LHSpacing.md),
+            TextField(
+              controller: _summaryCtrl,
+              autofocus: true,
+              maxLines: 3,
+              textCapitalization: TextCapitalization.sentences,
+              decoration: const InputDecoration(
+                  labelText: 'Résumé *', hintText: 'De quoi avez-vous parlé ?'),
+            ),
+          ],
         ),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('Annuler')),
-          FilledButton(
-            onPressed: () async {
-              if (isOrg && orgCtrl.text.trim().isEmpty) {
-                lhToast(ctx,
-                    'Le nom de l\'organisation est obligatoire.');
-                return;
-              }
-              if (!isOrg &&
-                  firstCtrl.text.trim().isEmpty &&
-                  lastCtrl.text.trim().isEmpty) {
-                lhToast(ctx, 'Indiquez au moins un prénom ou un nom.');
-                return;
-              }
-              Navigator.pop(ctx);
-              await ref.read(dbProvider).updateContactIdentity(
-                    contact.id,
-                    firstName:
-                        isOrg ? null : _trimOrNull(firstCtrl.text),
-                    lastName: isOrg ? null : _trimOrNull(lastCtrl.text),
-                    organizationName: isOrg
-                        ? _trimOrNull(orgCtrl.text)
-                        : contact.organizationName,
-                    jobTitle: _trimOrNull(jobCtrl.text),
-                  );
-            },
-            child: const Text('Enregistrer'),
-          ),
-        ],
       ),
-    ).whenComplete(() {
-      firstCtrl.dispose();
-      lastCtrl.dispose();
-      orgCtrl.dispose();
-      jobCtrl.dispose();
-    });
+      actions: [
+        TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Annuler')),
+        FilledButton(
+          onPressed: _submit,
+          child: const Text('Ajouter'),
+        ),
+      ],
+    );
+  }
+}
+
+/// Dialogue « Notes » — contrôleur possédé par l'État.
+class _NotesDialog extends ConsumerStatefulWidget {
+  const _NotesDialog({required this.contact});
+
+  final Contact contact;
+
+  @override
+  ConsumerState<_NotesDialog> createState() => _NotesDialogState();
+}
+
+class _NotesDialogState extends ConsumerState<_NotesDialog> {
+  late final _ctrl = TextEditingController(text: widget.contact.notes ?? '');
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  void _submit() {
+    final text = _ctrl.text.trim();
+    final db = ref.read(dbProvider);
+    final contactId = widget.contact.id;
+    Navigator.of(context).pop();
+    db.setContactNotes(contactId, text.isEmpty ? null : text);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Notes'),
+      content: TextField(
+        controller: _ctrl,
+        maxLines: 6,
+        autofocus: true,
+        textCapitalization: TextCapitalization.sentences,
+        decoration: const InputDecoration(
+            hintText: 'Contexte, préférences, historique…'),
+      ),
+      actions: [
+        TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Annuler')),
+        FilledButton(
+          onPressed: _submit,
+          child: const Text('Enregistrer'),
+        ),
+      ],
+    );
+  }
+}
+
+/// Dialogue « Modifier le contact » — contrôleurs possédés par l'État ;
+/// la fonction propose la liste complète des professions (personnes).
+class _EditContactDialog extends ConsumerStatefulWidget {
+  const _EditContactDialog({required this.contact});
+
+  final Contact contact;
+
+  @override
+  ConsumerState<_EditContactDialog> createState() => _EditContactDialogState();
+}
+
+class _EditContactDialogState extends ConsumerState<_EditContactDialog> {
+  late final _firstCtrl =
+      TextEditingController(text: widget.contact.firstName ?? '');
+  late final _lastCtrl =
+      TextEditingController(text: widget.contact.lastName ?? '');
+  late final _orgCtrl =
+      TextEditingController(text: widget.contact.organizationName ?? '');
+  late final _jobCtrl = TextEditingController(text: widget.contact.jobTitle ?? '');
+  late final bool _isOrg = widget.contact.kind == 'ORGANIZATION';
+
+  @override
+  void dispose() {
+    _firstCtrl.dispose();
+    _lastCtrl.dispose();
+    _orgCtrl.dispose();
+    _jobCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit() async {
+    if (_isOrg && _orgCtrl.text.trim().isEmpty) {
+      lhToast(context, 'Le nom de l\'organisation est obligatoire.');
+      return;
+    }
+    if (!_isOrg &&
+        _firstCtrl.text.trim().isEmpty &&
+        _lastCtrl.text.trim().isEmpty) {
+      lhToast(context, 'Indiquez au moins un prénom ou un nom.');
+      return;
+    }
+    final firstName = _isOrg ? null : _trimOrNull(_firstCtrl.text);
+    final lastName = _isOrg ? null : _trimOrNull(_lastCtrl.text);
+    final organizationName = _isOrg
+        ? _trimOrNull(_orgCtrl.text)
+        : widget.contact.organizationName;
+    final jobTitle = _trimOrNull(_jobCtrl.text);
+    final db = ref.read(dbProvider);
+    final contactId = widget.contact.id;
+    Navigator.of(context).pop();
+    await db.updateContactIdentity(
+      contactId,
+      firstName: firstName,
+      lastName: lastName,
+      organizationName: organizationName,
+      jobTitle: jobTitle,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Text(_isOrg ? 'Modifier l\'organisation' : 'Modifier le contact'),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            if (!_isOrg) ...[
+              TextField(
+                controller: _firstCtrl,
+                textCapitalization: TextCapitalization.words,
+                decoration: const InputDecoration(labelText: 'Prénom'),
+              ),
+              const SizedBox(height: LHSpacing.md),
+              TextField(
+                controller: _lastCtrl,
+                textCapitalization: TextCapitalization.words,
+                decoration: const InputDecoration(labelText: 'Nom'),
+              ),
+              const SizedBox(height: LHSpacing.md),
+            ] else ...[
+              TextField(
+                controller: _orgCtrl,
+                textCapitalization: TextCapitalization.words,
+                decoration: const InputDecoration(
+                    labelText: 'Nom de l\'organisation'),
+              ),
+              const SizedBox(height: LHSpacing.md),
+            ],
+            _isOrg
+                ? TextField(
+                    controller: _jobCtrl,
+                    textCapitalization: TextCapitalization.words,
+                    decoration: const InputDecoration(labelText: 'Secteur'),
+                  )
+                : LabeledField(
+                    label: 'Fonction — liste au choix ou saisie libre',
+                    child: ProfessionPickerField(controller: _jobCtrl),
+                  ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Annuler')),
+        FilledButton(
+          onPressed: _submit,
+          child: const Text('Enregistrer'),
+        ),
+      ],
+    );
   }
 }
 

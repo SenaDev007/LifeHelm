@@ -374,7 +374,7 @@ class _AiPreferencesScreenState extends ConsumerState<AiPreferencesScreen> {
             const SizedBox(width: 8),
             Expanded(
               child: Text(
-                'Le périmètre reste filtré par le serveur à chaque demande : '
+                'Le périmètre reste appliqué à chaque demande : '
                 'un module désactivé dans le périmètre de contexte reste muet, '
                 'même avec un consentement accordé.',
                 style: theme.textTheme.bodySmall?.copyWith(
@@ -515,7 +515,7 @@ class _AiPreferencesScreenState extends ConsumerState<AiPreferencesScreen> {
 
     final (badge, badgeColor, badgeIcon) = switch (push.channel) {
       PushChannel.fcm => (
-        'Push serveur actif (FCM)',
+        'Alerte automatique active',
         LHColors.vertSucces,
         Icons.cloud_done_outlined
       ),
@@ -539,8 +539,8 @@ class _AiPreferencesScreenState extends ConsumerState<AiPreferencesScreen> {
     final heureNote = push.channel == PushChannel.fcm
         ? 'Notification dès que le briefing est généré (autour de '
             '${prefs.briefingHour}h00).'
-        : 'Notification quotidienne à ${prefs.briefingHour}h15 — le serveur a '
-            'alors déjà préparé votre briefing.';
+        : 'Notification quotidienne à ${prefs.briefingHour}h15 — votre '
+            'briefing est alors déjà prêt.';
 
     return LHCard(
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [

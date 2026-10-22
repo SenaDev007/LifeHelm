@@ -66,7 +66,7 @@ class Money {
 
   Money operator +(Money o) {
     assert(o.currency.code == currency.code,
-        'Addition directe de devises différentes interdite (${currency.code} + ${o.currency.code}) — CDC D05');
+        'Addition directe de devises différentes interdite (${currency.code} + ${o.currency.code})');
     return Money(minor + o.minor, currency);
   }
 

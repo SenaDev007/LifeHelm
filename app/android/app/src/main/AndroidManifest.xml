@@ -8,6 +8,9 @@
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM"/>
     <uses-permission android:name="android.permission.VIBRATE"/>
     <uses-permission android:name="android.permission.WAKE_LOCK"/>
+    <!-- Lecture du carnet d'adresses du téléphone (import de contacts,
+         uniquement à la demande de l'utilisateur). -->
+    <uses-permission android:name="android.permission.READ_CONTACTS"/>
 
     <application
         android:label="LifeHelm"

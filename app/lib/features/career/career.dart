@@ -793,7 +793,7 @@ class _SkillDialogState extends ConsumerState<_SkillDialog> {
             controller: _name,
             autofocus: true,
             decoration: const InputDecoration(
-                labelText: 'Nom', hintText: 'ex. Flutter, Négociation…'),
+                labelText: 'Nom', hintText: 'ex. Comptabilité, Négociation…'),
           ),
           const SizedBox(height: 10),
           TextField(
@@ -1114,7 +1114,7 @@ class _PathDialogState extends ConsumerState<_PathDialog> {
             controller: _title,
             autofocus: true,
             decoration: const InputDecoration(
-                labelText: 'Titre', hintText: 'ex. Maîtriser Flutter'),
+                labelText: 'Titre', hintText: 'ex. Maîtriser la négociation'),
           ),
           const SizedBox(height: 10),
           TextField(
