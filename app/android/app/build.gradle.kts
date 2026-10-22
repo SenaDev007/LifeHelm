@@ -7,9 +7,12 @@ plugins {
 android {
     namespace = "app.lifehelm.lifehelm"
     compileSdk = flutter.compileSdkVersion
-    // NDK déclaré (version par défaut de Flutter) : aucun module de l'app
-    // ne compile en natif (AAR précompilés) — la simple déclaration évite
-    // que le plugin Gradle Flutter n'injecte un projet CMake synthétique.
+    // NDK : aucun module de l'app ne compile en natif (AAR précompilés ;
+    // overrides path_provider/shared_preferences pour éviter « jni »). La
+    // version reste déclarée + un marqueur source.properties posé dans le SDK
+    // pour que le plugin Gradle Flutter considère le NDK comme « déjà
+    // installé » — sinon il tente un téléchargement automatique de ~2 Go
+    // (inutile : rien n'en a besoin) via sdkmanager.
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
