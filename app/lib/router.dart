@@ -79,8 +79,7 @@ final router = GoRouter(
                 path: 'transaction/new',
                 builder: (context, state) => TransactionEditScreen(
                   initialType: state.uri.queryParameters['type'],
-                  initialAccountId:
-                      state.uri.queryParameters['account'],
+                  initialAccountId: state.uri.queryParameters['account'],
                 ),
               ),
               GoRoute(
@@ -166,8 +165,7 @@ final router = GoRouter(
               ),
               GoRoute(
                 path: 'notification-preferences',
-                builder: (context, state) =>
-                    const NotificationPrefsScreen(),
+                builder: (context, state) => const NotificationPrefsScreen(),
               ),
               GoRoute(
                 path: 'search',
@@ -231,8 +229,7 @@ final router = GoRouter(
       routes: [
         GoRoute(
           path: 'new',
-          builder: (context, state) =>
-              const HabitDetailScreen(id: 'new'),
+          builder: (context, state) => const HabitDetailScreen(id: 'new'),
         ),
         GoRoute(
           path: ':id',
@@ -291,8 +288,7 @@ final router = GoRouter(
     ),
     GoRoute(
       path: '/chat/:id',
-      builder: (context, state) =>
-          ChatScreen(id: state.pathParameters['id']!),
+      builder: (context, state) => ChatScreen(id: state.pathParameters['id']!),
     ),
 
     // ── Notifications & recherche (D13/D14) ──
@@ -325,12 +321,9 @@ final router = GoRouter(
 
     // ── Paramètres, espaces, sync ──
     GoRoute(
-        path: '/settings',
-        builder: (context, state) => const SettingsScreen()),
-    GoRoute(
-        path: '/spaces', builder: (context, state) => const SpacesScreen()),
-    GoRoute(
-        path: '/sync', builder: (context, state) => const SyncScreen()),
+        path: '/settings', builder: (context, state) => const SettingsScreen()),
+    GoRoute(path: '/spaces', builder: (context, state) => const SpacesScreen()),
+    GoRoute(path: '/sync', builder: (context, state) => const SyncScreen()),
 
     // ── Compte & authentification (plein écran, hors shell) ──
     GoRoute(
@@ -394,26 +387,26 @@ final router = GoRouter(
       ),
     ),
     GoRoute(
+      path: '/accounts',
+      builder: (context, state) => const AccountsScreen(),
+    ),
+    GoRoute(
       path: '/account/:id',
       builder: (context, state) =>
           AccountDetailScreen(id: state.pathParameters['id']!),
     ),
     GoRoute(
-        path: '/budgets',
-        builder: (context, state) => const BudgetsScreen()),
-    GoRoute(
-        path: '/dues', builder: (context, state) => const DuesScreen()),
-    GoRoute(
-        path: '/loans', builder: (context, state) => const LoansScreen()),
+        path: '/budgets', builder: (context, state) => const BudgetsScreen()),
+    GoRoute(path: '/dues', builder: (context, state) => const DuesScreen()),
+    GoRoute(path: '/loans', builder: (context, state) => const LoansScreen()),
     GoRoute(
         path: '/statistics',
         builder: (context, state) => const StatisticsScreen()),
-    GoRoute(
-        path: '/cgu', builder: (context, state) => const CguScreen()),
+    GoRoute(path: '/cgu', builder: (context, state) => const CguScreen()),
     GoRoute(
       path: '/note/new',
-      builder: (context, state) => NoteEditorScreen(
-          folderId: state.uri.queryParameters['folder']),
+      builder: (context, state) =>
+          NoteEditorScreen(folderId: state.uri.queryParameters['folder']),
     ),
     GoRoute(
       path: '/note/:id',
@@ -447,8 +440,7 @@ final router = GoRouter(
     ),
     GoRoute(
       path: '/chat/:id',
-      builder: (context, state) =>
-          ChatScreen(id: state.pathParameters['id']!),
+      builder: (context, state) => ChatScreen(id: state.pathParameters['id']!),
     ),
   ],
   errorBuilder: (context, state) => Scaffold(
@@ -470,5 +462,6 @@ final router = GoRouter(
 
 // Petit alias de couleur pour l'écran d'erreur (évite un import de plus).
 class LHColorsNeutral {
-  static const Color neutre = Color(0xFF64748B); // gris ardoise — palette officielle
+  static const Color neutre =
+      Color(0xFF64748B); // gris ardoise — palette officielle
 }

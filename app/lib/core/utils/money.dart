@@ -71,7 +71,8 @@ class Money {
   }
 
   Money operator -(Money o) {
-    assert(o.currency.code == currency.code, 'Soustraction directe de devises différentes interdite');
+    assert(o.currency.code == currency.code,
+        'Soustraction directe de devises différentes interdite');
     return Money(minor - o.minor, currency);
   }
 
@@ -135,7 +136,9 @@ class Money {
     if (currency.code == 'XOF') {
       return '$sign$formatted${withCode ? ' FCFA' : ''}';
     }
-    final sym = currency.code == 'EUR' || currency.code == 'GBP' ? '${currency.symbol} ' : currency.symbol;
+    final sym = currency.code == 'EUR' || currency.code == 'GBP'
+        ? '${currency.symbol} '
+        : currency.symbol;
     final body = currency.code == 'EUR' || currency.code == 'GBP'
         ? '$sign$sym$formatted'
         : '$sign$formatted $sym'.trim();
@@ -169,7 +172,8 @@ Color accountTypeColor(String type, BuildContext context) {
     case 'SAVING':
       return const Color(0xFFFFB400);
     default:
-      return const Color(0xFF64748B); // gris ardoise — neutre palette officielle
+      return const Color(
+          0xFF64748B); // gris ardoise — neutre palette officielle
   }
 }
 
@@ -185,5 +189,21 @@ String accountTypeLabel(String type) {
       return 'Épargne';
     default:
       return 'Compte personnalisé';
+  }
+}
+
+/// Icône par type de compte financier (D05 §10.2).
+IconData accountTypeIcon(String type) {
+  switch (type) {
+    case 'CASH':
+      return Icons.payments_outlined;
+    case 'BANK':
+      return Icons.account_balance_outlined;
+    case 'MOBILE_MONEY':
+      return Icons.phone_android_outlined;
+    case 'SAVING':
+      return Icons.savings_outlined;
+    default:
+      return Icons.wallet_outlined;
   }
 }

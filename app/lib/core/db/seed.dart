@@ -2,6 +2,7 @@ import 'package:drift/drift.dart';
 import 'package:uuid/uuid.dart';
 
 import '../taxonomy.dart';
+import '../utils/formatters.dart' as fmt;
 import 'database.dart';
 
 const _uuid = Uuid();
@@ -9,7 +10,9 @@ const _uuid = Uuid();
 /// Fondations d'un espace : listes, calendriers, taxonomie financière
 /// complète, questions de bilan (D01.2).
 /// NOTE : aucune donnée de démonstration n'est créée — l'app démarre
-/// vide et propre.
+/// vide et propre. Seule exception : les comptes financiers types
+/// (voir [seedDefaultAccounts]) — sans eux, aucune opération ne peut
+/// être saisie et les sélecteurs restent grisés.
 Future<void> seedSpaceFoundations(AppDatabase db, String spaceId,
     {required String ownerName, required bool withDemo}) async {
   // Listes de tâches par défaut.
@@ -37,17 +40,26 @@ Future<void> seedSpaceFoundations(AppDatabase db, String spaceId,
   for (final (name, color) in calNames) {
     final calId = _uuid.v4();
     await db.into(db.calendars).insert(Calendar(
-        id: calId, spaceId: spaceId, name: name, colorHex: color, isVisible: true));
+        id: calId,
+        spaceId: spaceId,
+        name: name,
+        colorHex: color,
+        isVisible: true));
     db.logOp('Calendar', calId, 'CREATE', {'name': name});
   }
 
   // Taxonomie financière exhaustive (catégories + sous-catégories).
   await seedTaxonomyForSpace(db, spaceId);
 
+  // Comptes types (D05 §10.2) : sans compte, la saisie d'opération est
+  // impossible (sélecteurs vides et grisés).
+  await seedDefaultAccounts(db, spaceId);
+
   // Profil carrière vierge.
   final profileId = _uuid.v4();
-  await db.into(db.careerProfiles).insert(
-      CareerProfile(id: profileId, spaceId: spaceId));
+  await db
+      .into(db.careerProfiles)
+      .insert(CareerProfile(id: profileId, spaceId: spaceId));
   db.logOp('CareerProfile', profileId, 'CREATE', {'spaceId': spaceId});
 
   // Questions de bilan quotidien (D09) — personnalisables.
@@ -73,10 +85,7 @@ Future<void> seedTaxonomyForSpace(AppDatabase db, String spaceId) async {
   final rows = await (db.select(db.financialCategories)
         ..where((c) => c.spaceId.equals(spaceId)))
       .get();
-  final existing = rows
-      .map((c) => c.slug)
-      .whereType<String>()
-      .toSet();
+  final existing = rows.map((c) => c.slug).whereType<String>().toSet();
 
   // Collecte de tout ce qui manque, parents d'abord pour référencer leurs
   // identifiants dans les sous-catégories.
@@ -98,7 +107,8 @@ Future<void> seedTaxonomyForSpace(AppDatabase db, String spaceId) async {
         kind: kind,
         colorHex: Value(node.colorHex),
         slug: Value(node.slug)));
-    logged.add((parentId, kind, {'name': node.name, 'kind': kind, 'slug': node.slug}));
+    logged.add(
+        (parentId, kind, {'name': node.name, 'kind': kind, 'slug': node.slug}));
     for (final sub in node.subs) {
       final subSlug = '${node.slug}::${_slugify(sub)}';
       if (existing.contains(subSlug)) continue;
@@ -127,10 +137,42 @@ Future<void> seedTaxonomyForSpace(AppDatabase db, String spaceId) async {
   }
 }
 
+/// Comptes types créés pour tout espace n'ayant encore aucun compte
+/// (D05 §10.2) : Espèces, Compte bancaire, Mobile Money, Épargne — tous
+/// en XOF, solde initial nul. L'utilisateur peut ensuite les renommer,
+/// les archiver ou créer ses propres comptes (Finances → Comptes).
+const kDefaultAccountTypes = <(String, String)>[
+  ('Espèces', 'CASH'),
+  ('Compte bancaire', 'BANK'),
+  ('Mobile Money', 'MOBILE_MONEY'),
+  ('Épargne', 'SAVING'),
+];
+
+/// Crée les comptes types d'un espace qui ne possède encore AUCUN compte
+/// (tous comptes confondus, archivés inclus — un espace que l'utilisateur
+/// a déjà organisé n'est jamais modifié). Idempotent.
+Future<void> seedDefaultAccounts(AppDatabase db, String spaceId) async {
+  final existing = await (db.select(db.financialAccounts)
+        ..where((a) => a.spaceId.equals(spaceId)))
+      .get();
+  if (existing.isNotEmpty) return;
+  final today = fmt.dateKey(fmt.today());
+  for (final (name, type) in kDefaultAccountTypes) {
+    final id = _uuid.v4();
+    await db.into(db.financialAccounts).insert(
+        FinancialAccountsCompanion.insert(
+            id: id,
+            spaceId: spaceId,
+            name: name,
+            type: type,
+            initialDate: today));
+    db.logOp('FinancialAccount', id, 'CREATE', {'name': name, 'type': type});
+  }
+}
+
 String _slugify(String label) {
   return label
       .toLowerCase()
       .replaceAll(RegExp(r"[^a-z0-9]+"), '-')
       .replaceAll(RegExp(r'^-+|-+$'), '');
 }
-

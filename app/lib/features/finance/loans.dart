@@ -40,14 +40,12 @@ class LoansScreen extends ConsumerWidget {
             return const EmptyState(
               icon: Icons.handshake_outlined,
               message: 'Aucun prêt ni emprunt',
-              hint:
-                  'Enregistrez l\'argent prêté ou emprunté et suivez les '
+              hint: 'Enregistrez l\'argent prêté ou emprunté et suivez les '
                   'remboursements au fil de l\'eau.',
               illustration: 'assets/illustrations/finance.png',
             );
           }
-          final lent =
-              loans.where((l) => l.direction == 'LENT').toList();
+          final lent = loans.where((l) => l.direction == 'LENT').toList();
           final borrowed =
               loans.where((l) => l.direction == 'BORROWED').toList();
           return ListView(
@@ -145,9 +143,7 @@ class _LoanCard extends ConsumerWidget {
                   borderRadius: BorderRadius.circular(LHRadius.md),
                 ),
                 child: Icon(
-                  isLent
-                      ? Icons.outbox_outlined
-                      : Icons.inbox_outlined,
+                  isLent ? Icons.outbox_outlined : Icons.inbox_outlined,
                   size: 20,
                   color: isLent ? LHColors.info : LHColors.or,
                 ),
@@ -183,8 +179,8 @@ class _LoanCard extends ConsumerWidget {
                       '${isLent ? 'Prêt accordé' : 'Emprunt reçu'} le '
                       '${fmt.formatShort(fmt.parseKey(loan.startedAt))}'
                       '${loan.expectedAt != null ? ' · retour attendu le ${fmt.formatShort(fmt.parseKey(loan.expectedAt!))}' : ''}',
-                      style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.colorScheme.onSurfaceVariant),
+                      style: theme.textTheme.bodySmall
+                          ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
                     ),
                   ],
                 ),
@@ -194,7 +190,8 @@ class _LoanCard extends ConsumerWidget {
                 itemBuilder: (_) => [
                   if (loan.status == 'ACTIVE' && !settled)
                     const PopupMenuItem(
-                        value: 'repay', child: Text('Enregistrer un remboursement')),
+                        value: 'repay',
+                        child: Text('Enregistrer un remboursement')),
                   if (loan.status == 'ACTIVE' && !settled)
                     const PopupMenuItem(
                         value: 'settle', child: Text('Marquer soldé')),
@@ -207,14 +204,14 @@ class _LoanCard extends ConsumerWidget {
               ),
             ]),
             const SizedBox(height: LHSpacing.md),
-            BudgetBar(ratio: ratio, alertRatio: 2.0), // toujours émeraude < 100 %
+            BudgetBar(
+                ratio: ratio, alertRatio: 2.0), // toujours émeraude < 100 %
             const SizedBox(height: LHSpacing.sm),
             Row(children: [
               Expanded(
                 child: StatTile(
                   label: isLent ? 'Remboursé' : 'Remboursé (par vous)',
-                  value:
-                      Money(repaid, currency).format(withCode: false),
+                  value: Money(repaid, currency).format(withCode: false),
                   color: LHColors.emeraudeClair,
                 ),
               ),
@@ -250,7 +247,8 @@ class _LoanCard extends ConsumerWidget {
     );
   }
 
-  Future<void> _action(BuildContext context, WidgetRef ref, String action) async {
+  Future<void> _action(
+      BuildContext context, WidgetRef ref, String action) async {
     final db = ref.read(dbProvider);
     switch (action) {
       case 'repay':
@@ -273,8 +271,7 @@ class _LoanCard extends ConsumerWidget {
       case 'delete':
         final ok = await lhConfirm(context,
             title: 'Supprimer ce prêt ?',
-            message:
-                '« ${loan.counterparty} » sera supprimé. Les opérations '
+            message: '« ${loan.counterparty} » sera supprimé. Les opérations '
                 'déjà enregistrées restent intactes (simplement déliées).',
             confirmLabel: 'Supprimer',
             destructive: true);
@@ -338,8 +335,8 @@ class _LoanEditSheetState extends ConsumerState<_LoanEditSheet> {
     }
     if (_recordMovement && accounts.isEmpty) {
       setState(() => _error =
-          'Aucun compte : créez-en un dans Finances, ou décochez '
-          'l\'enregistrement du mouvement.');
+          'Aucun compte : créez-en un via « Nouveau compte… » ci-dessous, '
+              'ou décochez l\'enregistrement du mouvement.');
       return;
     }
     setState(() {
@@ -362,16 +359,15 @@ class _LoanEditSheetState extends ConsumerState<_LoanEditSheet> {
         status: 'ACTIVE',
         note: _noteCtrl.text.trim().isEmpty ? null : _noteCtrl.text.trim(),
         createdAt: DateTime.now()));
-    db.logOp('Loan', loanId, 'CREATE', {'counterparty': _counterpartyCtrl.text.trim()});
+    db.logOp('Loan', loanId, 'CREATE',
+        {'counterparty': _counterpartyCtrl.text.trim()});
 
     // Mouvement financier automatique : catégories dédiées de la taxonomie
     // (« Prêt accordé » en dépense, « Emprunt reçu » en recette…).
     if (_recordMovement) {
       final account = accounts.firstWhere((a) => a.id == _accountId,
           orElse: () => accounts.first);
-      final category = await _findCategory(
-          db,
-          widget.spaceId,
+      final category = await _findCategory(db, widget.spaceId,
           _isLent ? 'Prêt accordé' : 'Emprunt reçu (capital emprunté)');
       final now = DateTime.now();
       final tx = FinancialTransaction(
@@ -507,8 +503,8 @@ class _LoanEditSheetState extends ConsumerState<_LoanEditSheet> {
                     onTap: () async {
                       final picked = await showDatePicker(
                         context: context,
-                        initialDate:
-                            _expectedAt ?? _startedAt.add(const Duration(days: 30)),
+                        initialDate: _expectedAt ??
+                            _startedAt.add(const Duration(days: 30)),
                         firstDate: DateTime(2020),
                         lastDate: DateTime(2100),
                         locale: const Locale('fr'),
@@ -530,42 +526,34 @@ class _LoanEditSheetState extends ConsumerState<_LoanEditSheet> {
               label: 'Taux d\'intérêt annuel (optionnel, %)',
               child: TextField(
                 controller: _rateCtrl,
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                keyboardType:
+                    const TextInputType.numberWithOptions(decimal: true),
                 decoration: const InputDecoration(
-                    hintText: 'Ex. : 10', prefixIcon: Icon(Icons.percent_outlined)),
+                    hintText: 'Ex. : 10',
+                    prefixIcon: Icon(Icons.percent_outlined)),
               ),
             ),
             const SizedBox(height: LHSpacing.md),
-            if (accounts.isNotEmpty) ...[
-              LabeledField(
-                label: 'Compte du mouvement',
-                child: DropdownButtonFormField<String>(
-                  value: _accountId,
-                  items: [
-                    for (final a in accounts)
-                      DropdownMenuItem(
-                          value: a.id,
-                          child: Text('${a.name} (${a.currency})')),
-                  ],
-                  onChanged: (v) => setState(() => _accountId = v),
-                ),
-              ),
-              SwitchListTile(
-                contentPadding: EdgeInsets.zero,
-                secondary: const Icon(Icons.swap_vert_rounded),
-                title: Text(_isLent
-                    ? 'Enregistrer la sortie d\'argent maintenant'
-                    : 'Enregistrer l\'entrée d\'argent maintenant'),
-                subtitle: Text(
-                    _isLent
-                        ? 'Dépense « Épargne et dettes · Prêt accordé »'
-                        : 'Recette « Épargne et dettes · Emprunt reçu »',
-                    style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant)),
-                value: _recordMovement,
-                onChanged: (v) => setState(() => _recordMovement = v),
-              ),
-            ],
+            AccountPickerField(
+              label: 'Compte du mouvement',
+              value: _accountId,
+              onChanged: (v) => setState(() => _accountId = v),
+            ),
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              secondary: const Icon(Icons.swap_vert_rounded),
+              title: Text(_isLent
+                  ? 'Enregistrer la sortie d\'argent maintenant'
+                  : 'Enregistrer l\'entrée d\'argent maintenant'),
+              subtitle: Text(
+                  _isLent
+                      ? 'Dépense « Épargne et dettes · Prêt accordé »'
+                      : 'Recette « Épargne et dettes · Emprunt reçu »',
+                  style: theme.textTheme.bodySmall
+                      ?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+              value: _recordMovement,
+              onChanged: (v) => setState(() => _recordMovement = v),
+            ),
             const SizedBox(height: LHSpacing.md),
             LabeledField(
               label: 'Note (optionnel)',
@@ -633,16 +621,15 @@ class _RepaySheetState extends ConsumerState<_RepaySheet> {
       _saving = true;
       _error = null;
     });
-    final account =
-        accounts.firstWhere((a) => a.id == _accountId, orElse: () => accounts.first);
+    final account = accounts.firstWhere((a) => a.id == _accountId,
+        orElse: () => accounts.first);
     final cats = await db.getCategoriesOnce(spaceId);
     final isLent = loan.direction == 'LENT';
     // Prêt accordé → l'argent REVIENT (recette « Prêt accordé remboursé ») ;
     // Emprunt reçu → on REMBOURSE (dépense « Remboursement d'emprunt »).
     final subName =
         isLent ? 'Prêt accordé remboursé' : 'Remboursement d\'emprunt';
-    final category =
-        cats.where((c) => c.name == subName).firstOrNull;
+    final category = cats.where((c) => c.name == subName).firstOrNull;
 
     final now = DateTime.now();
     final tx = FinancialTransaction(
@@ -669,8 +656,7 @@ class _RepaySheetState extends ConsumerState<_RepaySheet> {
     final txs = await db.loanTransactions(loan.id);
     var repaid = 0;
     for (final t in txs) {
-      final isReturn =
-          isLent ? t.kind == 'INCOME' : t.kind == 'EXPENSE';
+      final isReturn = isLent ? t.kind == 'INCOME' : t.kind == 'EXPENSE';
       if (isReturn && t.status == 'POSTED') repaid += t.amount;
     }
     if (repaid >= loan.principalAmount) {
@@ -757,14 +743,8 @@ class _RepaySheetState extends ConsumerState<_RepaySheet> {
             const SizedBox(height: LHSpacing.md),
             LabeledField(
               label: 'Compte',
-              child: DropdownButtonFormField<String>(
+              child: AccountPickerField(
                 value: _accountId,
-                items: [
-                  for (final a in accounts)
-                    DropdownMenuItem(
-                        value: a.id,
-                        child: Text('${a.name} (${a.currency})')),
-                ],
                 onChanged: (v) => setState(() => _accountId = v),
               ),
             ),

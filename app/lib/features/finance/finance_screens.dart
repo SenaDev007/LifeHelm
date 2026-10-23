@@ -20,7 +20,8 @@ enum _OpType { expense, income, transfer }
 /// Les transferts entre devises conservent les deux montants, le taux et
 /// les frais ; les dépenses peuvent être réparties sur plusieurs budgets.
 class TransactionEditScreen extends ConsumerStatefulWidget {
-  const TransactionEditScreen({super.key, this.initialType, this.initialAccountId});
+  const TransactionEditScreen(
+      {super.key, this.initialType, this.initialAccountId});
 
   final String? initialType;
   final String? initialAccountId;
@@ -48,8 +49,7 @@ class _TransactionEditScreenState extends ConsumerState<TransactionEditScreen> {
   String? _subCategoryId;
 
   /// Valeur effectivement enregistrée sur l'opération (sous-cat si définie).
-  String? get _categoryId =>
-      _subCategoryId ?? _parentCategoryId;
+  String? get _categoryId => _subCategoryId ?? _parentCategoryId;
   DateTime _date = DateTime.now();
   String _status = 'POSTED';
   bool _saving = false;
@@ -81,8 +81,7 @@ class _TransactionEditScreenState extends ConsumerState<TransactionEditScreen> {
   Future<void> _save() async {
     final db = ref.read(dbProvider);
     final spaceId = ref.read(activeSpaceIdProvider);
-    final accounts =
-        ref.read(accountsProvider(spaceId)).valueOrNull ?? [];
+    final accounts = ref.read(accountsProvider(spaceId)).valueOrNull ?? [];
     if (accounts.isEmpty) {
       lhToast(context, 'Créez d\'abord un compte.');
       return;
@@ -95,7 +94,8 @@ class _TransactionEditScreenState extends ConsumerState<TransactionEditScreen> {
         lhToast(context, 'Choisissez deux comptes différents.');
         return;
       }
-      final from = Money.tryParse(_amountCtrl.text, Currency.byCode(account.currency));
+      final from =
+          Money.tryParse(_amountCtrl.text, Currency.byCode(account.currency));
       if (from == null || from.isZero) {
         lhToast(context, 'Montant invalide.');
         return;
@@ -139,7 +139,8 @@ class _TransactionEditScreenState extends ConsumerState<TransactionEditScreen> {
       return;
     }
 
-    final money = Money.tryParse(_amountCtrl.text, Currency.byCode(account.currency));
+    final money =
+        Money.tryParse(_amountCtrl.text, Currency.byCode(account.currency));
     if (money == null || money.isZero) {
       lhToast(context, 'Saisissez un montant valide.');
       return;
@@ -186,16 +187,14 @@ class _TransactionEditScreenState extends ConsumerState<TransactionEditScreen> {
     final theme = Theme.of(context);
     final spaceId = ref.watch(activeSpaceIdProvider);
     final accounts = ref.watch(accountsProvider(spaceId)).valueOrNull ?? [];
-    final categories =
-        ref.watch(categoriesProvider(spaceId)).valueOrNull ?? [];
+    final categories = ref.watch(categoriesProvider(spaceId)).valueOrNull ?? [];
     final budgets = ref.watch(budgetStatsProvider(spaceId)).valueOrNull ?? [];
 
     if (_accountId == null && accounts.isNotEmpty) {
       _accountId = accounts.first.id;
     }
     if (_toAccountId == null && accounts.length > 1) {
-      _toAccountId =
-          accounts.firstWhere((a) => a.id != _accountId).id;
+      _toAccountId = accounts.firstWhere((a) => a.id != _accountId).id;
     }
     final account = accounts.where((a) => a.id == _accountId).firstOrNull;
     final currency = Currency.byCode(account?.currency ?? 'XOF');
@@ -205,9 +204,7 @@ class _TransactionEditScreenState extends ConsumerState<TransactionEditScreen> {
     final relevantCategories = _type == _OpType.income
         ? categories.where((c) => c.kind == 'INCOME')
         : categories.where((c) => c.kind == 'EXPENSE');
-    final parents = relevantCategories
-        .where((c) => c.parentId == null)
-        .toList()
+    final parents = relevantCategories.where((c) => c.parentId == null).toList()
       ..sort((a, b) => a.name.compareTo(b.name));
     final subs = _parentCategoryId == null
         ? const <FinancialCategory>[]
@@ -228,7 +225,8 @@ class _TransactionEditScreenState extends ConsumerState<TransactionEditScreen> {
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(LHSpacing.screen),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        child:
+            Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
           LhSegmented<_OpType>(
             value: _type,
             items: const {
@@ -253,38 +251,16 @@ class _TransactionEditScreenState extends ConsumerState<TransactionEditScreen> {
           ),
           const SizedBox(height: LHSpacing.lg),
           if (_type == _OpType.transfer) ...[
-            LabeledField(
+            AccountPickerField(
               label: 'Depuis le compte',
-              child: DropdownButtonFormField<String>(
-                value: _accountId,
-                isExpanded: true,
-                items: [
-                  for (final a in accounts)
-                    DropdownMenuItem(
-                        value: a.id,
-                        child: Text('${a.name} (${a.currency})',
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis)),
-                ],
-                onChanged: (v) => setState(() => _accountId = v),
-              ),
+              value: _accountId,
+              onChanged: (v) => setState(() => _accountId = v),
             ),
             const SizedBox(height: LHSpacing.md),
-            LabeledField(
+            AccountPickerField(
               label: 'Vers le compte',
-              child: DropdownButtonFormField<String>(
-                value: _toAccountId,
-                isExpanded: true,
-                items: [
-                  for (final a in accounts)
-                    DropdownMenuItem(
-                        value: a.id,
-                        child: Text('${a.name} (${a.currency})',
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis)),
-                ],
-                onChanged: (v) => setState(() => _toAccountId = v),
-              ),
+              value: _toAccountId,
+              onChanged: (v) => setState(() => _toAccountId = v),
             ),
             const SizedBox(height: LHSpacing.md),
             if (account != null &&
@@ -321,8 +297,7 @@ class _TransactionEditScreenState extends ConsumerState<TransactionEditScreen> {
               decoration: BoxDecoration(
                 color: LHColors.info.withValues(alpha: 0.08),
                 borderRadius: BorderRadius.circular(LHRadius.md),
-                border:
-                    Border.all(color: LHColors.info.withValues(alpha: 0.3)),
+                border: Border.all(color: LHColors.info.withValues(alpha: 0.3)),
               ),
               child: Row(children: [
                 const Icon(Icons.info_outline, size: 18, color: LHColors.info),
@@ -330,28 +305,15 @@ class _TransactionEditScreenState extends ConsumerState<TransactionEditScreen> {
                 Expanded(
                   child: Text(
                     'Un transfert interne n\'est ni un revenu ni une dépense dans les totaux consolidés.',
-                    style: theme.textTheme.bodySmall
-                        ?.copyWith(height: 1.4),
+                    style: theme.textTheme.bodySmall?.copyWith(height: 1.4),
                   ),
                 ),
               ]),
             ),
           ] else ...[
-            LabeledField(
-              label: 'Compte',
-              child: DropdownButtonFormField<String>(
-                value: _accountId,
-                isExpanded: true,
-                items: [
-                  for (final a in accounts)
-                    DropdownMenuItem(
-                        value: a.id,
-                        child: Text('${a.name} (${a.currency})',
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis)),
-                ],
-                onChanged: (v) => setState(() => _accountId = v),
-              ),
+            AccountPickerField(
+              value: _accountId,
+              onChanged: (v) => setState(() => _accountId = v),
             ),
             const SizedBox(height: LHSpacing.md),
             LabeledField(
@@ -374,8 +336,8 @@ class _TransactionEditScreenState extends ConsumerState<TransactionEditScreen> {
                                 shape: BoxShape.circle)),
                         const SizedBox(width: 8),
                         Expanded(
-                            child: Text(c.name,
-                                overflow: TextOverflow.ellipsis)),
+                            child:
+                                Text(c.name, overflow: TextOverflow.ellipsis)),
                       ]))),
                 ],
                 onChanged: (v) => setState(() {
@@ -394,12 +356,10 @@ class _TransactionEditScreenState extends ConsumerState<TransactionEditScreen> {
                   menuMaxHeight: 420,
                   items: [
                     const DropdownMenuItem(
-                        value: null,
-                        child: Text('Toute la catégorie')),
+                        value: null, child: Text('Toute la catégorie')),
                     ...subs.map((c) => DropdownMenuItem(
                         value: c.id,
-                        child: Text(c.name,
-                            overflow: TextOverflow.ellipsis))),
+                        child: Text(c.name, overflow: TextOverflow.ellipsis))),
                   ],
                   onChanged: (v) => setState(() => _subCategoryId = v),
                 ),
@@ -410,8 +370,8 @@ class _TransactionEditScreenState extends ConsumerState<TransactionEditScreen> {
               LabeledField(
                 label: 'Répartition budgétaire (optionnelle)',
                 child: Column(children: [
-                  for (final s in budgets.where((s) =>
-                      s.budget.periodStart == currentPeriod))
+                  for (final s in budgets
+                      .where((s) => s.budget.periodStart == currentPeriod))
                     Padding(
                       padding: const EdgeInsets.symmetric(vertical: 4),
                       child: Row(children: [
@@ -473,11 +433,12 @@ class _TransactionEditScreenState extends ConsumerState<TransactionEditScreen> {
                   value: _status,
                   isExpanded: true,
                   items: const [
-                    DropdownMenuItem(value: 'POSTED', child: Text('Comptabilisée')),
-                    DropdownMenuItem(value: 'PENDING', child: Text('En attente')),
+                    DropdownMenuItem(
+                        value: 'POSTED', child: Text('Comptabilisée')),
+                    DropdownMenuItem(
+                        value: 'PENDING', child: Text('En attente')),
                   ],
-                  onChanged: (v) =>
-                      setState(() => _status = v ?? 'POSTED'),
+                  onChanged: (v) => setState(() => _status = v ?? 'POSTED'),
                 ),
               ),
             ),
@@ -487,7 +448,8 @@ class _TransactionEditScreenState extends ConsumerState<TransactionEditScreen> {
             label: 'Note (optionnel)',
             child: TextField(
               controller: _noteCtrl,
-              decoration: const InputDecoration(hintText: 'Ex. : Marché d\'Adjara'),
+              decoration:
+                  const InputDecoration(hintText: 'Ex. : Marché d\'Adjara'),
             ),
           ),
           const SizedBox(height: LHSpacing.xxl),
@@ -557,7 +519,8 @@ class BudgetsScreen extends ConsumerWidget {
                                 _budgetAction(context, ref, s, v),
                             itemBuilder: (_) => const [
                               PopupMenuItem(
-                                  value: 'adjust', child: Text('Ajuster (+/−)')),
+                                  value: 'adjust',
+                                  child: Text('Ajuster (+/−)')),
                               PopupMenuItem(
                                   value: 'delete', child: Text('Supprimer')),
                             ],
@@ -641,7 +604,8 @@ class BudgetsScreen extends ConsumerWidget {
     if (action == 'delete') {
       final ok = await lhConfirm(context,
           title: 'Supprimer le budget ?',
-          message: '« ${s.budget.name} » sera supprimé. Les opérations restent intactes.',
+          message:
+              '« ${s.budget.name} » sera supprimé. Les opérations restent intactes.',
           confirmLabel: 'Supprimer',
           destructive: true);
       if (ok) {
@@ -665,7 +629,8 @@ class BudgetsScreen extends ConsumerWidget {
         for (final a in allocs) {
           db.logOp('TransactionAllocation', a.id, 'DELETE', {});
         }
-        await (db.delete(db.budgets)..where((b) => b.id.equals(s.budget.id))).go();
+        await (db.delete(db.budgets)..where((b) => b.id.equals(s.budget.id)))
+            .go();
         db.logOp('Budget', s.budget.id, 'DELETE', {'name': s.budget.name});
       }
       return;
@@ -677,7 +642,8 @@ class BudgetsScreen extends ConsumerWidget {
       builder: (ctx) => AlertDialog(
         title: const Text('Ajuster l\'enveloppe'),
         content: Column(mainAxisSize: MainAxisSize.min, children: [
-          Text('Budget « ${s.budget.name} » — enveloppe actuelle ${Money(s.envelope, s.currency).format()}'),
+          Text(
+              'Budget « ${s.budget.name} » — enveloppe actuelle ${Money(s.envelope, s.currency).format()}'),
           const SizedBox(height: 12),
           TextField(
             controller: ctrl,
@@ -692,7 +658,9 @@ class BudgetsScreen extends ConsumerWidget {
           ),
         ]),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Annuler')),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Annuler')),
           FilledButton(
             onPressed: () async {
               final m = Money.tryParse(ctrl.text, Currency.xof);
@@ -706,8 +674,8 @@ class BudgetsScreen extends ConsumerWidget {
                       ? null
                       : reasonCtrl.text.trim(),
                   createdAt: DateTime.now()));
-              db.logOp('BudgetAdjustment', adjId, 'CREATE',
-                  {'amount': m.minor});
+              db.logOp(
+                  'BudgetAdjustment', adjId, 'CREATE', {'amount': m.minor});
               if (ctx.mounted) Navigator.pop(ctx);
             },
             child: const Text('Ajuster'),
@@ -788,7 +756,8 @@ class _BudgetPlanSheetState extends ConsumerState<_BudgetPlanSheet> {
       _error = null;
     });
     final db = ref.read(dbProvider);
-    final seriesId = _months > 1 ? 'ser_${DateTime.now().microsecondsSinceEpoch}' : null;
+    final seriesId =
+        _months > 1 ? 'ser_${DateTime.now().microsecondsSinceEpoch}' : null;
     for (var i = 0; i < _months; i++) {
       final monthStart = DateTime(_start.year, _start.month + i, 1);
       final monthEnd = DateTime(_start.year, _start.month + i + 1, 0);
@@ -848,7 +817,8 @@ class _BudgetPlanSheetState extends ConsumerState<_BudgetPlanSheet> {
                 controller: _nameCtrl,
                 textCapitalization: TextCapitalization.words,
                 decoration: const InputDecoration(
-                    hintText: 'Ex. : Marché mensuel', prefixIcon: Icon(Icons.label_outline)),
+                    hintText: 'Ex. : Marché mensuel',
+                    prefixIcon: Icon(Icons.label_outline)),
               ),
             ),
             const SizedBox(height: LHSpacing.md),
@@ -871,9 +841,8 @@ class _BudgetPlanSheetState extends ConsumerState<_BudgetPlanSheet> {
                         ])),
                 ],
                 onChanged: (v) => setState(() {
-                  _planningCat = taxonomyBudget
-                      .where((c) => c.slug == v)
-                      .firstOrNull;
+                  _planningCat =
+                      taxonomyBudget.where((c) => c.slug == v).firstOrNull;
                   _planningSub = null;
                 }),
               ),
@@ -905,13 +874,14 @@ class _BudgetPlanSheetState extends ConsumerState<_BudgetPlanSheet> {
                 controller: _amountCtrl,
                 keyboardType: TextInputType.number,
                 decoration: const InputDecoration(
-                    hintText: 'Ex. : 75000', prefixIcon: Icon(Icons.payments_outlined)),
+                    hintText: 'Ex. : 75000',
+                    prefixIcon: Icon(Icons.payments_outlined)),
               ),
             ),
             const SizedBox(height: LHSpacing.lg),
             Text('Générer sur combien de mois ?',
-                style: theme.textTheme.labelMedium?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant)),
+                style: theme.textTheme.labelMedium
+                    ?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
             const SizedBox(height: LHSpacing.sm),
             Wrap(
               spacing: 8,
@@ -937,7 +907,8 @@ class _BudgetPlanSheetState extends ConsumerState<_BudgetPlanSheet> {
                     locale: const Locale('fr'),
                   );
                   if (picked != null) {
-                    setState(() => _start = DateTime(picked.year, picked.month, 1));
+                    setState(
+                        () => _start = DateTime(picked.year, picked.month, 1));
                   }
                 },
                 icon: const Icon(Icons.event_outlined, size: 18),
@@ -951,8 +922,8 @@ class _BudgetPlanSheetState extends ConsumerState<_BudgetPlanSheet> {
               title: const Text('Reporter le solde d\'un mois sur l\'autre'),
               subtitle: Text(
                   'Le reste non dépensé augmente l\'enveloppe du mois suivant.',
-                  style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant)),
+                  style: theme.textTheme.bodySmall
+                      ?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
               value: _carryover,
               onChanged: (v) => setState(() => _carryover = v),
             ),
@@ -1062,7 +1033,8 @@ class DuesScreen extends ConsumerWidget {
                           fontWeight: FontWeight.w700,
                           color: theme.colorScheme.onSurfaceVariant)),
                 ),
-              ...settled.map((d) => _dueTile(context, ref, d, settledMode: true)),
+              ...settled
+                  .map((d) => _dueTile(context, ref, d, settledMode: true)),
             ],
           );
         },
@@ -1087,13 +1059,16 @@ class DuesScreen extends ConsumerWidget {
                 : LHColors.or,
         child: Row(children: [
           Expanded(
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            child:
+                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Row(children: [
                 Expanded(
                     child: Text(d.label, style: theme.textTheme.titleSmall)),
                 if (d.status == 'PAID')
                   const StatusChip(
-                      label: 'Réglée', color: LHColors.emeraudeClair, small: true)
+                      label: 'Réglée',
+                      color: LHColors.emeraudeClair,
+                      small: true)
                 else if (d.status == 'VOID')
                   const StatusChip(
                       label: 'Annulée', color: LHColors.neutre, small: true),
@@ -1104,8 +1079,8 @@ class DuesScreen extends ConsumerWidget {
                         ? 'En retard — prévu le ${fmt.formatShort(fmt.parseKey(d.dueDate))}'
                         : 'Prévu le ${fmt.formatLong(fmt.parseKey(d.dueDate))}')
                     : fmt.formatShort(fmt.parseKey(d.dueDate)),
-                style: theme.textTheme.bodySmall?.copyWith(
-                    color: late ? LHColors.erreur : null),
+                style: theme.textTheme.bodySmall
+                    ?.copyWith(color: late ? LHColors.erreur : null),
               ),
             ]),
           ),
@@ -1126,8 +1101,8 @@ class DuesScreen extends ConsumerWidget {
     );
   }
 
-  Future<void> _dueAction(
-      BuildContext context, WidgetRef ref, FinancialDueItem d, String action) async {
+  Future<void> _dueAction(BuildContext context, WidgetRef ref,
+      FinancialDueItem d, String action) async {
     final db = ref.read(dbProvider);
     if (action == 'void') {
       await (db.update(db.financialDueItems)..where((x) => x.id.equals(d.id)))
@@ -1136,10 +1111,13 @@ class DuesScreen extends ConsumerWidget {
       return;
     }
     final spaceId = ref.read(activeSpaceIdProvider);
-    final accounts =
-        ref.read(accountsProvider(spaceId)).valueOrNull ?? [];
+    final accounts = ref.read(accountsProvider(spaceId)).valueOrNull ?? [];
     if (accounts.isEmpty) {
-      lhToast(context, 'Aucun compte disponible.');
+      // Aucun compte : proposer la création immédiatement (le sélecteur ne
+      // doit jamais être un cul-de-sac).
+      final created = await showAccountEditSheet(context, ref);
+      if (created == null) return;
+      await db.payDue(d, created);
       return;
     }
     await showModalBottomSheet<void>(
@@ -1148,17 +1126,29 @@ class DuesScreen extends ConsumerWidget {
         child: Column(mainAxisSize: MainAxisSize.min, children: [
           Padding(
             padding: const EdgeInsets.all(16),
-            child: Text('Régler « ${d.label} » — ${Money(d.expectedAmount, Currency.byCode(d.currency)).format()}',
+            child: Text(
+                'Régler « ${d.label} » — ${Money(d.expectedAmount, Currency.byCode(d.currency)).format()}',
                 style: Theme.of(ctx).textTheme.titleMedium),
           ),
           ...accounts.map((a) => ListTile(
-                leading: const Icon(Icons.account_balance_wallet_outlined),
+                leading: Icon(accountTypeIcon(a.type),
+                    color: accountTypeColor(a.type, ctx)),
                 title: Text('${a.name} (${a.currency})'),
                 onTap: () async {
                   await db.payDue(d, a);
                   if (ctx.mounted) Navigator.pop(ctx);
                 },
               )),
+          ListTile(
+            leading: const Icon(Icons.add, color: LHColors.or),
+            title: const Text('Nouveau compte…'),
+            onTap: () async {
+              if (!ctx.mounted) return;
+              Navigator.pop(ctx);
+              final created = await showAccountEditSheet(context, ref);
+              if (created != null) await db.payDue(d, created);
+            },
+          ),
         ]),
       ),
     );
@@ -1185,7 +1175,8 @@ class DuesScreen extends ConsumerWidget {
             TextField(
                 controller: amountCtrl,
                 keyboardType: TextInputType.number,
-                decoration: const InputDecoration(hintText: 'Montant attendu (FCFA)')),
+                decoration:
+                    const InputDecoration(hintText: 'Montant attendu (FCFA)')),
             const SizedBox(height: 10),
             OutlinedButton(
               onPressed: () async {
@@ -1202,7 +1193,9 @@ class DuesScreen extends ConsumerWidget {
             ),
           ]),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Annuler')),
+            TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Annuler')),
             FilledButton(
               onPressed: () async {
                 final m = Money.tryParse(amountCtrl.text, Currency.xof);

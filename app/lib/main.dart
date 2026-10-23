@@ -31,6 +31,9 @@ Future<void> main() async {
     // installations existantes reçoivent les catégories & sous-catégories
     // exhaustives sans toucher aux données existantes.
     await db.ensureTaxonomy();
+    // Comptes types pour les espaces qui n'en ont encore aucun (idempotent) :
+    // sans compte, la saisie d'opération est impossible (sélecteurs grisés).
+    await db.ensureDefaultAccounts();
   }
 
   runApp(ProviderScope(

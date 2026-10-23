@@ -22,16 +22,22 @@ void main() {
     await db.initializeDefaultSpaces(ownerName: 'Test');
     final spaces = await db.getAllSpaces();
     final personal = spaces.firstWhere((s) => s.type == 'PERSONAL');
+    // Depuis la v0.2.2, 4 comptes types sont auto-créés par espace : on les
+    // retire pour maîtriser les scénarios (avec/sans comptes).
+    await (db.delete(db.financialAccounts)
+          ..where((a) => a.spaceId.equals(personal.id)))
+        .go();
     if (withAccounts) {
       for (final k in ['CASH', 'BANK', 'MOBILE_MONEY']) {
-        await db.into(db.financialAccounts).insert(
-            FinancialAccountsCompanion.insert(
-          id: 'acc_$k',
-          spaceId: personal.id,
-          name: 'Compte $k',
-          type: k,
-          initialDate: fmt.dateKey(fmt.today()),
-        ));
+        await db
+            .into(db.financialAccounts)
+            .insert(FinancialAccountsCompanion.insert(
+              id: 'acc_$k',
+              spaceId: personal.id,
+              name: 'Compte $k',
+              type: k,
+              initialDate: fmt.dateKey(fmt.today()),
+            ));
       }
     }
     await db.setSetting('activeSpaceId', personal.id);
@@ -108,13 +114,72 @@ void main() {
     await disposeTree(tester);
   });
 
-  testWidgets('sans aucun compte (première utilisation) : pas de crash',
+  testWidgets(
+      'sans aucun compte (première utilisation) : bouton de création, pas de menu grisé',
       (tester) async {
     await bootstrap(withAccounts: false);
     await pumpScreen(tester, 'expense', size: const Size(360, 640));
 
     expect(tester.takeException(), isNull,
         reason: 'Ouverture sans compte : l\'écran doit rester utilisable.');
+    // Le sélecteur propose la création directe au lieu d'un menu vide.
+    expect(find.text('Créer un premier compte'), findsOneWidget);
+    await disposeTree(tester);
+  });
+
+  testWidgets(
+      'création d\'un compte depuis le sélecteur : le menu se remplit et sélectionne le nouveau compte',
+      (tester) async {
+    await bootstrap(withAccounts: false);
+    await pumpScreen(tester, 'expense', size: const Size(360, 640));
+
+    // Ouverture de la feuille de création depuis le bouton plein cadre.
+    await tester.tap(find.text('Créer un premier compte'));
+    await tester.pumpAndSettle();
+    expect(find.text('Nouveau compte'), findsOneWidget);
+
+    // Saisie du nom puis création (bouton possiblement sous le pli de la
+    // feuille sur petit écran — le rendre visible avant le tap).
+    await tester.enterText(
+        find.widgetWithText(TextField, 'Ex. : MoMo MTN, Compte BOA, Tirelire…'),
+        'MoMo MTN');
+    await tester.ensureVisible(find.text('Créer le compte'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Créer le compte'));
+    await tester.pumpAndSettle();
+    // Laisser la flux Drift propager le nouveau compte aux providers.
+    await tester.pump(const Duration(milliseconds: 200));
+    await tester.pumpAndSettle();
+
+    // Retour à l'écran : le compte créé est sélectionné dans le menu.
+    expect(tester.takeException(), isNull);
+    expect(find.text('MoMo MTN (XOF)'), findsOneWidget);
+    // Vérification en base (requête ponctuelle — jamais un flux watch, qui
+    // n'émet pas sous fake-async sans pump).
+    final spaceId =
+        (await db.getAllSpaces()).firstWhere((s) => s.type == 'PERSONAL').id;
+    final accounts = await (db.select(db.financialAccounts)
+          ..where((a) => a.spaceId.equals(spaceId)))
+        .get();
+    expect(accounts.length, 1, reason: 'Le compte doit être en base.');
+    expect(accounts.first.name, 'MoMo MTN');
+    await disposeTree(tester);
+  });
+
+  testWidgets('menu déroulant : « Nouveau compte… » proposé en fin de liste',
+      (tester) async {
+    await bootstrap(withAccounts: true);
+    await pumpScreen(tester, 'expense');
+
+    // Ouvre le menu du sélecteur de compte.
+    await tester.tap(find.text('Compte CASH (XOF)'));
+    await tester.pumpAndSettle();
+    expect(find.text('Nouveau compte…'), findsOneWidget);
+    await tester.tap(find.text('Nouveau compte…'));
+    await tester.pumpAndSettle();
+
+    // La feuille de création s'ouvre.
+    expect(find.text('Créer le compte'), findsOneWidget);
     await disposeTree(tester);
   });
 

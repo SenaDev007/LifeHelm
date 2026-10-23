@@ -2,6 +2,7 @@ import 'package:drift/drift.dart' hide Column;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:uuid/uuid.dart';
 
 import '../../core/db/database.dart';
 import '../../core/providers.dart';
@@ -133,6 +134,15 @@ extension FinanceQueries on AppDatabase {
   Stream<List<FinancialAccount>> watchAccounts(String spaceId) {
     return (select(financialAccounts)
           ..where((a) => a.spaceId.equals(spaceId) & a.archivedAt.isNull())
+          ..orderBy([(a) => OrderingTerm(expression: a.createdAt)]))
+        .watch();
+  }
+
+  /// Tous les comptes de l'espace, archivés compris (écran de gestion,
+  /// libellés des opérations anciennes).
+  Stream<List<FinancialAccount>> watchAllAccounts(String spaceId) {
+    return (select(financialAccounts)
+          ..where((a) => a.spaceId.equals(spaceId))
           ..orderBy([(a) => OrderingTerm(expression: a.createdAt)]))
         .watch();
   }
@@ -490,6 +500,11 @@ extension FinanceQueries on AppDatabase {
 final accountsProvider = StreamProvider.family<List<FinancialAccount>, String>(
     (ref, spaceId) => ref.watch(dbProvider).watchAccounts(spaceId));
 
+/// Tous les comptes (archivés compris) — écran de gestion des comptes.
+final allAccountsProvider =
+    StreamProvider.family<List<FinancialAccount>, String>(
+        (ref, spaceId) => ref.watch(dbProvider).watchAllAccounts(spaceId));
+
 final transactionsProvider =
     StreamProvider.family<List<FinancialTransaction>, String>(
         (ref, spaceId) => ref.watch(dbProvider).watchTransactions(spaceId));
@@ -614,7 +629,9 @@ class FinanceScreen extends ConsumerWidget {
   List<Widget> _recentTx(
       BuildContext context, WidgetRef ref, List<FinancialTransaction> txs) {
     final spaceId = ref.watch(activeSpaceIdProvider);
-    final accounts = ref.watch(accountsProvider(spaceId)).valueOrNull ?? [];
+    // Tous comptes, archivés compris : le libellé des opérations anciennes
+    // reste correct même après archivage du compte concerné.
+    final accounts = ref.watch(allAccountsProvider(spaceId)).valueOrNull ?? [];
     final categories = ref.watch(categoriesProvider(spaceId)).valueOrNull ?? [];
     return txs
         .take(8)
@@ -665,13 +682,19 @@ class _ConsolidatedCard extends StatelessWidget {
                   ? LHColors.or
                   : LHColors.orDeep),
           const SizedBox(width: 8),
-          Text('PATRIMOINE CONSOLIDÉ',
-              style: theme.textTheme.labelSmall?.copyWith(
-                  letterSpacing: 1.2,
-                  fontWeight: FontWeight.w700,
-                  color: theme.brightness == Brightness.dark
-                      ? LHColors.or
-                      : LHColors.orDeep)),
+          Expanded(
+            child: Text('PATRIMOINE CONSOLIDÉ',
+                style: theme.textTheme.labelSmall?.copyWith(
+                    letterSpacing: 1.2,
+                    fontWeight: FontWeight.w700,
+                    color: theme.brightness == Brightness.dark
+                        ? LHColors.or
+                        : LHColors.orDeep)),
+          ),
+          TextButton(
+            onPressed: () => context.push('/accounts'),
+            child: const Text('Gérer'),
+          ),
         ]),
         const SizedBox(height: 6),
         Text(
@@ -1033,7 +1056,18 @@ class _AccountDetailScreenState extends ConsumerState<AccountDetailScreen> {
         .firstOrNull;
 
     return Scaffold(
-      appBar: AppBar(title: Text(balance?.account.name ?? 'Compte')),
+      appBar: AppBar(
+        title: Text(balance?.account.name ?? 'Compte'),
+        actions: [
+          if (balance != null)
+            IconButton(
+              tooltip: 'Modifier le compte',
+              icon: const Icon(Icons.edit_outlined),
+              onPressed: () =>
+                  showAccountEditSheet(context, ref, existing: balance.account),
+            ),
+        ],
+      ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => context.push('/transaction/new?account=${widget.id}'),
         icon: const Icon(Icons.add),
@@ -1205,6 +1239,480 @@ class _AccountDetailScreenState extends ConsumerState<AccountDetailScreen> {
             child: const Text('Valider'),
           ),
         ],
+      ),
+    );
+  }
+}
+
+// ═══════════════════════════ SÉLECTEUR DE COMPTE ═══════════════════════════
+
+/// Sélecteur de compte avec création intégrée : liste les comptes actifs de
+/// l'espace et propose « Nouveau compte… » directement dans le menu. Si aucun
+/// compte n'existe, affiche un bouton de création plein cadre au lieu d'un
+/// menu vide et grisé (issue v0.2.1 : sélecteurs de compte inutilisables).
+class AccountPickerField extends ConsumerWidget {
+  const AccountPickerField({
+    super.key,
+    required this.value,
+    required this.onChanged,
+    this.label = 'Compte',
+  });
+
+  final String? value;
+  final ValueChanged<String?> onChanged;
+  final String label;
+
+  /// Valeur sentinel du menu déroulant pour « créer un compte ».
+  static const String kNewAccount = '__new_account__';
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    final spaceId = ref.watch(activeSpaceIdProvider);
+    final accounts = ref.watch(accountsProvider(spaceId)).valueOrNull ?? [];
+
+    // Aucun compte : le menu serait vide et grisé — création plein cadre.
+    if (accounts.isEmpty) {
+      return LabeledField(
+        label: label,
+        child: OutlinedButton.icon(
+          onPressed: () async {
+            final acc = await showAccountEditSheet(context, ref);
+            if (acc != null) onChanged(acc.id);
+          },
+          icon: const Icon(Icons.add_card_outlined),
+          label: const Text('Créer un premier compte'),
+        ),
+      );
+    }
+
+    final selected =
+        accounts.any((a) => a.id == value) ? value : accounts.first.id;
+    final accent =
+        theme.brightness == Brightness.dark ? LHColors.or : LHColors.orDeep;
+    return LabeledField(
+      label: label,
+      child: DropdownButtonFormField<String>(
+        value: selected,
+        isExpanded: true,
+        items: [
+          for (final a in accounts)
+            DropdownMenuItem(
+              value: a.id,
+              child: Row(children: [
+                Icon(accountTypeIcon(a.type),
+                    size: 18, color: accountTypeColor(a.type, context)),
+                const SizedBox(width: 8),
+                Expanded(
+                    child: Text('${a.name} (${a.currency})',
+                        maxLines: 1, overflow: TextOverflow.ellipsis)),
+              ]),
+            ),
+          DropdownMenuItem(
+            value: kNewAccount,
+            child: Row(children: [
+              Icon(Icons.add, size: 18, color: accent),
+              const SizedBox(width: 8),
+              Text('Nouveau compte…',
+                  style: theme.textTheme.labelMedium
+                      ?.copyWith(color: accent, fontWeight: FontWeight.w700)),
+            ]),
+          ),
+        ],
+        onChanged: (v) async {
+          if (v == kNewAccount) {
+            final acc = await showAccountEditSheet(context, ref);
+            if (acc != null) onChanged(acc.id);
+            return;
+          }
+          onChanged(v);
+        },
+      ),
+    );
+  }
+}
+
+// ═══════════════════════════ FEUILLE : COMPTE ═══════════════════════════
+
+const List<(String, String)> kAccountTypes = [
+  ('CASH', 'Espèces'),
+  ('BANK', 'Compte bancaire'),
+  ('MOBILE_MONEY', 'Mobile Money'),
+  ('SAVING', 'Épargne'),
+  ('CUSTOM', 'Personnalisé'),
+];
+
+/// Feuille de création/édition d'un compte financier (D05 §10.2) : nom, type,
+/// devise, solde initial, note ; archivage/réactivation en édition.
+/// Retourne le compte créé/modifié, ou null si annulation.
+Future<FinancialAccount?> showAccountEditSheet(
+    BuildContext context, WidgetRef ref,
+    {FinancialAccount? existing}) {
+  return showModalBottomSheet<FinancialAccount>(
+    context: context,
+    isScrollControlled: true,
+    builder: (ctx) => _AccountEditSheet(existing: existing),
+  );
+}
+
+class _AccountEditSheet extends ConsumerStatefulWidget {
+  const _AccountEditSheet({this.existing});
+
+  final FinancialAccount? existing;
+
+  @override
+  ConsumerState<_AccountEditSheet> createState() => _AccountEditSheetState();
+}
+
+class _AccountEditSheetState extends ConsumerState<_AccountEditSheet> {
+  late final TextEditingController _nameCtrl;
+  late final TextEditingController _amountCtrl;
+  late final TextEditingController _noteCtrl;
+  late String _type;
+  late Currency _currency;
+  bool _saving = false;
+  String? _error;
+
+  bool get _isEdit => widget.existing != null;
+
+  @override
+  void initState() {
+    super.initState();
+    final e = widget.existing;
+    _nameCtrl = TextEditingController(text: e?.name ?? '');
+    _type = e?.type ?? 'CASH';
+    _currency = e == null ? Currency.xof : Currency.byCode(e.currency);
+    _amountCtrl = TextEditingController(
+        text: e == null || e.initialAmount == 0
+            ? ''
+            : Money(e.initialAmount, _currency).format(withCode: false));
+    _noteCtrl = TextEditingController(text: e?.note ?? '');
+  }
+
+  @override
+  void dispose() {
+    _nameCtrl.dispose();
+    _amountCtrl.dispose();
+    _noteCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _save() async {
+    final name = _nameCtrl.text.trim();
+    if (name.isEmpty) {
+      setState(() => _error = 'Donnez un nom au compte.');
+      return;
+    }
+    final money = _amountCtrl.text.trim().isEmpty
+        ? Money.zero(_currency)
+        : Money.tryParse(_amountCtrl.text, _currency);
+    if (money == null) {
+      setState(() => _error = 'Solde initial invalide.');
+      return;
+    }
+    setState(() {
+      _saving = true;
+      _error = null;
+    });
+    final db = ref.read(dbProvider);
+    final spaceId = ref.read(activeSpaceIdProvider);
+    final note = _noteCtrl.text.trim().isEmpty ? null : _noteCtrl.text.trim();
+
+    if (!_isEdit) {
+      final id = const Uuid().v4();
+      await db.into(db.financialAccounts).insert(
+          FinancialAccountsCompanion.insert(
+              id: id,
+              spaceId: spaceId,
+              name: name,
+              type: _type,
+              currency: Value(_currency.code),
+              initialAmount: Value(money.minor),
+              initialDate: fmt.dateKey(fmt.today()),
+              note: Value(note)));
+      db.logOp('FinancialAccount', id, 'CREATE', {'name': name, 'type': _type});
+      final acc = await db.getAccount(id);
+      if (mounted) Navigator.pop(context, acc);
+      return;
+    }
+    final e = widget.existing!;
+    await (db.update(db.financialAccounts)..where((a) => a.id.equals(e.id)))
+        .write(FinancialAccountsCompanion(
+            name: Value(name),
+            type: Value(_type),
+            currency: Value(_currency.code),
+            initialAmount: Value(money.minor),
+            note: Value(note)));
+    db.logOp('FinancialAccount', e.id, 'UPDATE', {'name': name, 'type': _type});
+    final acc = await db.getAccount(e.id);
+    if (mounted) Navigator.pop(context, acc);
+  }
+
+  Future<void> _toggleArchive() async {
+    final e = widget.existing!;
+    final archiving = e.archivedAt == null;
+    if (archiving) {
+      final ok = await lhConfirm(
+        context,
+        title: 'Archiver « ${e.name} » ?',
+        message: 'Le compte quitte les sélecteurs et le patrimoine consolidé, '
+            'mais son historique est conservé et aucune opération n\'est '
+            'supprimée. Il pourra être réactivé à tout moment.',
+        confirmLabel: 'Archiver',
+        destructive: true,
+      );
+      if (!ok) return;
+    }
+    final db = ref.read(dbProvider);
+    await (db.update(db.financialAccounts)..where((a) => a.id.equals(e.id)))
+        .write(FinancialAccountsCompanion(
+            archivedAt: Value(archiving ? DateTime.now() : null)));
+    db.logOp('FinancialAccount', e.id, 'UPDATE', {'archived': archiving});
+    final acc = await db.getAccount(e.id);
+    if (mounted) Navigator.pop(context, acc);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final e = widget.existing;
+    return Padding(
+      padding: EdgeInsets.only(
+          left: LHSpacing.screen,
+          right: LHSpacing.screen,
+          top: LHSpacing.lg,
+          bottom: MediaQuery.of(context).viewInsets.bottom + LHSpacing.lg),
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              _isEdit ? 'Modifier le compte' : 'Nouveau compte',
+              style: theme.textTheme.headlineSmall
+                  ?.copyWith(fontWeight: FontWeight.w800),
+            ),
+            const SizedBox(height: LHSpacing.sm),
+            Text(
+              _isEdit
+                  ? 'Les opérations existantes conservent leur devise d\'origine.'
+                  : 'Quatre comptes types ont été créés automatiquement — '
+                      'ajoutez ici vos comptes réels (MoMo, banque…).',
+              style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant, height: 1.4),
+            ),
+            const SizedBox(height: LHSpacing.lg),
+            LabeledField(
+              label: 'Nom du compte',
+              child: TextField(
+                controller: _nameCtrl,
+                autofocus: !_isEdit,
+                textCapitalization: TextCapitalization.words,
+                decoration: const InputDecoration(
+                    hintText: 'Ex. : MoMo MTN, Compte BOA, Tirelire…'),
+              ),
+            ),
+            const SizedBox(height: LHSpacing.md),
+            LabeledField(
+              label: 'Type',
+              child: DropdownButtonFormField<String>(
+                value:
+                    kAccountTypes.any((t) => t.$1 == _type) ? _type : 'CUSTOM',
+                isExpanded: true,
+                items: [
+                  for (final (code, label) in kAccountTypes)
+                    DropdownMenuItem(
+                        value: code,
+                        child: Row(children: [
+                          Icon(accountTypeIcon(code),
+                              size: 18, color: accountTypeColor(code, context)),
+                          const SizedBox(width: 8),
+                          Text(label),
+                        ])),
+                ],
+                onChanged: (v) => setState(() => _type = v ?? 'CUSTOM'),
+              ),
+            ),
+            const SizedBox(height: LHSpacing.md),
+            LabeledField(
+              label: 'Devise',
+              child: DropdownButtonFormField<Currency>(
+                value: _currency,
+                isExpanded: true,
+                items: [
+                  for (final c in Currency.all)
+                    DropdownMenuItem(
+                        value: c, child: Text('${c.label} (${c.code})')),
+                ],
+                onChanged: (v) => setState(() => _currency = v ?? Currency.xof),
+              ),
+            ),
+            const SizedBox(height: LHSpacing.md),
+            LabeledField(
+              label: 'Solde initial',
+              child: TextField(
+                controller: _amountCtrl,
+                keyboardType: TextInputType.number,
+                decoration: InputDecoration(
+                  hintText: '0 ${_currency.symbol}',
+                  helperText: _isEdit
+                      ? 'Point de départ du solde, compté depuis le '
+                          '${fmt.formatShort(fmt.parseKey(e!.initialDate))}.'
+                      : 'Argent présent sur le compte aujourd\'hui — '
+                          'peut rester vide.',
+                ),
+              ),
+            ),
+            const SizedBox(height: LHSpacing.md),
+            LabeledField(
+              label: 'Note (facultatif)',
+              child: TextField(
+                controller: _noteCtrl,
+                decoration: const InputDecoration(
+                    hintText: 'Ex. : compte principal, épargne projet…'),
+              ),
+            ),
+            if (_error != null) ...[
+              const SizedBox(height: LHSpacing.md),
+              Text(_error!,
+                  style: theme.textTheme.bodySmall
+                      ?.copyWith(color: LHColors.erreur)),
+            ],
+            const SizedBox(height: LHSpacing.lg),
+            FilledButton(
+              onPressed: _saving ? null : _save,
+              child: _saving
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2))
+                  : Text(_isEdit ? 'Enregistrer' : 'Créer le compte'),
+            ),
+            if (_isEdit) ...[
+              const SizedBox(height: LHSpacing.sm),
+              OutlinedButton.icon(
+                style: OutlinedButton.styleFrom(
+                    foregroundColor: e!.archivedAt == null
+                        ? LHColors.erreur
+                        : LHColors.emeraudeClair),
+                onPressed: _toggleArchive,
+                icon: Icon(e.archivedAt == null
+                    ? Icons.archive_outlined
+                    : Icons.restore_from_trash_outlined),
+                label: Text(e.archivedAt == null
+                    ? 'Archiver le compte'
+                    : 'Réactiver le compte'),
+              ),
+            ],
+            const SizedBox(height: LHSpacing.sm),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ═══════════════════════════ ÉCRAN : GESTION DES COMPTES ═══════════════════════════
+
+/// Gestion des comptes financiers de l'espace : liste avec soldes, création,
+/// modification, archivage (D05 §10.2). Accessible depuis Finances → « Gérer ».
+class AccountsScreen extends ConsumerWidget {
+  const AccountsScreen({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final spaceId = ref.watch(activeSpaceIdProvider);
+    final accountsAsync = ref.watch(allAccountsProvider(spaceId));
+    final balances = ref.watch(balancesProvider(spaceId)).valueOrNull ?? [];
+
+    return Scaffold(
+      appBar: LhAppBar(title: 'Comptes'),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () => showAccountEditSheet(context, ref),
+        icon: const Icon(Icons.add),
+        label: const Text('Nouveau compte'),
+      ),
+      body: accountsAsync.when(
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (err, _) =>
+            EmptyState(icon: Icons.error_outline, message: '$err'),
+        data: (all) {
+          final active = all.where((a) => a.archivedAt == null).toList();
+          final archived = all.where((a) => a.archivedAt != null).toList();
+          if (all.isEmpty) {
+            return const EmptyState(
+              illustration: 'assets/illustrations/finance.png',
+              icon: Icons.account_balance_wallet_outlined,
+              message: 'Aucun compte',
+              hint: 'Créez un compte pour enregistrer vos opérations.',
+            );
+          }
+          return ListView(
+            padding: const EdgeInsets.only(bottom: 96),
+            children: [
+              SectionHeader('Comptes actifs',
+                  inset: LHSpacing.screen, overline: '${active.length}'),
+              for (final a in active)
+                _manageTile(context, ref, a,
+                    balances.where((b) => b.account.id == a.id).firstOrNull,
+                    archived: false),
+              if (archived.isNotEmpty) ...[
+                const SizedBox(height: LHSpacing.lg),
+                SectionHeader('Archivés',
+                    inset: LHSpacing.screen, overline: '${archived.length}'),
+                for (final a in archived)
+                  _manageTile(context, ref, a, null, archived: true),
+              ],
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _manageTile(BuildContext context, WidgetRef ref, FinancialAccount a,
+      AccountBalance? balance,
+      {required bool archived}) {
+    final theme = Theme.of(context);
+    final color = accountTypeColor(a.type, context);
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
+      child: LHCard(
+        onTap: () => showAccountEditSheet(context, ref, existing: a),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        child: Row(children: [
+          Container(
+            width: 38,
+            height: 38,
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(LHRadius.md),
+            ),
+            child: Icon(accountTypeIcon(a.type), size: 20, color: color),
+          ),
+          const SizedBox(width: LHSpacing.md),
+          Expanded(
+            child:
+                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(a.name, style: theme.textTheme.titleSmall),
+              Text(
+                archived
+                    ? 'Archivé · ${accountTypeLabel(a.type)}'
+                    : '${accountTypeLabel(a.type)} · ${a.currency}',
+                style: theme.textTheme.bodySmall
+                    ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+              ),
+            ]),
+          ),
+          if (balance != null)
+            Text(
+              Money(balance.current, balance.currency).format(withCode: false),
+              style: theme.textTheme.titleSmall
+                  ?.copyWith(fontWeight: FontWeight.w800),
+            ),
+          const Icon(Icons.chevron_right_rounded,
+              size: 20, color: LHColors.neutre),
+        ]),
       ),
     );
   }
