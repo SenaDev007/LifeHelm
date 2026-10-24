@@ -22,12 +22,14 @@ android {
     namespace = "com.yehiortech.lifehelm"
     compileSdk = flutter.compileSdkVersion
     // NDK : aucun module de l'app ne compile en natif (AAR précompilés ;
-    // overrides path_provider/shared_preferences pour éviter « jni »). La
-    // version reste déclarée + un marqueur source.properties posé dans le SDK
-    // pour que le plugin Gradle Flutter considère le NDK comme « déjà
-    // installé » — sinon il tente un téléchargement automatique de ~2 Go
-    // (inutile : rien n'en a besoin) via sdkmanager.
-    ndkVersion = flutter.ndkVersion
+    // overrides path_provider/shared_preferences pour éviter « jni »).
+    // AUCUNE version épinglée : épingler ndkVersion force AGP à garantir
+    // cette version exacte (téléchargement sdkmanager ~2 Go) et faisait
+    // échouer :app:stripReleaseDebugSymbols au build release sur des postes
+    // où ce NDK précis est absent ou corrompu — avant même que le correctif
+    // keepDebugSymbols (voir packaging ci-dessous) ne s'applique. Sans
+    // épingle : NDK absent → simple avertissement AGP et les .so passent
+    // tels quels ; NDK présent → keepDebugSymbols neutralise llvm-strip.
 
     compileOptions {
         // Desugaring — exigé par flutter_local_notifications (notifications
