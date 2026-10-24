@@ -80,6 +80,20 @@ android {
             }
         }
     }
+
+    // Strip des symboles de débogage des .so : DÉSACTIVÉ. L'app ne compile
+    // aucun code natif — les .so (libsqlite3, moteur Flutter, snapshot AOT)
+    // proviennent d'AAR précompilés déjà optimisés. Correctif du crash
+    // « Release app bundle failed to strip debug symbols from native
+    // libraries » : llvm-strip (NDK) échoue sur certains postes Windows
+    // (NDK partiellement téléchargé par AGP, antivirus, chemins longs) et
+    // bloquait tout le build release. Avec ce motif, les .so sont
+    // empaquetés tels quels — aucune incidence sur le fonctionnement.
+    packaging {
+        jniLibs {
+            keepDebugSymbols.add("**/*.so")
+        }
+    }
 }
 
 kotlin {
