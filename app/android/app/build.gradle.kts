@@ -22,14 +22,16 @@ android {
     namespace = "com.yehiortech.lifehelm"
     compileSdk = flutter.compileSdkVersion
     // NDK : aucun module de l'app ne compile en natif (AAR précompilés ;
-    // overrides path_provider/shared_preferences pour éviter « jni »).
-    // AUCUNE version épinglée : épingler ndkVersion force AGP à garantir
-    // cette version exacte (téléchargement sdkmanager ~2 Go) et faisait
-    // échouer :app:stripReleaseDebugSymbols au build release sur des postes
-    // où ce NDK précis est absent ou corrompu — avant même que le correctif
-    // keepDebugSymbols (voir packaging ci-dessous) ne s'applique. Sans
-    // épingle : NDK absent → simple avertissement AGP et les .so passent
-    // tels quels ; NDK présent → keepDebugSymbols neutralise llvm-strip.
+    // overrides path_provider/shared_preferences pour éviter « jni »),
+    // MAIS la tâche stripReleaseDebugSymbols a besoin d'un NDK résolu pour
+    // lancer llvm-strip. Épinglé à 28.2.13676358 — version installée sur
+    // le poste de build (flutter passe installedNdkVersions=27.0.12077973,
+    // 28.2.13676358) — car si le NDK configuré est introuvable, AGP saute
+    // le strip avec un simple avertissement : le build Gradle réussit mais
+    // l'AAB contient des .so non striés, que flutter_tools rejette ensuite
+    // (voir la note « strip » ci-dessous). Sur un autre poste sans ce NDK,
+    // Android Studio le téléchargera au premier build.
+    ndkVersion = "28.2.13676358"
 
     compileOptions {
         // Desugaring — exigé par flutter_local_notifications (notifications
@@ -83,19 +85,16 @@ android {
         }
     }
 
-    // Strip des symboles de débogage des .so : DÉSACTIVÉ. L'app ne compile
-    // aucun code natif — les .so (libsqlite3, moteur Flutter, snapshot AOT)
-    // proviennent d'AAR précompilés déjà optimisés. Correctif du crash
-    // « Release app bundle failed to strip debug symbols from native
-    // libraries » : llvm-strip (NDK) échoue sur certains postes Windows
-    // (NDK partiellement téléchargé par AGP, antivirus, chemins longs) et
-    // bloquait tout le build release. Avec ce motif, les .so sont
-    // empaquetés tels quels — aucune incidence sur le fonctionnement.
-    packaging {
-        jniLibs {
-            keepDebugSymbols.add("**/*.so")
-        }
-    }
+    // Strip des symboles de débogage des .so : DOIT rester ACTIF.
+    // flutter_tools (flutter build appbundle) valide l'AAB APRÈS le build
+    // Gradle : il inspecte les tables de symboles ELF de chaque
+    // lib/<abi>/*.so et fait échouer la commande avec « Release app bundle
+    // failed to strip debug symbols from native libraries » si une seule
+    // bibliothèque n'est pas striée — même quand le build Gradle a réussi.
+    // C'est pourquoi jniLibs.keepDebugSymbols est INTERDIT ici : il
+    // neutralise llvm-strip et garantit ce rejet (flutter/flutter#170004).
+    // Correctif : plus aucun bloc packaging — le strip AGP/llvm-strip
+    // s'exécute normalement, aidé par le ndkVersion épinglé ci-dessus.
 }
 
 kotlin {
