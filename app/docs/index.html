@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Politique de confidentialité — LifeHelm</title>
+<style>
+  :root { --accent: #FFB400; --ink: #1f2430; --muted: #5b6272; --bg: #fbfaf7; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: "Segoe UI", system-ui, -apple-system, Roboto, Arial, sans-serif;
+    color: var(--ink); background: var(--bg); line-height: 1.7;
+    padding: 2rem 1rem 4rem;
+  }
+  main { max-width: 780px; margin: 0 auto; }
+  header { border-bottom: 4px solid var(--accent); padding-bottom: 1.25rem; margin-bottom: 2rem; }
+  h1 { font-size: 1.7rem; margin-bottom: .35rem; }
+  .meta { color: var(--muted); font-size: .95rem; }
+  h2 {
+    font-size: 1.15rem; margin: 2.2rem 0 .7rem; padding-left: .65rem;
+    border-left: 4px solid var(--accent);
+  }
+  p, li { font-size: 1rem; margin-bottom: .6rem; }
+  ul { padding-left: 1.4rem; margin-bottom: .8rem; }
+  li { margin-bottom: .35rem; }
+  .card {
+    background: #fff; border: 1px solid #e8e4da; border-radius: 10px;
+    padding: 1rem 1.2rem; margin: .8rem 0;
+  }
+  footer {
+    margin-top: 3rem; padding-top: 1rem; border-top: 1px solid #e0dccf;
+    color: var(--muted); font-size: .9rem;
+  }
+  strong { color: #000; }
+</style>
+</head>
+<body>
+<main>
+
+<header>
+  <h1>Politique de confidentialité</h1>
+  <p class="meta">Application <strong>LifeHelm</strong> — édité par <strong>YEHI OR Tech</strong></p>
+  <p class="meta">Dernière mise à jour : 25 octobre 2026</p>
+</header>
+
+<p>Cette politique décrit quelles données personnelles l'application LifeHelm
+traite, pourquoi, où elles sont stockées et quels sont vos droits. Elle est
+rédigée dans un langage simple et s'applique à l'application mobile LifeHelm
+pour Android.</p>
+
+<h2>1. Qui sommes-nous</h2>
+<p>LifeHelm est une application d'organisation personnelle et familiale
+(finances, calendrier, listes, notes, tâches, prêts) développée et éditée par
+<strong>YEHI OR Tech</strong>. Pour toute question relative à vos données :
+<strong>contact@yehiortech.com</strong>.</p>
+
+<h2>2. Données que nous traitons</h2>
+
+<div class="card">
+<p><strong>a) Données de compte (uniquement si vous créez un compte)</strong></p>
+<ul>
+  <li>Nom d'affichage que vous choisissez ;</li>
+  <li>Numéro de téléphone <em>ou</em> adresse e-mail — servant d'identifiant
+      de connexion ;</li>
+  <li>Mot de passe (jamais stocké en clair : seule son empreinte
+      cryptographique est conservée sur nos serveurs) ;</li>
+  <li>Si vous les activez : code de double authentification (TOTP) et réponses
+      aux questions de sécurité de récupération.</li>
+</ul>
+</div>
+
+<div class="card">
+<p><strong>b) Données que vous saisissez dans l'application</strong></p>
+<ul>
+  <li><strong>Module finances</strong> : comptes (nom, type, solde initial),
+      opérations, prêts et échéances, budgets ;</li>
+  <li><strong>Modules organisation</strong> : événements de calendrier, listes,
+      notes, tâches, bilan de vie, profil de carrière ;</li>
+  <li><strong>Photo de profil</strong> : uniquement si vous en choisissez une ;</li>
+  <li>Espaces partagés : le nom et le rôle (propriétaire, administrateur,
+      membre…) des personnes que vous invitez.</li>
+</ul>
+</div>
+
+<div class="card">
+<p><strong>c) Données techniques</strong></p>
+<ul>
+  <li>Un jeton d'appareil (token) nécessaire à l'envoi des notifications
+      (rappels, briefings), géré par Google Firebase Cloud Messaging ;</li>
+  <li>Les journaux techniques de nos serveurs (adresses IP, horodatages) à des
+      fins de sécurité et de lutte contre les abus, conservés quelques mois.</li>
+</ul>
+</div>
+
+<h2>3. Accès à vos contacts</h2>
+<p>Si vous utilisez le carnet d'adresses intégré (messagerie), LifeHelm demande
+l'autorisation de <strong>lire vos contacts</strong>. Cet accès sert uniquement
+à afficher et sélectionner vos correspondants <em>au sein de l'application</em>.
+Vos contacts <strong>ne sont ni copiés, ni transférés, ni stockés sur nos
+serveurs</strong>. Si vous refusez cette autorisation, le reste de
+l'application reste pleinement fonctionnel.</p>
+
+<h2>4. Où sont stockées vos données</h2>
+<p>LifeHelm fonctionne selon le principe <strong>« local d'abord »</strong> :</p>
+<ul>
+  <li><strong>Sur votre appareil</strong> : toutes vos données sont enregistrées
+      dans une base locale (SQLite) qui reste accessible hors connexion ;</li>
+  <li><strong>Sur nos serveurs de synchronisation</strong> (uniquement si vous
+      créez un compte) : une copie protégée en transit (HTTPS) de vos données
+      permet de les retrouver sur un nouvel appareil et de partager vos espaces
+      familiaux ou professionnels ;</li>
+  <li><strong>Chez Google (Firebase)</strong> : le jeton de notification de
+      votre appareil, afin de vous envoyer les rappels que vous avez
+      programmés. Aucun autre usage n'en est fait.</li>
+</ul>
+
+<h2>5. Ce que nous ne faisons pas</h2>
+<ul>
+  <li>Nous ne vendons ni ne louons vos données à des tiers ;</li>
+  <li>Nous n'affichons aucune publicité et n'intégrons aucun réseau de
+      publicité ni traceur tiers ;</li>
+  <li>Nous n'analysons pas votre comportement à des fins commerciales ;</li>
+  <li>Nous ne lisons pas vos messages ni le contenu de vos contacts.</li>
+</ul>
+
+<h2>6. Durée de conservation</h2>
+<p>Vos données sont conservées aussi longtemps que votre compte existe. Sans
+compte, vos données restent uniquement sur votre appareil jusqu'à la
+désinstallation de l'application. Lorsque vous supprimez votre compte depuis
+l'application, vos données synchronisées sont supprimées de nos serveurs, à
+l'exception des journaux techniques conservés un temps limité (sécurité,
+obligations légales).</p>
+
+<h2>7. Vos droits</h2>
+<p>Conformément au Règlement général sur la protection des données (RGPD) et à
+la loi béninoise n° 2017-20 sur la protection des données à caractère
+personnel, vous disposez des droits suivants :</p>
+<ul>
+  <li><strong>Accès</strong> : connaître les données que nous détenons sur vous ;</li>
+  <li><strong>Rectification</strong> : corriger vos informations à tout moment
+      depuis l'application ;</li>
+  <li><strong>Suppression</strong> : effacer votre compte et vos données ;</li>
+  <li><strong>Portabilité</strong> : obtenir une copie de vos données ;</li>
+  <li><strong>Retrait du consentement</strong> : refuser les notifications ou
+      l'accès aux contacts à tout moment dans les réglages d'Android.</li>
+</ul>
+<p>Pour exercer ces droits, écrivez à <strong>contact@yehiortech.com</strong>.
+Nous répondons dans un délai maximum de 30 jours.</p>
+
+<h2>8. Sécurité</h2>
+<p>Les échanges entre l'application et nos serveurs sont protégés par le
+protocole HTTPS. Les mots de passe sont hachés, jamais stockés en clair. Les
+données locales de votre appareil bénéficient du chiffrement du système
+Android. Aucune mesure de sécurité n'étant absolue, nous vous invitons à
+protéger votre appareil par un code de déverrouillage.</p>
+
+<h2>9. Enfants</h2>
+<p>LifeHelm n'est pas destinée aux enfants de moins de 13 ans et nous ne
+collectons pas sciemment de données les concernant. Si vous estimez qu'un
+enfant nous a transmis des données personnelles, contactez-nous afin de les
+supprimer.</p>
+
+<h2>10. Modifications de cette politique</h2>
+<p>Nous pouvons faire évoluer cette politique pour refléter les changements de
+l'application. Toute modification substantielle vous sera notifiée dans
+l'application avant de prendre effet. La date de dernière mise à jour figure
+en tête de ce document.</p>
+
+<footer>
+  <p>YEHI OR Tech — Cotonou, Bénin — contact@yehiortech.com</p>
+  <p>Application LifeHelm (com.yehiortech.lifehelm) — version 0.2.2</p>
+</footer>
+
+</main>
+</body>
+</html>
