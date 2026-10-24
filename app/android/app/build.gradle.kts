@@ -17,6 +17,13 @@ val keystoreProperties = Properties().apply {
     if (f.exists()) f.inputStream().use { load(it) }
 }
 val hasReleaseKeystore = keystoreProperties.getProperty("storeFile") != null
+if (!hasReleaseKeystore) {
+    logger.warn(
+        "⚠️  android/key.properties introuvable : le bundle release sera signé " +
+        "avec la CLÉ DEBUG — refusé par la Play Console. Créez le keystore " +
+        "(keytool -genkey) + android/key.properties avant le build release."
+    )
+}
 
 android {
     namespace = "com.yehiortech.lifehelm"
